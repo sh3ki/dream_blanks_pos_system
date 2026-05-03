@@ -4,7 +4,32 @@
   <h1>Profile Settings</h1>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+<div style="display:grid;grid-template-columns:220px 1fr 1fr;gap:24px;align-items:start">
+
+  <!-- Profile Image -->
+  <div class="card" style="text-align:center">
+    <div class="card-body" style="padding:24px 16px">
+      <div style="margin-bottom:16px">
+        <img id="profileImgPreview"
+          src="<?= htmlspecialchars(!empty($user['profile_image']) ? app_url($user['profile_image']) : asset_url('/assets/images/no-image.png')) ?>"
+          alt="Profile"
+          style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:3px solid var(--color-primary);display:block;margin:0 auto 12px"
+          onerror="this.src='<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>'"
+        >
+        <div style="font-weight:600;font-size:.95rem"><?= htmlspecialchars(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?></div>
+        <div style="font-size:.8rem;color:var(--color-gray-500)"><?= htmlspecialchars(implode(', ', array_column($user['roles'] ?? [], 'name'))) ?></div>
+      </div>
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block">
+        <?= icon('upload', 14) ?> Change Photo
+        <input type="file" id="profileImageInput" accept="image/*" style="display:none" onchange="handleProfileImageChange(event)">
+      </label>
+      <div id="profileImgActions" style="display:none;margin-top:8px;display:none">
+        <button class="btn btn-primary btn-sm" onclick="uploadProfileImage()" id="saveImgBtn">Save Photo</button>
+        <button class="btn btn-secondary btn-sm" onclick="cancelProfileImageChange()" style="margin-top:4px">Cancel</button>
+      </div>
+      <div style="font-size:.75rem;color:var(--color-gray-400);margin-top:8px">JPG, PNG, GIF, WEBP &middot; max 10MB</div>
+    </div>
+  </div>
 
   <!-- Personal Information -->
   <div class="card">
@@ -50,6 +75,7 @@
       <div class="alert alert-info" style="margin-bottom:16px;font-size:.875rem">
         Leave these fields blank if you don't want to change your password.
       </div>
+      <form onsubmit="savePassword();return false;" autocomplete="off">
       <div class="form-group">
         <label class="form-label">Current Password</label>
         <input type="password" id="pCurrentPass" class="form-input" placeholder="Enter current password" autocomplete="current-password">
@@ -62,7 +88,8 @@
         <label class="form-label">Confirm New Password</label>
         <input type="password" id="pConfirmPass" class="form-input" placeholder="Repeat new password" autocomplete="new-password">
       </div>
-      <button class="btn btn-primary" onclick="savePassword()" id="savePassBtn">Update Password</button>
+      <button type="submit" class="btn btn-primary" id="savePassBtn">Update Password</button>
+      </form>
     </div>
   </div>
 
@@ -70,6 +97,48 @@
 
 <script>
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+let _pendingProfileImageFile = null;
+let _originalProfileImageSrc = '';
+document.addEventListener('DOMContentLoaded', () => { _originalProfileImageSrc = document.getElementById('profileImgPreview').src; });
+
+function handleProfileImageChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  _pendingProfileImageFile = file;
+  document.getElementById('profileImgPreview').src = URL.createObjectURL(file);
+  document.getElementById('profileImgActions').style.display = '';
+}
+
+function cancelProfileImageChange() {
+  _pendingProfileImageFile = null;
+  document.getElementById('profileImgPreview').src = _originalProfileImageSrc;
+  document.getElementById('profileImgActions').style.display = 'none';
+  document.getElementById('profileImageInput').value = '';
+}
+
+async function uploadProfileImage() {
+  if (!_pendingProfileImageFile) return;
+  const btn = document.getElementById('saveImgBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const formData = new FormData();
+  formData.append('profile_image', _pendingProfileImageFile);
+  try {
+    const res  = await fetch('/api/v1/profile/image', { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: formData });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Profile photo updated!', 'success');
+      _originalProfileImageSrc = appPath(data.data.profile_image);
+      document.getElementById('profileImgPreview').src = _originalProfileImageSrc;
+      document.getElementById('profileImgActions').style.display = 'none';
+      const topbarAvatar = document.getElementById('topbarAvatar');
+      if (topbarAvatar) topbarAvatar.innerHTML = `<img src="${_originalProfileImageSrc}" alt="Profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='<?= strtoupper(substr($_SESSION['user']['first_name'] ?? 'U', 0, 1)) ?>'">`;
+    } else {
+      showToast(data.message || 'Error uploading photo', 'error');
+      cancelProfileImageChange();
+    }
+  } catch (e) { showToast('Network error', 'error'); cancelProfileImageChange(); }
+  btn.disabled = false; btn.innerHTML = 'Save Photo';
+}
 
 async function saveProfile() {
   const btn = document.getElementById('saveProfileBtn');
