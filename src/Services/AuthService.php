@@ -37,12 +37,13 @@ class AuthService
         $permList    = array_map(fn($p) => "{$p['module']}.{$p['action']}", $permissions);
 
         $sessionUser = [
-            'id'         => $user['id'],
-            'username'   => $user['username'],
-            'email'      => $user['email'],
-            'first_name' => $user['first_name'],
-            'last_name'  => $user['last_name'],
-            'roles'      => array_column($roles, 'name'),
+            'id'            => $user['id'],
+            'username'      => $user['username'],
+            'email'         => $user['email'],
+            'first_name'    => $user['first_name'],
+            'last_name'     => $user['last_name'],
+            'profile_image' => $user['profile_image'] ?? null,
+            'roles'         => array_column($roles, 'name'),
         ];
 
         $_SESSION['user']        = $sessionUser;
