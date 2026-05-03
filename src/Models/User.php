@@ -52,8 +52,12 @@ class User extends Model
         );
     }
 
-    public static function search(string $term, int $page, int $perPage, string $status = ''): array
+    public static function search(string $term, int $page, int $perPage, string $status = '', string $sort = 'created_at', string $order = 'DESC'): array
     {
+        $allowed = ['first_name','last_name','username','email','status','last_login','created_at'];
+        $sort    = in_array($sort, $allowed) ? $sort : 'created_at';
+        $order   = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
+
         $where  = "(username LIKE ? OR email LIKE ? OR first_name LIKE ? OR last_name LIKE ?) AND deleted_at IS NULL";
         $params = ["%{$term}%", "%{$term}%", "%{$term}%", "%{$term}%"];
 
@@ -62,7 +66,7 @@ class User extends Model
             $params[] = $status;
         }
 
-        return static::paginate($page, $perPage, $where, $params, 'created_at', 'DESC');
+        return static::paginate($page, $perPage, $where, $params, $sort, $order);
     }
 
     public static function assignRole(int $userId, int $roleId): void
