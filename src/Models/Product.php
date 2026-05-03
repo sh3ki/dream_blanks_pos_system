@@ -23,6 +23,11 @@ class Product extends Model
             $params[] = $filters['category_id'];
         }
 
+        if (!empty($filters['type_id'])) {
+            $where   .= " AND p.type_id = ?";
+            $params[] = $filters['type_id'];
+        }
+
         if (!empty($filters['color_id'])) {
             $where   .= " AND p.color_id = ?";
             $params[] = $filters['color_id'];
@@ -47,15 +52,17 @@ class Product extends Model
                      LEFT JOIN categories c ON c.id = p.category_id
                      LEFT JOIN colors cl ON cl.id = p.color_id
                      LEFT JOIN sizes s ON s.id = p.size_id
+                     LEFT JOIN types t ON t.id = p.type_id
                      WHERE {$where}";
         $total = (int)($db->selectOne($countSql, $params)['cnt'] ?? 0);
 
         $offset = ($page - 1) * $perPage;
-        $sql    = "SELECT p.*, c.name as category_name, cl.name as color_name, s.name as size_name
+        $sql    = "SELECT p.*, c.name as category_name, cl.name as color_name, s.name as size_name, t.name as type_name
                    FROM products p
                    LEFT JOIN categories c ON c.id = p.category_id
                    LEFT JOIN colors cl ON cl.id = p.color_id
                    LEFT JOIN sizes s ON s.id = p.size_id
+                   LEFT JOIN types t ON t.id = p.type_id
                    WHERE {$where}
                    ORDER BY {$orderBy} {$dir}
                    LIMIT {$perPage} OFFSET {$offset}";
@@ -95,7 +102,7 @@ class Product extends Model
         if (!empty($filters['search'])) {
             $term    = "%{$filters['search']}%";
             $where  .= " AND (p.name LIKE ? OR p.sku LIKE ?)";
-            $params  = [$term, $term];
+            $params  = array_merge($params, [$term, $term]);
         }
 
         if (!empty($filters['category_id'])) {
@@ -103,13 +110,28 @@ class Product extends Model
             $params[] = $filters['category_id'];
         }
 
-        $limit = (int)($filters['limit'] ?? 50);
+        if (!empty($filters['type_id'])) {
+            $where   .= " AND p.type_id = ?";
+            $params[] = $filters['type_id'];
+        }
+
+        if (!empty($filters['color_id'])) {
+            $where   .= " AND p.color_id = ?";
+            $params[] = $filters['color_id'];
+        }
+
+        if (!empty($filters['size_id'])) {
+            $where   .= " AND p.size_id = ?";
+            $params[] = $filters['size_id'];
+        }
+
+        $limit = (int)($filters['limit'] ?? 200);
         $sql   = "SELECT p.*, c.name as category_name, c.code as category_code, cl.name as color_name, s.name as size_name, s.code as size_code, t.name as type_name, t.code as type_code
                   FROM products p
                   LEFT JOIN categories c ON c.id = p.category_id
                   LEFT JOIN colors cl ON cl.id = p.color_id
                   LEFT JOIN sizes s ON s.id = p.size_id
-              LEFT JOIN types t ON t.id = p.type_id
+                  LEFT JOIN types t ON t.id = p.type_id
                   WHERE {$where}
                   ORDER BY p.name ASC
                   LIMIT {$limit}";
