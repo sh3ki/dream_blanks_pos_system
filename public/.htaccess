@@ -1,0 +1,20 @@
+Options -Indexes
+RewriteEngine On
+
+# Force HTTPS in production (uncomment for live server)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Deny access to sensitive files
+<FilesMatch "\.(env|log|sql|md|json|lock|yml|yaml|gitignore)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Allow access to static assets
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route all other requests to index.php
+RewriteRule ^ index.php [L]
