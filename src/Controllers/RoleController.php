@@ -23,7 +23,7 @@ class RoleController extends Controller
         }
         $permissions = Permission::allGrouped();
         return $this->view('roles/index', [
-            'title'       => 'Roles & Permissions | Dream Blanks POS',
+            'title'       => 'Roles & Permissions',
             'pageTitle'   => 'Roles & Permissions',
             'roles'       => $roles,
             'permissions' => $permissions,
