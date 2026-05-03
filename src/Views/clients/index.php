@@ -7,8 +7,9 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
     $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
     $params    = array_filter(['search' => $search, 'status' => $status, 'sort' => $col, 'order' => $nextOrder], fn($v) => $v !== '');
     $arrow     = '';
-    if ($currentSort === $col) $arrow = $currentOrder === 'ASC' ? ' ▲' : ' ▼';
-    return '<a href="?' . http_build_query($params) . '" style="color:inherit;text-decoration:none;white-space:nowrap">' . htmlspecialchars($label) . $arrow . '</a>';
+    if ($currentSort === $col) $arrow = $currentOrder === 'ASC' ? ' <span style="font-size:.8em">▲</span>' : ' <span style="font-size:.8em">▼</span>';
+    else $arrow = ' <span style="font-size:.8em;opacity:.5">⇅</span>';
+    return '<a href="?' . http_build_query($params) . '" style="display:block;padding:12px 16px;color:inherit;text-decoration:none;white-space:nowrap">' . htmlspecialchars($label) . $arrow . '</a>';
 }
 ?>
 <div class="page-header">
@@ -34,13 +35,13 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
   <div class="table-wrapper">
     <table class="data-table">
       <thead>
-        <tr>
-          <th><?= clientSortLink('first_name', 'Name', $sort, $order, $search ?? '', $status ?? '') ?></th>
-          <th><?= clientSortLink('email', 'Email', $sort, $order, $search ?? '', $status ?? '') ?></th>
+        <tr style="cursor:pointer">
+          <th style="padding:0"><?= clientSortLink('first_name', 'Name', $sort, $order, $search ?? '', $status ?? '') ?></th>
+          <th style="padding:0"><?= clientSortLink('email', 'Email', $sort, $order, $search ?? '', $status ?? '') ?></th>
           <th>Primary Address</th>
           <th>Primary Contact</th>
-          <th><?= clientSortLink('status', 'Status', $sort, $order, $search ?? '', $status ?? '') ?></th>
-          <th><?= clientSortLink('created_at', 'Created', $sort, $order, $search ?? '', $status ?? '') ?></th>
+          <th style="padding:0"><?= clientSortLink('status', 'Status', $sort, $order, $search ?? '', $status ?? '') ?></th>
+          <th style="padding:0"><?= clientSortLink('created_at', 'Created', $sort, $order, $search ?? '', $status ?? '') ?></th>
           <th>Actions</th>
         </tr>
       </thead>
