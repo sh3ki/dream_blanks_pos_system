@@ -263,6 +263,7 @@
           <li>Fill in your products starting from <strong>Row 3</strong> (Row 1 = headers, Row 2 = example).</li>
           <li>Columns marked with <strong>*</strong> are required: <em>SKU, Name, Cost Price, Selling Price</em>.</li>
           <li><strong>Category, Type, Color, Size &amp; Status</strong> columns have dropdown menus — select from the list.</li>
+          <li><strong>Low Stock Alert</strong> sets the threshold for low-stock warnings (defaults to 10 if left blank).</li>
           <li>Save the file, then upload it here and click <strong>Import</strong>.</li>
         </ol>
         <div style="font-size:.82rem;color:#555">
