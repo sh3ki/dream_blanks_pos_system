@@ -94,6 +94,10 @@ class Invoice extends Model
             $params[] = $filters['date_to'];
         }
 
+        $allowedSort = ['i.invoice_number','i.invoice_date','i.total_amount','i.payment_status','i.created_at'];
+        $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.created_at';
+        $order = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+
         $db     = static::db();
         $total  = (int)($db->selectOne(
             "SELECT COUNT(*) as cnt FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE {$where}",
@@ -105,7 +109,7 @@ class Invoice extends Model
                    FROM invoices i
                    LEFT JOIN clients c ON c.id = i.client_id
                    WHERE {$where}
-                   ORDER BY i.created_at DESC
+                   ORDER BY {$sort} {$order}
                    LIMIT {$perPage} OFFSET {$offset}";
         $items  = $db->select($sql, $params);
 
