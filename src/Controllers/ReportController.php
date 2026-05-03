@@ -1,0 +1,112 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Core\Request;
+use App\Core\Response;
+use App\Services\ReportService;
+use App\Services\AuditService;
+
+class ReportController extends Controller
+{
+    private ReportService $reportService;
+
+    public function __construct()
+    {
+        $this->reportService = new ReportService();
+    }
+
+    public function sales(Request $request): Response
+    {
+        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $from   = $request->query('date_from', date('Y-m-01'));
+        $to     = $request->query('date_to', date('Y-m-d'));
+        $format = $request->query('format', 'json');
+
+        $data = $this->reportService->salesReport($from, $to);
+
+        if ($format === 'csv') {
+            return $this->exportCsv('sales_report', $data['top_products'] ?? []);
+        }
+
+        if ($request->isApi()) {
+            return $this->success($data);
+        }
+
+        return $this->view('reports/sales', ['report' => $data, 'from' => $from, 'to' => $to, 'title' => 'Sales Report']);
+    }
+
+    public function inventory(Request $request): Response
+    {
+        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $data = $this->reportService->inventoryReport();
+
+        if ($request->isApi()) return $this->success($data);
+        return $this->view('reports/inventory', ['report' => $data, 'title' => 'Inventory Report']);
+    }
+
+    public function financial(Request $request): Response
+    {
+        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $from = $request->query('date_from', date('Y-m-01'));
+        $to   = $request->query('date_to', date('Y-m-d'));
+        $data = $this->reportService->financialReport($from, $to);
+
+        if ($request->isApi()) return $this->success($data);
+        return $this->view('reports/financial', ['report' => $data, 'from' => $from, 'to' => $to, 'title' => 'Financial Report']);
+    }
+
+    public function export(Request $request): Response
+    {
+        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $type   = $request->query('type', 'sales');
+        $from   = $request->query('date_from', date('Y-m-01'));
+        $to     = $request->query('date_to', date('Y-m-d'));
+
+        switch ($type) {
+            case 'sales':
+                $data  = $this->reportService->salesReport($from, $to);
+                $rows  = $data['top_products'] ?? [];
+                $fname = 'sales_report';
+                break;
+            case 'inventory':
+                $data  = $this->reportService->inventoryReport();
+                $rows  = $data['low_stock_items'] ?? [];
+                $fname = 'inventory_report';
+                break;
+            case 'financial':
+                $data  = $this->reportService->financialReport($from, $to);
+                $rows  = $data['receivables'] ?? [];
+                $fname = 'financial_report';
+                break;
+            default:
+                return $this->error('Invalid report type');
+        }
+
+        AuditService::log(AUDIT_VIEW, MODULE_REPORTS, null, null, null, "Exported {$type} report");
+        return $this->exportCsv($fname . '_' . date('Ymd'), $rows);
+    }
+
+    private function exportCsv(string $filename, array $rows): Response
+    {
+        if (empty($rows)) {
+            return $this->error('No data to export');
+        }
+
+        $output   = fopen('php://temp', 'r+');
+        $headers  = array_keys($rows[0]);
+        fputcsv($output, $headers);
+        foreach ($rows as $row) {
+            fputcsv($output, $row);
+        }
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        $response = new \App\Core\Response();
+        $response->setHeader('Content-Type', 'text/csv');
+        $response->setHeader('Content-Disposition', "attachment; filename=\"{$filename}.csv\"");
+        $response->setBody($csv);
+        return $response;
+    }
+}
