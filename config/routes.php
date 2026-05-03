@@ -92,12 +92,13 @@ $router->put('/api/v1/clients/{client_id}',  [\App\Controllers\ClientController:
 $router->delete('/api/v1/clients/{client_id}',[\App\Controllers\ClientController::class, 'destroy'],$auth);
 
 // Products API
-$router->get('/api/v1/products',                [\App\Controllers\ProductController::class, 'index'],      $auth);
-$router->post('/api/v1/products',               [\App\Controllers\ProductController::class, 'store'],      $auth);
-$router->get('/api/v1/products/{product_id}',   [\App\Controllers\ProductController::class, 'show'],       $auth);
-$router->put('/api/v1/products/{product_id}',   [\App\Controllers\ProductController::class, 'update'],     $auth);
-$router->delete('/api/v1/products/{product_id}',[\App\Controllers\ProductController::class, 'destroy'],    $auth);
-$router->post('/api/v1/products/bulk-import',   [\App\Controllers\ProductController::class, 'bulkImport'], $auth);
+$router->get('/api/v1/products',                 [\App\Controllers\ProductController::class, 'index'],           $auth);
+$router->post('/api/v1/products',                [\App\Controllers\ProductController::class, 'store'],           $auth);
+$router->post('/api/v1/products/bulk-import',    [\App\Controllers\ProductController::class, 'bulkImport'],      $auth);
+$router->get('/api/v1/products/import-template', [\App\Controllers\ProductController::class, 'downloadTemplate'],$auth);
+$router->get('/api/v1/products/{product_id}',    [\App\Controllers\ProductController::class, 'show'],            $auth);
+$router->put('/api/v1/products/{product_id}',    [\App\Controllers\ProductController::class, 'update'],          $auth);
+$router->delete('/api/v1/products/{product_id}', [\App\Controllers\ProductController::class, 'destroy'],         $auth);
 
 // Inventory API
 $router->get('/api/v1/inventory',                         [\App\Controllers\InventoryController::class, 'index'],         $auth);
