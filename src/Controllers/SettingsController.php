@@ -15,7 +15,7 @@ class SettingsController extends Controller
         $settings = Setting::allAsArray();
 
         if ($request->isApi()) return $this->success($settings);
-        return $this->view('settings/general', ['settings' => $settings, 'title' => 'Settings | Dream Blanks POS']);
+        return $this->view('settings/general', ['settings' => $settings, 'title' => 'Settings']);
     }
 
     public function update(Request $request): Response
