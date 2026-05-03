@@ -115,8 +115,12 @@ $currentPath = strtok($currentPath, '?');
         <?php endif; ?>
       </button>
       <div class="user-menu" id="userMenuWrapper">
-        <div class="user-avatar" onclick="toggleUserDropdown()" title="<?= htmlspecialchars($_SESSION['user']['first_name'] ?? 'User') ?>" style="cursor:pointer">
-          <?= strtoupper(substr($_SESSION['user']['first_name'] ?? 'U', 0, 1)) ?>
+        <div class="user-avatar" id="topbarAvatar" onclick="toggleUserDropdown()" title="<?= htmlspecialchars($_SESSION['user']['first_name'] ?? 'User') ?>" style="cursor:pointer;overflow:hidden">
+          <?php if (!empty($_SESSION['user']['profile_image'])): ?>
+            <img src="<?= htmlspecialchars(app_url($_SESSION['user']['profile_image'])) ?>" alt="Profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='<?= strtoupper(substr($_SESSION['user']['first_name'] ?? 'U', 0, 1)) ?>'">
+          <?php else: ?>
+            <?= strtoupper(substr($_SESSION['user']['first_name'] ?? 'U', 0, 1)) ?>
+          <?php endif; ?>
         </div>
         <div class="user-dropdown" id="userDropdown">
           <div style="padding:12px 16px;border-bottom:1px solid var(--color-gray-100)">
