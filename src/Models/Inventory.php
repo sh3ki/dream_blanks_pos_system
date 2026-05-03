@@ -39,6 +39,12 @@ class Inventory extends Model
             $params[] = $filters['status'];
         }
 
+        $allowedSort = ['p.name','p.sku','i.quantity_on_hand','i.stock_status','i.last_updated'];
+        $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.stock_status';
+        $order = strtoupper($filters['order'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+        // secondary sort
+        $orderClause = $sort === 'i.stock_status' ? "{$sort} {$order}, p.name ASC" : "{$sort} {$order}";
+
         $db    = static::db();
         $total = (int)($db->selectOne(
             "SELECT COUNT(*) as cnt FROM inventory i INNER JOIN products p ON p.id = i.product_id WHERE {$where}",
@@ -51,7 +57,7 @@ class Inventory extends Model
                    INNER JOIN products p ON p.id = i.product_id
                    LEFT JOIN categories c ON c.id = p.category_id
                    WHERE {$where}
-                   ORDER BY i.stock_status ASC, p.name ASC
+                   ORDER BY {$orderClause}
                    LIMIT {$perPage} OFFSET {$offset}";
         $items  = $db->select($sql, $params);
 
