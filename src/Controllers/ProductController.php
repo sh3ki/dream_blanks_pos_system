@@ -253,7 +253,6 @@ class ProductController extends Controller
         }
 
         $db = Product::db();
-        // Build lookup maps: name → id
         $catMap   = array_column($db->select("SELECT id, name FROM categories WHERE deleted_at IS NULL"), 'id', 'name');
         $typeMap  = array_column($db->select("SELECT id, name FROM types"), 'id', 'name');
         $colorMap = array_column($db->select("SELECT id, name FROM colors"), 'id', 'name');
@@ -272,54 +271,128 @@ class ProductController extends Controller
             fclose($fp);
         }
 
+        if (empty($rows)) {
+            return $this->error('No data rows could be read from the file. Make sure you are using the correct .xlsx template and your products start from Row 3 (Row 1 = headers, Row 2 = example).');
+        }
+
+        // Friendly column labels matching the import template layout
+        $colLabel = [
+            'sku'             => 'Col A — SKU',
+            'name'            => 'Col B — Name',
+            'description'     => 'Col C — Description',
+            'cost_price'      => 'Col D — Cost Price',
+            'selling_price'   => 'Col E — Selling Price',
+            'initial_stock'   => 'Col F — Initial Stock',
+            'low_stock_alert' => 'Col G — Low Stock Alert',
+            'category'        => 'Col H — Category',
+            'type'            => 'Col I — Type',
+            'color'           => 'Col J — Color',
+            'size'            => 'Col K — Size',
+            'status'          => 'Col L — Status',
+        ];
+
         $created = 0;
-        $errors  = [];
+        $skipped = 0;
+        $errors  = []; // each entry: {row, col, value, message}
 
-        foreach ($rows as $data) {
+        foreach ($rows as $rowIdx => $data) {
+            $rowNum    = $rowIdx + 2; // header=row1, data starts row2
+            $rowErrors = [];
+
+            // Skip fully blank rows
+            if (empty($data['sku']) && empty($data['name'])) continue;
+
+            // --- Required field checks ---
+            if (empty($data['sku'])) {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['sku'], 'value' => '', 'message' => 'SKU is required'];
+            }
+            if (empty($data['name'])) {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['name'], 'value' => $data['name'] ?? '', 'message' => 'Product name is required'];
+            }
+            if (!isset($data['cost_price']) || $data['cost_price'] === '') {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['cost_price'], 'value' => '', 'message' => 'Cost price is required'];
+            } elseif (!is_numeric($data['cost_price'])) {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['cost_price'], 'value' => $data['cost_price'], 'message' => 'Cost price must be a number'];
+            }
+            if (!isset($data['selling_price']) || $data['selling_price'] === '') {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['selling_price'], 'value' => '', 'message' => 'Selling price is required'];
+            } elseif (!is_numeric($data['selling_price'])) {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['selling_price'], 'value' => $data['selling_price'], 'message' => 'Selling price must be a number'];
+            }
+
+            // --- Duplicate SKU check ---
+            if (!empty($data['sku']) && Product::findBySku(trim($data['sku']))) {
+                $rowErrors[] = ['row' => $rowNum, 'col' => $colLabel['sku'], 'value' => $data['sku'], 'message' => "SKU already exists in the system"];
+            }
+
+            if (!empty($rowErrors)) {
+                $errors  = array_merge($errors, $rowErrors);
+                $skipped++;
+                continue;
+            }
+
+            // --- Lookup resolution ---
+            $lookupFailed = false;
+            $resolveId    = function($val, array $map, string $field, string $col) use (&$errors, &$lookupFailed, $rowNum): ?int {
+                if (empty($val)) return null;
+                if (is_numeric($val)) return (int)$val;
+                $id = $map[$val] ?? null;
+                if ($id === null) {
+                    $errors[]     = ['row' => $rowNum, 'col' => $col, 'value' => $val, 'message' => "\"$val\" not found — check the Reference sheet for valid values"];
+                    $lookupFailed = true;
+                }
+                return $id;
+            };
+
+            $categoryId = $resolveId($data['category'] ?? ($data['category_id'] ?? ''), $catMap,   'Category', $colLabel['category']);
+            $typeId     = $resolveId($data['type']     ?? ($data['type_id']     ?? ''), $typeMap,  'Type',     $colLabel['type']);
+            $colorId    = $resolveId($data['color']    ?? ($data['color_id']    ?? ''), $colorMap, 'Color',    $colLabel['color']);
+            $sizeId     = $resolveId($data['size']     ?? ($data['size_id']     ?? ''), $sizeMap,  'Size',     $colLabel['size']);
+
+            // --- Status validation ---
+            $rawStatus = strtolower($data['status'] ?? '');
+            if ($rawStatus !== '' && !in_array($rawStatus, ['active', 'inactive'])) {
+                $errors[]     = ['row' => $rowNum, 'col' => $colLabel['status'], 'value' => $data['status'], 'message' => "Must be \"active\" or \"inactive\""];
+                $lookupFailed = true;
+            }
+
+            if ($lookupFailed) { $skipped++; continue; }
+
+            // --- Insert ---
+            $stock    = (int)($data['initial_stock'] ?? 0);
+            $lowAlert = isset($data['low_stock_alert']) && $data['low_stock_alert'] !== '' ? (int)$data['low_stock_alert'] : 10;
+            $status   = in_array($rawStatus, ['active', 'inactive']) ? $rawStatus : 'active';
+
             try {
-                if (empty($data['sku']) || empty($data['name'])) continue;
-                if (Product::findBySku(trim($data['sku']))) { $errors[] = "Duplicate SKU: {$data['sku']}"; continue; }
-
-                // Resolve category/type/color/size by name or numeric id
-                $resolveId = function($val, array $map, string $field) use (&$errors, $data): ?int {
-                    if (empty($val)) return null;
-                    if (is_numeric($val)) return (int)$val;
-                    $id = $map[$val] ?? null;
-                    if ($id === null) $errors[] = "Row SKU {$data['sku']}: unknown {$field} '{$val}'";
-                    return $id;
-                };
-
-                $categoryId = $resolveId($data['category'] ?? ($data['category_id'] ?? ''), $catMap,   'category');
-                $typeId     = $resolveId($data['type']     ?? ($data['type_id']     ?? ''), $typeMap,  'type');
-                $colorId    = $resolveId($data['color']    ?? ($data['color_id']    ?? ''), $colorMap, 'color');
-                $sizeId     = $resolveId($data['size']     ?? ($data['size_id']     ?? ''), $sizeMap,  'size');
-
-                $stock     = (int)($data['initial_stock'] ?? 0);
-                $lowAlert  = isset($data['low_stock_alert']) && $data['low_stock_alert'] !== '' ? (int)$data['low_stock_alert'] : 10;
-                $status    = in_array(strtolower($data['status'] ?? ''), ['active', 'inactive']) ? strtolower($data['status']) : 'active';
-
                 $productId = Product::create([
-                    'sku'              => trim($data['sku']),
-                    'name'             => trim($data['name']),
-                    'description'      => $data['description'] ?? null,
-                    'cost_price'       => (float)($data['cost_price'] ?? 0),
-                    'selling_price'    => (float)($data['selling_price'] ?? 0),
-                    'current_stock'    => $stock,
-                    'low_stock_alert'  => $lowAlert,
-                    'category_id'      => $categoryId,
-                    'type_id'          => $typeId,
-                    'color_id'         => $colorId,
-                    'size_id'          => $sizeId,
-                    'status'           => $status,
+                    'sku'             => trim($data['sku']),
+                    'name'            => trim($data['name']),
+                    'description'     => $data['description'] ?? null,
+                    'cost_price'      => (float)$data['cost_price'],
+                    'selling_price'   => (float)$data['selling_price'],
+                    'current_stock'   => $stock,
+                    'low_stock_alert' => $lowAlert,
+                    'category_id'     => $categoryId,
+                    'type_id'         => $typeId,
+                    'color_id'        => $colorId,
+                    'size_id'         => $sizeId,
+                    'status'          => $status,
                 ]);
-                Product::db()->insert('inventory', ['product_id' => $productId, 'quantity_on_hand' => $stock, 'stock_status' => $stock > 0 ? STOCK_IN_STOCK : STOCK_OUT]);
+                Product::db()->insert('inventory', [
+                    'product_id'       => $productId,
+                    'quantity_on_hand' => $stock,
+                    'stock_status'     => $stock > 0 ? STOCK_IN_STOCK : STOCK_OUT,
+                ]);
                 $created++;
             } catch (\Throwable $e) {
-                $errors[] = $e->getMessage();
+                $errors[] = ['row' => $rowNum, 'col' => '—', 'value' => $data['sku'] ?? '', 'message' => 'Database error: ' . $e->getMessage()];
+                $skipped++;
             }
         }
 
-        return $this->success(['created' => $created, 'errors' => $errors], "{$created} products imported");
+        $msg = $created ? "{$created} product(s) imported successfully" : "No products were imported";
+        if ($skipped) $msg .= ", {$skipped} row(s) skipped due to errors";
+        return $this->success(['created' => $created, 'skipped' => $skipped, 'errors' => $errors], $msg);
     }
 
     private function parseXlsx(string $filePath): array
@@ -332,52 +405,72 @@ class ProductController extends Controller
         $zip->close();
         if (!$sheetXml) return [];
 
-        $ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        // Strip ALL xmlns declarations before parsing.
+        // SimpleXML's ->children($ns) traversal fails silently when namespace URIs
+        // don't match exactly (extra attributes, encoding, etc.).
+        // Removing them lets us access every element with plain ->element syntax.
+        $stripNs = static fn(string $xml): string =>
+            preg_replace('/\s+xmlns(?::[a-zA-Z0-9_]+)?="[^"]*"/', '', $xml);
 
-        // Build shared strings table if present
+        // ── Shared strings ───────────────────────────────────────────────────────
+        // Excel stores text as shared strings (t="s").
+        // Bold/formatted cells use rich-text runs: <r><t>text</t></r>
+        // Plain cells use direct: <t>text</t>
         $shared = [];
         if ($sharedXml) {
-            $ssXml = simplexml_load_string($sharedXml);
-            foreach ($ssXml->children($ns)->si as $si) {
-                $t = $si->children($ns)->t;
-                $shared[] = (string)$t;
+            $ss = @simplexml_load_string($stripNs($sharedXml));
+            if ($ss !== false) {
+                foreach ($ss->si as $si) {
+                    $text = '';
+                    if (isset($si->t)) $text = (string)$si->t;          // plain
+                    foreach ($si->r as $r) {                             // rich-text runs
+                        if (isset($r->t)) $text .= (string)$r->t;
+                    }
+                    $shared[] = $text;
+                }
             }
         }
 
-        $xml     = simplexml_load_string($sheetXml);
-        $rows    = [];
-        $headers = [];
-        $letters = ['A','B','C','D','E','F','G','H','I','J','K','L','M'];
+        // ── Sheet data ───────────────────────────────────────────────────────────
+        $sheet = @simplexml_load_string($stripNs($sheetXml));
+        if (!$sheet) return [];
 
-        foreach ($xml->children($ns)->sheetData->children($ns)->row as $row) {
+        $rows    = [];
+        $headers = []; // col-letter → normalized key
+
+        foreach ($sheet->sheetData->row as $row) {
             $cells = [];
-            foreach ($row->children($ns)->c as $cell) {
+            foreach ($row->c as $cell) {
                 $ref       = (string)$cell['r'];
                 $colLetter = rtrim($ref, '0123456789');
                 $type      = (string)$cell['t'];
+
                 if ($type === 's') {
-                    // shared string
-                    $idx = (int)(string)$cell->children($ns)->v;
-                    $val = $shared[$idx] ?? '';
+                    $val = $shared[(int)(string)$cell->v] ?? '';
                 } elseif ($type === 'inlineStr') {
-                    $val = (string)$cell->children($ns)->is->children($ns)->t;
+                    $val = (string)$cell->is->t;
                 } else {
-                    $val = (string)$cell->children($ns)->v;
+                    $val = (string)$cell->v;  // number / bool / empty
                 }
                 $cells[$colLetter] = $val;
             }
-            $rowData = [];
-            foreach ($letters as $l) $rowData[] = trim($cells[$l] ?? '');
+
             if (empty($headers)) {
-                $headers = $rowData;
+                // First non-empty row is the header row
+                foreach ($cells as $col => $val) {
+                    $key = strtolower(str_replace(['*', ' '], ['', '_'], trim($val)));
+                    if ($key !== '') $headers[$col] = $key;
+                }
             } else {
-                if (implode('', $rowData) === '') continue; // skip blank rows
-                $rows[] = array_combine(
-                    array_map(fn($h) => strtolower(str_replace(['*', ' '], ['', '_'], $h)), $headers),
-                    $rowData
-                );
+                if (empty(array_filter($cells, fn($v) => trim($v) !== ''))) continue; // blank row
+                $assoc = [];
+                foreach ($headers as $col => $key) {
+                    $assoc[$key] = trim($cells[$col] ?? '');
+                }
+                $rows[] = $assoc;
             }
         }
+
         return $rows;
     }
 
