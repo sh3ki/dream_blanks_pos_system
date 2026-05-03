@@ -31,7 +31,8 @@ class DashboardController extends Controller
             'metrics'        => $metrics,
             'charts'         => $charts,
             'unread_notifications' => $unread,
-            'title'          => 'Dashboard | Dream Blanks POS',
+            'title'          => 'Dashboard',
+            'pageTitle' => 'Dashboard',
         ]);
     }
 
