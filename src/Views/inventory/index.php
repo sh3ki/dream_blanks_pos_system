@@ -2,7 +2,17 @@
 <?php
 $search = $filters['search'] ?? '';
 $status = $filters['status'] ?? '';
+$sort   = $filters['sort']   ?? 'i.stock_status';
+$order  = strtoupper($filters['order'] ?? 'ASC');
 $lowCount = is_array($low_stock ?? null) ? count($low_stock) : 0;
+function invySortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
+    $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
+    $params    = array_filter(array_merge($filters, ['sort' => $col, 'order' => $nextOrder]), fn($v) => $v !== '');
+    $arrow     = '';
+    if ($currentSort === $col) $arrow = $currentOrder === 'ASC' ? ' <span style="font-size:.8em">▲</span>' : ' <span style="font-size:.8em">▼</span>';
+    else $arrow = ' <span style="font-size:.8em;opacity:.5">⇅</span>';
+    return '<a href="?' . http_build_query($params) . '" style="display:block;padding:12px 16px;color:inherit;text-decoration:none;white-space:nowrap">' . htmlspecialchars($label) . $arrow . '</a>';
+}
 ?>
 <div class="page-header">
   <h1>Inventory</h1>
@@ -37,10 +47,18 @@ $lowCount = is_array($low_stock ?? null) ? count($low_stock) : 0;
     </div>
   </div>
 
+  <div id="inventoryResultsContainer">
   <div class="table-wrapper">
     <table class="data-table">
       <thead>
-        <tr><th>Product</th><th>Category</th><th>Qty</th><th>Status</th><th>Last Updated</th><th>Actions</th></tr>
+        <tr style="cursor:pointer">
+          <th style="padding:0"><?= invySortLink('p.name','Product',$sort,$order,$filters) ?></th>
+          <th>Category</th>
+          <th style="padding:0"><?= invySortLink('i.quantity_on_hand','Qty',$sort,$order,$filters) ?></th>
+          <th style="padding:0"><?= invySortLink('i.stock_status','Status',$sort,$order,$filters) ?></th>
+          <th style="padding:0"><?= invySortLink('i.last_updated','Last Updated',$sort,$order,$filters) ?></th>
+          <th>Actions</th>
+        </tr>
       </thead>
       <tbody>
         <?php foreach ($inventory as $item): ?>
@@ -74,7 +92,7 @@ $lowCount = is_array($low_stock ?? null) ? count($low_stock) : 0;
 
   <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
   <?php
-    $invQuery = array_filter(['search' => $search, 'status' => $status], fn($v) => $v !== '');
+    $invQuery = array_filter(['search' => $search, 'status' => $status, 'sort' => $sort ?? '', 'order' => $order ?? ''], fn($v) => $v !== '');
     $invBase  = $invQuery ? '?' . http_build_query($invQuery) . '&page=' : '?page=';
   ?>
   <div class="pagination">
@@ -83,6 +101,7 @@ $lowCount = is_array($low_stock ?? null) ? count($low_stock) : 0;
     <?php endfor; ?>
   </div>
   <?php endif; ?>
+  </div><!-- /inventoryResultsContainer -->
 </div>
 
 <div class="card" style="margin-top:20px">
@@ -165,7 +184,20 @@ function applyFilters() {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (status) params.set('status', status);
-  window.location = '?' + params.toString();
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('sort'))  params.set('sort',  url.searchParams.get('sort'));
+  if (url.searchParams.get('order')) params.set('order', url.searchParams.get('order'));
+  const qs = params.toString();
+  const invBase = '<?= htmlspecialchars(app_url('/inventory')) ?>';
+  const pageUrl = window.location.origin + invBase + (qs ? '?' + qs : '');
+  history.pushState({}, '', pageUrl);
+  const container = document.getElementById('inventoryResultsContainer');
+  if (container) container.style.opacity = '0.5';
+  fetch(pageUrl).then(r => r.text()).then(html => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const el = doc.getElementById('inventoryResultsContainer');
+    if (el && container) { container.innerHTML = el.innerHTML; container.style.opacity = '1'; }
+  }).catch(() => { if (container) container.style.opacity = '1'; });
 }
 
 function openRestock(productId = null, name = '') {
