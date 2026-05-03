@@ -250,7 +250,7 @@
 
 <!-- Import CSV Modal -->
 <div class="modal-overlay" id="importModal">
-  <div class="modal-content" style="max-width:480px">
+  <div class="modal-content" style="max-width:640px">
     <div class="modal-header">
       <h2 class="modal-title"><?= icon('upload', 16) ?> Import Products</h2>
       <button class="modal-close" onclick="closeModal('importModal')"><?= icon('close', 16) ?></button>
@@ -260,7 +260,7 @@
         <strong style="display:block;margin-bottom:6px;font-size:.95rem">How to Import Products</strong>
         <ol style="margin:0 0 10px 18px;padding:0">
           <li>Click <strong>Download Template (.xlsx)</strong> below to get the pre-filled spreadsheet.</li>
-          <li>Fill in your products starting from <strong>Row 3</strong> (Row 1 = headers, Row 2 = example).</li>
+          <li>Fill in your products starting from <strong>Row 2</strong> (Row 1 = headers). Row 2 is a sample — you can edit or replace it.</li>
           <li>Columns marked with <strong>*</strong> are required: <em>SKU, Name, Cost Price, Selling Price</em>.</li>
           <li><strong>Category, Type, Color, Size &amp; Status</strong> columns have dropdown menus — select from the list.</li>
           <li><strong>Low Stock Alert</strong> sets the threshold for low-stock warnings (defaults to 10 if left blank).</li>
@@ -408,12 +408,43 @@ async function doImport() {
     const resultEl = document.getElementById('importResult');
     resultEl.style.display = '';
     if (data.success) {
-      let html = `<div class="alert alert-success"><strong>${data.message}</strong></div>`;
-      if (data.data?.errors?.length) {
-        html += `<div class="alert alert-warning"><strong>Warnings:</strong><ul style="margin:6px 0 0 16px">${data.data.errors.map(e => `<li style="font-size:.82rem">${e}</li>`).join('')}</ul></div>`;
+      const created = data.data?.created ?? 0;
+      const skipped = data.data?.skipped ?? 0;
+      const errs    = data.data?.errors  ?? [];
+      let html = '';
+      if (created > 0) {
+        html += `<div class="alert alert-success" style="margin-bottom:10px">
+          <strong>${created} product(s) imported successfully.</strong>${skipped ? ` ${skipped} row(s) were skipped — see below.` : ''}
+        </div>`;
+      } else {
+        html += `<div class="alert alert-warning" style="margin-bottom:10px">
+          <strong>No products were imported.</strong> ${skipped ? `${skipped} row(s) had errors — see below.` : ''}
+        </div>`;
+      }
+      if (errs.length) {
+        html += `<div style="margin-bottom:6px;font-size:.82rem;font-weight:600;color:#c0392b">${errs.length} issue(s) found — fix these in your file and re-import the affected rows:</div>`;
+        html += `<div style="overflow-x:auto;max-height:280px;overflow-y:auto;border:1px solid #f5c6cb;border-radius:6px">`;
+        html += `<table style="width:100%;border-collapse:collapse;font-size:.8rem">`;
+        html += `<thead><tr style="background:#f8d7da;position:sticky;top:0">`;
+        html += `<th style="padding:6px 10px;text-align:left;border-bottom:1px solid #f5c6cb;white-space:nowrap">Row #</th>`;
+        html += `<th style="padding:6px 10px;text-align:left;border-bottom:1px solid #f5c6cb;white-space:nowrap">Column</th>`;
+        html += `<th style="padding:6px 10px;text-align:left;border-bottom:1px solid #f5c6cb;white-space:nowrap">Your Value</th>`;
+        html += `<th style="padding:6px 10px;text-align:left;border-bottom:1px solid #f5c6cb">Issue</th>`;
+        html += `</tr></thead><tbody>`;
+        errs.forEach((e, i) => {
+          const bg = i % 2 === 0 ? '#fff' : '#fff8f8';
+          const val = e.value !== '' && e.value != null ? `<code style="font-size:.78rem">${String(e.value).replace(/</g,'&lt;')}</code>` : '<span style="color:#aaa">empty</span>';
+          html += `<tr style="background:${bg}">`;
+          html += `<td style="padding:5px 10px;border-bottom:1px solid #fce8e8;font-weight:700;color:#c0392b;white-space:nowrap">Row ${e.row}</td>`;
+          html += `<td style="padding:5px 10px;border-bottom:1px solid #fce8e8;white-space:nowrap">${e.col}</td>`;
+          html += `<td style="padding:5px 10px;border-bottom:1px solid #fce8e8;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${val}</td>`;
+          html += `<td style="padding:5px 10px;border-bottom:1px solid #fce8e8">${String(e.message).replace(/</g,'&lt;')}</td>`;
+          html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
       }
       resultEl.innerHTML = html;
-      setTimeout(() => location.reload(), 2000);
+      if (created > 0) setTimeout(() => location.reload(), 3000);
     } else {
       resultEl.innerHTML = `<div class="alert alert-danger">${data.message || 'Import failed'}</div>`;
     }
