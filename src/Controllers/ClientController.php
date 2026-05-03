@@ -45,7 +45,8 @@ class ClientController extends Controller
             'status'     => $status,
             'sort'       => $sortField,
             'order'      => $sortDir,
-            'title'      => 'Clients | Dream Blanks POS',
+            'title'      => 'Clients',
+            'pageTitle' => 'Clients',
         ]);
     }
 
