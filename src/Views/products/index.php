@@ -52,8 +52,8 @@
   function sortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
     $newOrder = ($currentSort === $col && $currentOrder === 'asc') ? 'desc' : 'asc';
     $q = http_build_query(array_merge($filters, ['sort' => $col, 'order' => $newOrder]));
-    $arrow = $currentSort === $col ? ($currentOrder === 'asc' ? ' ▲' : ' ▼') : '';
-    return '<a href="?'.$q.'" style="color:inherit;text-decoration:none;white-space:nowrap">'.$label.$arrow.'</a>';
+    $arrow = $currentSort === $col ? ($currentOrder === 'asc' ? ' <span style="font-size:.8em">▲</span>' : ' <span style="font-size:.8em">▼</span>') : ' <span style="font-size:.8em;opacity:.5">⇅</span>';
+    return '<a href="?'.$q.'" style="display:block;padding:12px 16px;color:inherit;text-decoration:none;white-space:nowrap">'.htmlspecialchars($label).$arrow.'</a>';
   }
 ?>
   <div id="productsResultsContainer">
@@ -62,15 +62,15 @@
       <thead>
         <tr style="cursor:pointer">
           <th style="width:52px">Image</th>
-          <th><?= sortLink('p.sku', 'SKU', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('p.name', 'Name', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('c.name', 'Category', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('t.name', 'Type', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('cl.name', 'Color', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('s.name', 'Size', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('p.selling_price', 'Price', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('p.current_stock', 'Stock', $sort, $order, $filters) ?></th>
-          <th><?= sortLink('p.status', 'Status', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('p.sku', 'SKU', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('p.name', 'Name', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('c.name', 'Category', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('t.name', 'Type', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('cl.name', 'Color', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('s.name', 'Size', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('p.selling_price', 'Price', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('p.current_stock', 'Stock', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('p.status', 'Status', $sort, $order, $filters) ?></th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -252,20 +252,34 @@
 <div class="modal-overlay" id="importModal">
   <div class="modal-content" style="max-width:480px">
     <div class="modal-header">
-      <h2 class="modal-title"><?= icon('upload', 16) ?> Import Products (CSV)</h2>
+      <h2 class="modal-title"><?= icon('upload', 16) ?> Import Products</h2>
       <button class="modal-close" onclick="closeModal('importModal')"><?= icon('close', 16) ?></button>
     </div>
     <div class="modal-body">
-      <div class="alert alert-info" style="font-size:.85rem;margin-bottom:12px">
-        CSV must have headers: <strong>sku, name, description, cost_price, selling_price, initial_stock</strong><br>
-        Optional: category_id, type_id, color_id, size_id, status
+      <div style="background:#f0f7ff;border:1px solid #b3d4f5;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:.875rem;line-height:1.6">
+        <strong style="display:block;margin-bottom:6px;font-size:.95rem">How to Import Products</strong>
+        <ol style="margin:0 0 10px 18px;padding:0">
+          <li>Click <strong>Download Template (.xlsx)</strong> below to get the pre-filled spreadsheet.</li>
+          <li>Fill in your products starting from <strong>Row 3</strong> (Row 1 = headers, Row 2 = example).</li>
+          <li>Columns marked with <strong>*</strong> are required: <em>SKU, Name, Cost Price, Selling Price</em>.</li>
+          <li><strong>Category, Type, Color, Size &amp; Status</strong> columns have dropdown menus — select from the list.</li>
+          <li>Save the file, then upload it here and click <strong>Import</strong>.</li>
+        </ol>
+        <div style="font-size:.82rem;color:#555">
+          <strong>Notes:</strong>
+          <ul style="margin:4px 0 0 18px;padding:0">
+            <li>Duplicate SKUs will be skipped with an error message.</li>
+            <li>Leave <em>Initial Stock</em> blank or 0 if product has no stock yet.</li>
+            <li>Status must be <em>active</em> or <em>inactive</em> (defaults to <em>active</em>).</li>
+          </ul>
+        </div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="downloadCsvTemplate()" style="margin-bottom:14px">
-        <?= icon('download', 13) ?> Download Template CSV
-      </button>
+      <a href="<?= app_url('/api/v1/products/import-template') ?>" class="btn btn-secondary btn-sm" style="margin-bottom:14px" download>
+        <?= icon('download', 13) ?> Download Template (.xlsx)
+      </a>
       <div class="form-group">
-        <label class="form-label">Choose CSV File <span class="required">*</span></label>
-        <input type="file" id="importFile" class="form-input" accept=".csv,text/csv">
+        <label class="form-label">Choose File (.xlsx or .csv) <span class="required">*</span></label>
+        <input type="file" id="importFile" class="form-input" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
       </div>
       <div id="importResult" style="display:none"></div>
     </div>
@@ -355,7 +369,7 @@ async function saveProduct() {
   try {
     const res  = await fetch(url, { method, headers: { 'X-CSRF-Token': csrfToken }, body: formData });
     const data = await res.json();
-    if (data.success) { showToast(data.message, 'success'); closeModal('productModal'); setTimeout(() => location.reload(), 800); }
+    if (data.success) { showToast(data.message, 'success'); closeModal('productModal'); setTimeout(() => loadProducts(), 800); }
     else showToast(data.message || 'Failed', 'error');
   } catch (e) { showToast('Network error', 'error'); }
 
@@ -367,7 +381,7 @@ function deleteProduct(id, name) {
   document.getElementById('confirmBtn').onclick = async () => {
     const res  = await fetch('/api/v1/products/' + id, { method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken } });
     const data = await res.json();
-    if (data.success) { showToast('Product deleted', 'success'); closeModal('confirmModal'); setTimeout(() => location.reload(), 600); }
+    if (data.success) { showToast('Product deleted', 'success'); closeModal('confirmModal'); setTimeout(() => loadProducts(), 600); }
     else showToast(data.message, 'error');
   };
   document.getElementById('confirmModal').classList.add('show');
@@ -380,23 +394,9 @@ function showImportModal() {
   openModal('importModal');
 }
 
-function downloadCsvTemplate() {
-  const rows = [
-    ['sku','name','description','cost_price','selling_price','initial_stock','category_id','type_id','color_id','size_id','status'],
-    ['PROD001','Sample Product','A sample product description','80.00','130.00','100','','','','','active'],
-  ];
-  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'products_import_template.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
 async function doImport() {
   const file = document.getElementById('importFile').files?.[0];
-  if (!file) { showToast('Please choose a CSV file', 'error'); return; }
+  if (!file) { showToast('Please choose a file (.xlsx or .csv)', 'error'); return; }
   const btn = document.getElementById('importBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Importing...';
   const formData = new FormData();
@@ -479,6 +479,10 @@ function loadProducts() {
   if (color)    params.set('color_id', color);
   if (size)     params.set('size_id', size);
   if (status)   params.set('status', status);
+  // Preserve current sort/order from URL
+  const cur = new URLSearchParams(window.location.search);
+  if (cur.get('sort'))  params.set('sort',  cur.get('sort'));
+  if (cur.get('order')) params.set('order', cur.get('order'));
   const qs = params.toString();
   const pageUrl = window.location.origin + productsBaseUrl + (qs ? '?' + qs : '');
   history.pushState({}, '', pageUrl);
