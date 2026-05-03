@@ -19,7 +19,7 @@ class InventoryController extends Controller
     {
         $this->requirePermission(MODULE_INVENTORY, ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'status']);
+        $filters = $request->only(['search', 'status', 'sort', 'order']);
         $result  = Inventory::getAll($filters, $page, $perPage);
 
         if ($request->isApi()) {
@@ -31,7 +31,8 @@ class InventoryController extends Controller
             'pagination' => $result['pagination'],
             'low_stock'  => Inventory::getLowStock(),
             'filters'    => $filters,
-            'title'      => 'Inventory | Dream Blanks POS',
+            'title'      => 'Inventory',
+            'pageTitle' => 'Inventory',
         ]);
     }
 
