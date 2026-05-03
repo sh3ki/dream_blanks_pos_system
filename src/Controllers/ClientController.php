@@ -16,16 +16,22 @@ class ClientController extends Controller
     {
         $this->requirePermission(MODULE_CLIENTS, ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $search = $request->query('search', '');
-        $status = $request->query('status', '');
+        $search    = $request->query('search', '');
+        $status    = $request->query('status', '');
+        $sortField = $request->query('sort', 'created_at');
+        $sortDir   = strtoupper($request->query('order', 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
+
+        $allowedSorts = ['first_name', 'last_name', 'email', 'status', 'created_at'];
+        if (!in_array($sortField, $allowedSorts)) $sortField = 'created_at';
+        $orderBy = "c.{$sortField}";
 
         if ($search) {
-            $result = Client::search($search, $page, $perPage, $status);
+            $result = Client::search($search, $page, $perPage, $status, $orderBy, $sortDir);
         } else {
-            $where  = "deleted_at IS NULL";
+            $where  = "1=1";
             $params = [];
-            if ($status) { $where .= " AND status=?"; $params[] = $status; }
-            $result = Client::paginate($page, $perPage, $where, $params, 'created_at', 'DESC');
+            if ($status) { $where .= " AND c.status=?"; $params[] = $status; }
+            $result = Client::paginateWithDetails($page, $perPage, $where, $params, $orderBy, $sortDir);
         }
 
         if ($request->isApi()) {
@@ -37,6 +43,8 @@ class ClientController extends Controller
             'pagination' => $result['pagination'],
             'search'     => $search,
             'status'     => $status,
+            'sort'       => $sortField,
+            'order'      => $sortDir,
             'title'      => 'Clients | Dream Blanks POS',
         ]);
     }
