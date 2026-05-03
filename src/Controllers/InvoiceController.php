@@ -17,7 +17,7 @@ class InvoiceController extends Controller
     {
         $this->requirePermission(MODULE_INVOICES, ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'status', 'date_from', 'date_to']);
+        $filters = $request->only(['search', 'status', 'date_from', 'date_to', 'sort', 'order']);
         $result  = Invoice::search($filters, $page, $perPage);
 
         if ($request->isApi()) {
@@ -28,7 +28,8 @@ class InvoiceController extends Controller
             'invoices'   => $result['data'],
             'pagination' => $result['pagination'],
             'filters'    => $filters,
-            'title'      => 'Invoices | Dream Blanks POS',
+            'title'      => 'Invoices',
+            'pageTitle' => 'Invoices',
         ]);
     }
 
