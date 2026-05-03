@@ -1,0 +1,150 @@
+<?php ob_start(); ?>
+<div class="page-header">
+  <h1>Invoices</h1>
+  <div class="d-flex gap-8">
+    <a href="<?= app_url('/reports/financial') ?>" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:6px"><?= icon('money', 15) ?> Receivables</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:16px">
+    <div class="filter-bar">
+      <div class="search-bar" style="flex:1;max-width:280px">
+        <?= icon('search', 16) ?> <input type="text" placeholder="Invoice # or client..." name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>"
+          onchange="this.form.submit()" form="filterForm" style="width:100%">
+      </div>
+      <form id="filterForm" method="GET" class="d-flex gap-8">
+        <select name="status" class="form-select" style="width:150px;height:38px" onchange="this.form.submit()">
+          <option value="">All Status</option>
+          <option value="fully_paid" <?= ($filters['status'] ?? '') === 'fully_paid' ? 'selected' : '' ?>>Fully Paid</option>
+          <option value="partially_paid" <?= ($filters['status'] ?? '') === 'partially_paid' ? 'selected' : '' ?>>Partially Paid</option>
+          <option value="unpaid" <?= ($filters['status'] ?? '') === 'unpaid' ? 'selected' : '' ?>>Unpaid</option>
+        </select>
+        <input type="date" name="date_from" class="form-input" style="height:38px;width:140px" value="<?= htmlspecialchars($filters['date_from'] ?? '') ?>" onchange="this.form.submit()">
+        <input type="date" name="date_to" class="form-input" style="height:38px;width:140px" value="<?= htmlspecialchars($filters['date_to'] ?? '') ?>" onchange="this.form.submit()">
+      </form>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr><th>Invoice #</th><th>Date</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <?php foreach ($invoices as $inv):
+          $balance = (float)$inv['total_amount'] - (float)$inv['total_paid'];
+          $statusCls = match($inv['payment_status']) {
+            'fully_paid' => 'badge-success',
+            'partially_paid' => 'badge-warning',
+            default => 'badge-danger',
+          };
+        ?>
+        <tr>
+          <td><strong><?= htmlspecialchars($inv['invoice_number']) ?></strong></td>
+          <td><?= date('M d, Y', strtotime($inv['invoice_date'])) ?></td>
+          <td><?= htmlspecialchars($inv['client_name'] ?? 'Walk-in') ?></td>
+          <td>₱<?= number_format($inv['total_amount'], 2) ?></td>
+          <td>₱<?= number_format($inv['total_paid'], 2) ?></td>
+          <td><?= $balance > 0 ? '<span style="color:var(--color-danger)">₱' . number_format($balance, 2) . '</span>' : '<span style="color:var(--color-success)">₱0.00</span>' ?></td>
+          <td><span class="badge <?= $statusCls ?>"><?= str_replace('_', ' ', ucfirst($inv['payment_status'])) ?></span></td>
+          <td>
+            <a href="<?= app_url('/invoices/' . $inv['id']) ?>" class="icon-btn" title="View"><?= icon('eye', 15) ?></a>
+            <a href="<?= app_url('/api/v1/invoices/' . $inv['id'] . '/print') ?>" target="_blank" class="icon-btn" title="Print">🖨</a>
+            <?php if ($inv['payment_status'] !== 'fully_paid'): ?>
+              <button class="icon-btn" onclick="addPayment(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number']) ?>', <?= $balance ?>)" title="Add Payment">💳</button>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+        <?php if (empty($invoices)): ?>
+          <tr><td colspan="8" class="text-center text-muted" style="padding:48px">No invoices found</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
+  <div class="pagination">
+    <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
+      <button class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>" onclick="window.location='?page=<?= $i ?>'"><?= $i ?></button>
+    <?php endfor; ?>
+  </div>
+  <?php endif; ?>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Payment</h2>
+      <button class="modal-close" onclick="document.getElementById('paymentModal').classList.remove('show')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px">Invoice: <strong id="payInvoiceNum"></strong> | Balance: <strong id="payBalance"></strong></p>
+      <div class="form-group">
+        <label class="form-label">Payment Date</label>
+        <input type="date" id="payDate" class="form-input" value="<?= date('Y-m-d') ?>">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (₱) <span class="required">*</span></label>
+        <input type="number" id="payAmount" class="form-input" min="0.01" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Mode</label>
+        <select id="payMode" class="form-select">
+          <option value="cash">💵 Cash</option>
+          <option value="bdo">🏦 BDO</option>
+          <option value="gcash">📱 GCash</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reference Number</label>
+        <input type="text" id="payRef" class="form-input" placeholder="e.g., CHK001 or transaction ID">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('paymentModal').classList.remove('show')">Cancel</button>
+      <button class="btn btn-primary" id="savePayBtn" onclick="savePayment()">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentInvoiceId = null;
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+function addPayment(invoiceId, number, balance) {
+  currentInvoiceId = invoiceId;
+  document.getElementById('payInvoiceNum').textContent = number;
+  document.getElementById('payBalance').textContent = '₱' + balance.toFixed(2);
+  document.getElementById('payAmount').value = balance.toFixed(2);
+  document.getElementById('paymentModal').classList.add('show');
+}
+
+async function savePayment() {
+  const btn = document.getElementById('savePayBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const payload = {
+    payment_date: document.getElementById('payDate').value,
+    payment_amount: parseFloat(document.getElementById('payAmount').value),
+    payment_mode: document.getElementById('payMode').value,
+    reference_number: document.getElementById('payRef').value,
+  };
+  try {
+    const res  = await fetch('/api/v1/invoices/' + currentInvoiceId + '/payments', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.success) { showToast('Payment recorded!', 'success'); setTimeout(() => location.reload(), 800); }
+    else showToast(data.message, 'error');
+  } catch (e) { showToast('Error', 'error'); }
+  btn.disabled = false; btn.innerHTML = 'Record Payment';
+}
+</script>
+<?php
+$content = ob_get_clean();
+$title   = 'Invoices | Dream Blanks POS';
+require VIEW_PATH . '/layouts/main.php';
+?>
