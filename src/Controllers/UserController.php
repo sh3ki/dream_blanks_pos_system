@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Models\User;
 use App\Models\Role;
 use App\Services\AuditService;
+use App\Helpers\FileHelper;
 use App\Exceptions\ValidationException;
 
 class UserController extends Controller
@@ -106,12 +107,37 @@ class UserController extends Controller
 
         // Update session with new name/email
         $updated = User::find($id);
-        $_SESSION['user']['first_name'] = $updated['first_name'];
-        $_SESSION['user']['last_name']  = $updated['last_name'];
-        $_SESSION['user']['email']      = $updated['email'];
+        $_SESSION['user']['first_name']    = $updated['first_name'];
+        $_SESSION['user']['last_name']     = $updated['last_name'];
+        $_SESSION['user']['email']         = $updated['email'];
+        $_SESSION['user']['profile_image'] = $updated['profile_image'] ?? null;
 
         AuditService::log(AUDIT_UPDATE, MODULE_USERS, $id, $old, $updated, "Updated own profile");
         return $this->success(null, 'Profile updated successfully');
+    }
+
+    public function uploadProfileImage(Request $request): Response
+    {
+        $id  = $this->currentUserId();
+        $old = User::findOrFail($id);
+
+        $file = $request->file('profile_image');
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return $this->error('No image uploaded', 400);
+        }
+
+        $imagePath = FileHelper::upload($file, 'users');
+
+        // Delete old image
+        if (!empty($old['profile_image'])) {
+            FileHelper::delete($old['profile_image']);
+        }
+
+        User::update($id, ['profile_image' => $imagePath]);
+        $_SESSION['user']['profile_image'] = $imagePath;
+
+        AuditService::log(AUDIT_UPDATE, MODULE_USERS, $id, $old, ['profile_image' => $imagePath], "Updated profile image");
+        return $this->success(['profile_image' => $imagePath], 'Profile image updated');
     }
 
     public function store(Request $request): Response
@@ -129,6 +155,11 @@ class UserController extends Controller
 
         $roles = $data['roles'] ?? [];
         unset($data['roles']);
+
+        // Handle optional profile image
+        if (($file = $request->file('profile_image')) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $data['profile_image'] = FileHelper::upload($file, 'users');
+        }
 
         $data['password_hash'] = password_hash($data['password'], PASSWORD_BCRYPT, ['cost' => 12]);
         unset($data['password']);
@@ -162,6 +193,12 @@ class UserController extends Controller
 
         if (!empty($request->input('password'))) {
             $data['password_hash'] = password_hash($request->input('password'), PASSWORD_BCRYPT, ['cost' => 12]);
+        }
+
+        // Handle optional profile image
+        if (($file = $request->file('profile_image')) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            if (!empty($old['profile_image'])) FileHelper::delete($old['profile_image']);
+            $data['profile_image'] = FileHelper::upload($file, 'users');
         }
 
         User::update($id, array_filter($data, fn($v) => $v !== null));
