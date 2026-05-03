@@ -74,13 +74,12 @@ $lowCount = is_array($low_stock ?? null) ? count($low_stock) : 0;
 
   <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
   <?php
-    $query = array_filter(['search' => $search, 'status' => $status]);
-    $queryString = http_build_query($query);
-    $pagePrefix = $queryString ? $queryString . '&' : '';
+    $invQuery = array_filter(['search' => $search, 'status' => $status], fn($v) => $v !== '');
+    $invBase  = $invQuery ? '?' . http_build_query($invQuery) . '&page=' : '?page=';
   ?>
   <div class="pagination">
     <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
-      <button class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>" onclick="window.location='?<?= $pagePrefix ?>page=<?= $i ?>'"><?= $i ?></button>
+      <a href="<?= $invBase . $i ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
     <?php endfor; ?>
   </div>
   <?php endif; ?>
