@@ -8,19 +8,29 @@
   <div class="card-body" style="padding:16px">
     <div class="filter-bar">
       <div class="search-bar" style="flex:1;max-width:280px">
-        <?= icon('search', 16) ?> <input type="text" placeholder="Search users..." id="searchInput" oninput="filterUsers()" style="width:100%">
+        <?= icon('search', 16) ?> <input type="text" placeholder="Search users..." id="searchInput" value="<?= htmlspecialchars($search ?? '') ?>" oninput="debouncedSearch()" style="width:100%">
       </div>
+      <select id="statusFilter" class="form-select" style="width:150px;height:38px" onchange="applyFilters()">
+        <option value="">All Status</option>
+        <option value="active" <?= ($status ?? '') === 'active' ? 'selected' : '' ?>>Active</option>
+        <option value="inactive" <?= ($status ?? '') === 'inactive' ? 'selected' : '' ?>>Inactive</option>
+      </select>
     </div>
   </div>
 
   <div class="table-wrapper">
     <table class="data-table">
       <thead>
-        <tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
+        <tr><th style="width:52px"></th><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
       </thead>
       <tbody id="usersBody">
         <?php foreach ($users as $u): ?>
         <tr>
+          <td>
+            <img src="<?= htmlspecialchars(!empty($u['profile_image']) ? app_url($u['profile_image']) : asset_url('/assets/images/no-image.png')) ?>"
+              alt="" style="width:36px;height:36px;object-fit:cover;border-radius:50%;border:1px solid var(--color-gray-100)"
+              onerror="this.src='<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>'">
+          </td>
           <td><strong><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name']) ?></strong></td>
           <td><?= htmlspecialchars($u['username']) ?></td>
           <td><?= htmlspecialchars($u['email']) ?></td>
@@ -40,11 +50,23 @@
         </tr>
         <?php endforeach; ?>
         <?php if (empty($users)): ?>
-          <tr><td colspan="7" class="text-center text-muted" style="padding:48px">No users found</td></tr>
+          <tr><td colspan="8" class="text-center text-muted" style="padding:48px">No users found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
   </div>
+
+  <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
+  <?php
+    $uQuery = array_filter(['search' => $search ?? '', 'status' => $status ?? ''], fn($v) => $v !== '');
+    $uBase  = $uQuery ? '?' . http_build_query($uQuery) . '&page=' : '?page=';
+  ?>
+  <div class="pagination">
+    <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
+      <a href="<?= $uBase . $i ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+  <?php endif; ?>
 </div>
 
 <!-- User Modal -->
@@ -97,6 +119,16 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <div class="form-group">
+        <label class="form-label">Profile Image</label>
+        <input type="file" id="uImage" class="form-input" accept="image/*" onchange="previewUserImage(event)">
+        <div style="margin-top:10px;display:flex;align-items:center;gap:12px">
+          <img id="uImagePreview" src="<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>" alt="Preview"
+            style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:1px solid var(--color-gray-100)"
+            onerror="this.src='<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>'">
+          <span style="font-size:.8rem;color:var(--color-gray-500)">Optional. JPG, PNG, GIF, WEBP</span>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('userModal')">Cancel</button>
@@ -119,6 +151,12 @@
 
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+const noUserImg = '<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>';
+
+function previewUserImage(event) {
+  const file = event.target.files?.[0];
+  document.getElementById('uImagePreview').src = file ? URL.createObjectURL(file) : noUserImg;
+}
 
 function editUser(id) {
   fetch('/api/v1/users/' + id).then(r => r.json()).then(res => {
@@ -131,6 +169,8 @@ function editUser(id) {
     document.getElementById('uEmail').value     = u.email;
     document.getElementById('uStatus').value    = u.status;
     document.getElementById('uPassword').value  = '';
+    document.getElementById('uImage').value     = '';
+    document.getElementById('uImagePreview').src = u.profile_image ? appPath(u.profile_image) : noUserImg;
     const firstRole = Array.isArray(u.roles) ? u.roles[0] : null;
     document.getElementById('uRole').value      = (firstRole && typeof firstRole === 'object') ? firstRole.id : '';
     document.getElementById('userModalTitle').textContent = 'Edit User';
@@ -147,6 +187,8 @@ function openAddUser() {
   document.getElementById('uEmail').value = '';
   document.getElementById('uPassword').value = '';
   document.getElementById('uStatus').value = 'active';
+  document.getElementById('uImage').value = '';
+  document.getElementById('uImagePreview').src = noUserImg;
   document.getElementById('userModalTitle').textContent = 'Add User';
   document.getElementById('passwordRequired').style.display = '';
   openModal('userModal');
@@ -160,21 +202,23 @@ async function saveUser() {
   const btn = document.getElementById('saveUserBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...';
 
-  const payload = {
-    first_name: document.getElementById('uFirst').value,
-    last_name:  document.getElementById('uLast').value,
-    username:   document.getElementById('uUsername').value,
-    email:      document.getElementById('uEmail').value,
-    status:     document.getElementById('uStatus').value,
-    roles:      document.getElementById('uRole').value ? [parseInt(document.getElementById('uRole').value, 10)] : [],
-  };
+  const formData = new FormData();
+  formData.append('first_name', document.getElementById('uFirst').value);
+  formData.append('last_name',  document.getElementById('uLast').value);
+  formData.append('username',   document.getElementById('uUsername').value);
+  formData.append('email',      document.getElementById('uEmail').value);
+  formData.append('status',     document.getElementById('uStatus').value);
+  const roleVal = document.getElementById('uRole').value;
+  if (roleVal) formData.append('roles[]', roleVal);
   const pw = document.getElementById('uPassword').value;
-  if (pw) payload.password = pw;
+  if (pw) formData.append('password', pw);
+  const imgFile = document.getElementById('uImage').files?.[0];
+  if (imgFile) formData.append('profile_image', imgFile);
+  if (id) formData.append('_method', 'PUT');
 
   const url    = id ? '/api/v1/users/' + id : '/api/v1/users';
-  const method = id ? 'PUT' : 'POST';
   try {
-    const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(payload) });
+    const res  = await fetch(url, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken }, body: formData });
     const data = await res.json();
     if (data.success) { showToast(data.message, 'success'); closeModal('userModal'); setTimeout(() => location.reload(), 800); }
     else showToast(data.message || 'Failed', 'error');
@@ -198,6 +242,18 @@ function filterUsers() {
   document.querySelectorAll('#usersBody tr').forEach(row => {
     row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
+}
+
+let searchTimer;
+function debouncedSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(applyFilters, 350); }
+
+function applyFilters() {
+  const search = document.getElementById('searchInput').value.trim();
+  const status = document.getElementById('statusFilter').value;
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (status) params.set('status', status);
+  window.location.href = '<?= htmlspecialchars(app_url('/users')) ?>' + (params.toString() ? '?' + params.toString() : '');
 }
 </script>
 <?php
