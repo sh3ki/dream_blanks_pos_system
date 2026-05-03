@@ -1,4 +1,16 @@
 <?php ob_start(); ?>
+<?php
+$sort  = $filters['sort']  ?? 'i.created_at';
+$order = strtoupper($filters['order'] ?? 'DESC');
+function invSortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
+    $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
+    $params    = array_filter(array_merge($filters, ['sort' => $col, 'order' => $nextOrder]), fn($v) => $v !== '');
+    $arrow     = '';
+    if ($currentSort === $col) $arrow = $currentOrder === 'ASC' ? ' <span style="font-size:.8em">▲</span>' : ' <span style="font-size:.8em">▼</span>';
+    else $arrow = ' <span style="font-size:.8em;opacity:.5">⇅</span>';
+    return '<a href="?' . http_build_query($params) . '" style="display:block;padding:12px 16px;color:inherit;text-decoration:none;white-space:nowrap">' . htmlspecialchars($label) . $arrow . '</a>';
+}
+?>
 <div class="page-header">
   <h1>Invoices</h1>
   <div class="d-flex gap-8">
@@ -14,6 +26,8 @@
           onchange="this.form.submit()" form="filterForm" style="width:100%">
       </div>
       <form id="filterForm" method="GET" class="d-flex gap-8">
+        <?php if (!empty($filters['sort'])):  ?><input type="hidden" name="sort"  value="<?= htmlspecialchars($filters['sort'])  ?>"><?php endif; ?>
+        <?php if (!empty($filters['order'])): ?><input type="hidden" name="order" value="<?= htmlspecialchars($filters['order']) ?>"><?php endif; ?>
         <select name="status" class="form-select" style="width:150px;height:38px" onchange="this.form.submit()">
           <option value="">All Status</option>
           <option value="fully_paid" <?= ($filters['status'] ?? '') === 'fully_paid' ? 'selected' : '' ?>>Fully Paid</option>
@@ -29,7 +43,16 @@
   <div class="table-wrapper">
     <table class="data-table">
       <thead>
-        <tr><th>Invoice #</th><th>Date</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
+        <tr style="cursor:pointer">
+          <th style="padding:0"><?= invSortLink('i.invoice_number','Invoice #',$sort,$order,$filters) ?></th>
+          <th style="padding:0"><?= invSortLink('i.invoice_date','Date',$sort,$order,$filters) ?></th>
+          <th>Client</th>
+          <th style="padding:0"><?= invSortLink('i.total_amount','Total',$sort,$order,$filters) ?></th>
+          <th>Paid</th>
+          <th>Balance</th>
+          <th style="padding:0"><?= invSortLink('i.payment_status','Status',$sort,$order,$filters) ?></th>
+          <th>Actions</th>
+        </tr>
       </thead>
       <tbody>
         <?php foreach ($invoices as $inv):
