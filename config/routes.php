@@ -27,8 +27,9 @@ $router->get('/dashboard', [\App\Controllers\DashboardController::class, 'index'
 $router->get('/pos', [\App\Controllers\PosController::class, 'index'], $auth);
 
 // Profile
-$router->get('/profile',      [\App\Controllers\UserController::class, 'profile'],       $auth);
-$router->put('/api/v1/profile',[\App\Controllers\UserController::class, 'updateProfile'], $auth);
+$router->get('/profile',             [\App\Controllers\UserController::class, 'profile'],            $auth);
+$router->put('/api/v1/profile',      [\App\Controllers\UserController::class, 'updateProfile'],      $auth);
+$router->post('/api/v1/profile/image',[\App\Controllers\UserController::class, 'uploadProfileImage'], $auth);
 
 // Users
 $router->get('/users',        [\App\Controllers\UserController::class, 'index'], $auth);
