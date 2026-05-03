@@ -19,7 +19,7 @@ class ProductController extends Controller
     {
         $this->requirePermission(MODULE_PRODUCTS, ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'category_id', 'color_id', 'size_id', 'status', 'sort', 'order']);
+        $filters = $request->only(['search', 'category_id', 'type_id', 'color_id', 'size_id', 'status', 'sort', 'order']);
         $result  = Product::search($filters, $page, $perPage);
 
         if ($request->isApi()) {
