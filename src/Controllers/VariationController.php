@@ -33,7 +33,7 @@ class VariationController extends Controller
         );
 
         return $this->view('variations/index', [
-            'title'      => 'Product Variations | Dream Blanks POS',
+            'title'      => 'Product Variations',
             'pageTitle'  => 'Product Variations',
             'categories' => $categories,
             'colors'     => $colors,
