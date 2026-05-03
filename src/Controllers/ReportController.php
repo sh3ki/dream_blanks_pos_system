@@ -33,7 +33,7 @@ class ReportController extends Controller
             return $this->success($data);
         }
 
-        return $this->view('reports/sales', ['report' => $data, 'from' => $from, 'to' => $to, 'title' => 'Sales Report']);
+        return $this->view('reports/sales', ['report' => $data, 'from' => $from, 'to' => $to, 'title' => 'Sales Report', 'pageTitle' => 'Sales Report']);
     }
 
     public function inventory(Request $request): Response
@@ -42,7 +42,7 @@ class ReportController extends Controller
         $data = $this->reportService->inventoryReport();
 
         if ($request->isApi()) return $this->success($data);
-        return $this->view('reports/inventory', ['report' => $data, 'title' => 'Inventory Report']);
+        return $this->view('reports/inventory', ['report' => $data, 'title' => 'Inventory Report', 'pageTitle' => 'Inventory Report']);
     }
 
     public function financial(Request $request): Response
@@ -53,7 +53,7 @@ class ReportController extends Controller
         $data = $this->reportService->financialReport($from, $to);
 
         if ($request->isApi()) return $this->success($data);
-        return $this->view('reports/financial', ['report' => $data, 'from' => $from, 'to' => $to, 'title' => 'Financial Report']);
+        return $this->view('reports/financial', ['report' => $data, 'from' => $from, 'to' => $to, 'title' => 'Financial Report' , 'pageTitle' => 'Financial Report']);
     }
 
     public function export(Request $request): Response
