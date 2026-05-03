@@ -18,14 +18,20 @@ class UserController extends Controller
         [$page, $perPage] = $this->paginate($request);
         $search = $request->query('search', '');
         $status = $request->query('status', '');
+        $sort   = $request->query('sort', 'created_at');
+        $order  = strtoupper($request->query('order', 'DESC'));
+
+        $allowed = ['first_name','last_name','username','email','status','last_login','created_at'];
+        if (!in_array($sort, $allowed)) $sort = 'created_at';
+        if (!in_array($order, ['ASC','DESC'])) $order = 'DESC';
 
         if ($search) {
-            $result = User::search($search, $page, $perPage, $status);
+            $result = User::search($search, $page, $perPage, $status, $sort, $order);
         } else {
             $where  = "deleted_at IS NULL";
             $params = [];
             if ($status) { $where .= " AND status = ?"; $params[] = $status; }
-            $result = User::paginate($page, $perPage, $where, $params, 'created_at', 'DESC');
+            $result = User::paginate($page, $perPage, $where, $params, $sort, $order);
         }
 
         // Attach roles to each user
@@ -42,8 +48,10 @@ class UserController extends Controller
             'pagination' => $result['pagination'],
             'search'     => $search,
             'status'     => $status,
+            'sort'       => $sort,
+            'order'      => $order,
             'roles'      => Role::all('name'),
-            'title'      => 'Users | Dream Blanks POS',
+            'title'      => 'Users',
         ]);
     }
 
@@ -73,7 +81,7 @@ class UserController extends Controller
 
         return $this->view('users/profile', [
             'user'  => $user,
-            'title' => 'Profile Settings | Dream Blanks POS',
+            'title' => 'Profile Settings',
             'pageTitle' => 'Profile Settings',
         ]);
     }
