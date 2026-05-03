@@ -159,8 +159,8 @@ class ProductController extends Controller
         $refXml .= "</sheetData></worksheet>";
 
         // Build Products sheet
-        $colHeaders = ['SKU*','Name*','Description','Cost Price*','Selling Price*','Initial Stock','Category','Type','Color','Size','Status'];
-        $colLetters = ['A','B','C','D','E','F','G','H','I','J','K'];
+        $colHeaders = ['SKU*','Name*','Description','Cost Price*','Selling Price*','Initial Stock','Low Stock Alert','Category','Type','Color','Size','Status'];
+        $colLetters = ['A','B','C','D','E','F','G','H','I','J','K','L'];
         $headerRow  = "<row r=\"1\">";
         foreach ($colHeaders as $idx => $h) {
             $cl = $colLetters[$idx];
@@ -169,7 +169,7 @@ class ProductController extends Controller
         $headerRow .= "</row>";
 
         // Sample row
-        $sample = ['SKU001','Sample Product','Optional description','10.00','25.00','100',
+        $sample = ['SKU001','Sample Product','Optional description','10.00','25.00','100','10',
             $catNames[0] ?? 'Plain T-Shirt', $typeNames[0] ?? 'Pro Club',
             $colorNames[0] ?? 'White', $sizeNames[0] ?? 'Small', 'active'];
         $sampleRow = "<row r=\"2\">";
@@ -184,11 +184,12 @@ class ProductController extends Controller
         $typeCount  = max(count($typeNames), 1);
         $colorCount = max(count($colorNames), 1);
         $sizeCount  = max(count($sizeNames), 1);
-        $dvCat   = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Category\"  error=\"Pick from the list\" sqref=\"G2:G1001\"><formula1>Reference!\$A\$2:\$A\$" . ($catCount   + 1) . "</formula1></dataValidation>";
-        $dvType  = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Type\"      error=\"Pick from the list\" sqref=\"H2:H1001\"><formula1>Reference!\$B\$2:\$B\$" . ($typeCount  + 1) . "</formula1></dataValidation>";
-        $dvColor = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Color\"     error=\"Pick from the list\" sqref=\"I2:I1001\"><formula1>Reference!\$C\$2:\$C\$" . ($colorCount + 1) . "</formula1></dataValidation>";
-        $dvSize  = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Size\"      error=\"Pick from the list\" sqref=\"J2:J1001\"><formula1>Reference!\$D\$2:\$D\$" . ($sizeCount  + 1) . "</formula1></dataValidation>";
-        $dvStat  = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Status\"    error=\"Pick from the list\" sqref=\"K2:K1001\"><formula1>&quot;active,inactive&quot;</formula1></dataValidation>";
+        // Columns: A=SKU B=Name C=Desc D=Cost E=Sell F=Stock G=LowAlert H=Cat I=Type J=Color K=Size L=Status
+        $dvCat   = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Category\" error=\"Pick from the list\" sqref=\"H2:H1001\"><formula1>Reference!\$A\$2:\$A\$" . ($catCount   + 1) . "</formula1></dataValidation>";
+        $dvType  = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Type\"     error=\"Pick from the list\" sqref=\"I2:I1001\"><formula1>Reference!\$B\$2:\$B\$" . ($typeCount  + 1) . "</formula1></dataValidation>";
+        $dvColor = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Color\"    error=\"Pick from the list\" sqref=\"J2:J1001\"><formula1>Reference!\$C\$2:\$C\$" . ($colorCount + 1) . "</formula1></dataValidation>";
+        $dvSize  = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Size\"     error=\"Pick from the list\" sqref=\"K2:K1001\"><formula1>Reference!\$D\$2:\$D\$" . ($sizeCount  + 1) . "</formula1></dataValidation>";
+        $dvStat  = "<dataValidation type=\"list\" showDropDown=\"0\" showErrorMessage=\"1\" errorTitle=\"Invalid Status\"   error=\"Pick from the list\" sqref=\"L2:L1001\"><formula1>&quot;active,inactive&quot;</formula1></dataValidation>";
 
         $prodXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n"
                  . "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
@@ -293,21 +294,23 @@ class ProductController extends Controller
                 $colorId    = $resolveId($data['color']    ?? ($data['color_id']    ?? ''), $colorMap, 'color');
                 $sizeId     = $resolveId($data['size']     ?? ($data['size_id']     ?? ''), $sizeMap,  'size');
 
-                $stock = (int)($data['initial_stock'] ?? 0);
-                $status = in_array(strtolower($data['status'] ?? ''), ['active', 'inactive']) ? strtolower($data['status']) : 'active';
+                $stock     = (int)($data['initial_stock'] ?? 0);
+                $lowAlert  = isset($data['low_stock_alert']) && $data['low_stock_alert'] !== '' ? (int)$data['low_stock_alert'] : 10;
+                $status    = in_array(strtolower($data['status'] ?? ''), ['active', 'inactive']) ? strtolower($data['status']) : 'active';
 
                 $productId = Product::create([
-                    'sku'           => trim($data['sku']),
-                    'name'          => trim($data['name']),
-                    'description'   => $data['description'] ?? null,
-                    'cost_price'    => (float)($data['cost_price'] ?? 0),
-                    'selling_price' => (float)($data['selling_price'] ?? 0),
-                    'current_stock' => $stock,
-                    'category_id'   => $categoryId,
-                    'type_id'       => $typeId,
-                    'color_id'      => $colorId,
-                    'size_id'       => $sizeId,
-                    'status'        => $status,
+                    'sku'              => trim($data['sku']),
+                    'name'             => trim($data['name']),
+                    'description'      => $data['description'] ?? null,
+                    'cost_price'       => (float)($data['cost_price'] ?? 0),
+                    'selling_price'    => (float)($data['selling_price'] ?? 0),
+                    'current_stock'    => $stock,
+                    'low_stock_alert'  => $lowAlert,
+                    'category_id'      => $categoryId,
+                    'type_id'          => $typeId,
+                    'color_id'         => $colorId,
+                    'size_id'          => $sizeId,
+                    'status'           => $status,
                 ]);
                 Product::db()->insert('inventory', ['product_id' => $productId, 'quantity_on_hand' => $stock, 'stock_status' => $stock > 0 ? STOCK_IN_STOCK : STOCK_OUT]);
                 $created++;
@@ -344,7 +347,7 @@ class ProductController extends Controller
         $xml     = simplexml_load_string($sheetXml);
         $rows    = [];
         $headers = [];
-        $letters = ['A','B','C','D','E','F','G','H','I','J','K'];
+        $letters = ['A','B','C','D','E','F','G','H','I','J','K','L','M'];
 
         foreach ($xml->children($ns)->sheetData->children($ns)->row as $row) {
             $cells = [];
