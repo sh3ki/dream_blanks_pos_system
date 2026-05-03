@@ -65,9 +65,13 @@
   </div>
 
   <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
+  <?php
+    $iQuery = array_filter($filters ?? [], fn($v) => $v !== '');
+    $iBase  = $iQuery ? '?' . http_build_query($iQuery) . '&page=' : '?page=';
+  ?>
   <div class="pagination">
     <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
-      <button class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>" onclick="window.location='?page=<?= $i ?>'"><?= $i ?></button>
+      <a href="<?= $iBase . $i ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
     <?php endfor; ?>
   </div>
   <?php endif; ?>
