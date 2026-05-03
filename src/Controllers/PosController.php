@@ -28,7 +28,8 @@ class PosController extends Controller
             'types'      => Type::allActive(),
             'colors'     => Color::allActive(),
             'sizes'      => Size::allActive(),
-            'title'      => 'Point of Sale | Dream Blanks POS',
+            'title'      => 'Point of Sale',
+            'pageTitle' => 'Point of Sale',
         ]);
     }
 
