@@ -15,42 +15,68 @@
 .cart-item-total { font-size:.85rem; font-weight:700; min-width:60px; text-align:right; }
 .cart-remove { background:none; border:none; cursor:pointer; color:var(--color-gray-400); padding:2px; }
 .cart-remove:hover { color:var(--color-danger); }
+
+/* POS filter tabs */
+.pos-filter-wrap { background:white; border:1px solid var(--color-gray-100); border-radius:var(--border-radius); padding:10px 12px; margin-bottom:12px; display:flex; flex-direction:column; gap:6px; }
+.pos-tab-row { display:flex; align-items:center; gap:8px; }
+.pos-tab-label { font-size:.7rem; font-weight:700; text-transform:uppercase; color:var(--color-gray-400); white-space:nowrap; width:62px; flex-shrink:0; }
+.pos-tab-scroll { display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; flex:1; padding-bottom:2px; }
+.pos-tab-scroll::-webkit-scrollbar { display:none; }
+.pos-tab { border:1px solid var(--color-gray-200); background:transparent; border-radius:20px; padding:3px 11px; font-size:.78rem; cursor:pointer; white-space:nowrap; color:var(--color-gray-600); transition:all .15s; line-height:1.6; }
+.pos-tab:hover { border-color:var(--color-primary); color:var(--color-primary); background:#f0f4ff; }
+.pos-tab.active { background:var(--color-primary); border-color:var(--color-primary); color:#fff; font-weight:600; }
 </style>
 
 <div class="pos-layout">
   <!-- Left: Products -->
   <div class="pos-left">
-    <!-- Search & Filter -->
-    <div class="card" style="margin-bottom:12px;padding:12px">
-      <div class="d-flex gap-8 align-center flex-wrap">
-        <div class="search-bar" style="flex:1;min-width:180px">
+    <!-- Search bar -->
+    <div class="card" style="margin-bottom:8px;padding:10px 12px">
+      <div class="d-flex gap-8 align-center">
+        <div class="search-bar" style="flex:1">
           <?= icon('search', 16) ?> <input type="text" id="posSearch" placeholder="Search products..." oninput="debouncedSearch()">
         </div>
-        <select id="categoryFilter" class="form-select" style="width:130px;height:36px;font-size:.83rem" onchange="applyFilters()">
-          <option value="">All Categories</option>
+        <button class="btn btn-secondary btn-sm" onclick="resetFilters()" style="height:36px;white-space:nowrap">Reset</button>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="pos-filter-wrap">
+      <div class="pos-tab-row">
+        <span class="pos-tab-label">Category</span>
+        <div class="pos-tab-scroll">
+          <button class="pos-tab active" data-filter="category" data-value="" onclick="setFilter('category','')">All</button>
           <?php foreach ($categories as $cat): ?>
-            <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+            <button class="pos-tab" data-filter="category" data-value="<?= $cat['id'] ?>" onclick="setFilter('category','<?= $cat['id'] ?>')"><?= htmlspecialchars($cat['name']) ?></button>
           <?php endforeach; ?>
-        </select>
-        <select id="typeFilter" class="form-select" style="width:120px;height:36px;font-size:.83rem" onchange="applyFilters()">
-          <option value="">All Types</option>
+        </div>
+      </div>
+      <div class="pos-tab-row">
+        <span class="pos-tab-label">Type</span>
+        <div class="pos-tab-scroll">
+          <button class="pos-tab active" data-filter="type" data-value="" onclick="setFilter('type','')">All</button>
           <?php foreach ($types as $t): ?>
-            <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['name']) ?></option>
+            <button class="pos-tab" data-filter="type" data-value="<?= $t['id'] ?>" onclick="setFilter('type','<?= $t['id'] ?>')"><?= htmlspecialchars($t['name']) ?></button>
           <?php endforeach; ?>
-        </select>
-        <select id="colorFilter" class="form-select" style="width:110px;height:36px;font-size:.83rem" onchange="applyFilters()">
-          <option value="">All Colors</option>
+        </div>
+      </div>
+      <div class="pos-tab-row">
+        <span class="pos-tab-label">Color</span>
+        <div class="pos-tab-scroll">
+          <button class="pos-tab active" data-filter="color" data-value="" onclick="setFilter('color','')">All</button>
           <?php foreach ($colors as $c): ?>
-            <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+            <button class="pos-tab" data-filter="color" data-value="<?= $c['id'] ?>" onclick="setFilter('color','<?= $c['id'] ?>')"><?= htmlspecialchars($c['name']) ?></button>
           <?php endforeach; ?>
-        </select>
-        <select id="sizeFilter" class="form-select" style="width:100px;height:36px;font-size:.83rem" onchange="applyFilters()">
-          <option value="">All Sizes</option>
+        </div>
+      </div>
+      <div class="pos-tab-row">
+        <span class="pos-tab-label">Size</span>
+        <div class="pos-tab-scroll">
+          <button class="pos-tab active" data-filter="size" data-value="" onclick="setFilter('size','')">All</button>
           <?php foreach ($sizes as $s): ?>
-            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
+            <button class="pos-tab" data-filter="size" data-value="<?= $s['id'] ?>" onclick="setFilter('size','<?= $s['id'] ?>')"><?= htmlspecialchars($s['name']) ?></button>
           <?php endforeach; ?>
-        </select>
-        <button class="btn btn-secondary btn-sm" onclick="resetFilters()" style="height:36px">Reset</button>
+        </div>
       </div>
     </div>
 
@@ -194,21 +220,29 @@ function debouncedSearch() {
   searchTimer = setTimeout(applyFilters, 350);
 }
 
+const activeFilters = { category: '', type: '', color: '', size: '' };
+
+function setFilter(name, value) {
+  activeFilters[name] = value;
+  document.querySelectorAll(`.pos-tab[data-filter="${name}"]`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === String(value));
+  });
+  applyFilters();
+}
+
 function applyFilters() {
-  const search   = document.getElementById('posSearch').value.trim();
-  const category = document.getElementById('categoryFilter').value;
-  const type     = document.getElementById('typeFilter').value;
-  const color    = document.getElementById('colorFilter').value;
-  const size     = document.getElementById('sizeFilter').value;
-  loadProducts(search, category, type, color, size);
+  const search = document.getElementById('posSearch').value.trim();
+  loadProducts(search, activeFilters.category, activeFilters.type, activeFilters.color, activeFilters.size);
 }
 
 function resetFilters() {
   document.getElementById('posSearch').value = '';
-  document.getElementById('categoryFilter').value = '';
-  document.getElementById('typeFilter').value = '';
-  document.getElementById('colorFilter').value = '';
-  document.getElementById('sizeFilter').value = '';
+  ['category','type','color','size'].forEach(k => {
+    activeFilters[k] = '';
+    document.querySelectorAll(`.pos-tab[data-filter="${k}"]`).forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === '');
+    });
+  });
   loadProducts();
 }
 
