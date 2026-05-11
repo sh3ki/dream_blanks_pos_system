@@ -41,7 +41,7 @@ $router->get('/clients',      [\App\Controllers\ClientController::class, 'index'
 $router->get('/products',     [\App\Controllers\ProductController::class, 'index'], $auth);
 
 // Inventory
-$router->get('/inventory',    [\App\Controllers\InventoryController::class, 'index'], $auth);
+$router->get('/inventory',        [\App\Controllers\InventoryController::class, 'index'], $auth);
 
 // Invoices
 $router->get('/invoices',     [\App\Controllers\InvoiceController::class, 'index'], $auth);
@@ -92,13 +92,31 @@ $router->put('/api/v1/clients/{client_id}',  [\App\Controllers\ClientController:
 $router->delete('/api/v1/clients/{client_id}',[\App\Controllers\ClientController::class, 'destroy'],$auth);
 
 // Products API
-$router->get('/api/v1/products',                 [\App\Controllers\ProductController::class, 'index'],           $auth);
-$router->post('/api/v1/products',                [\App\Controllers\ProductController::class, 'store'],           $auth);
-$router->post('/api/v1/products/bulk-import',    [\App\Controllers\ProductController::class, 'bulkImport'],      $auth);
-$router->get('/api/v1/products/import-template', [\App\Controllers\ProductController::class, 'downloadTemplate'],$auth);
-$router->get('/api/v1/products/{product_id}',    [\App\Controllers\ProductController::class, 'show'],            $auth);
-$router->put('/api/v1/products/{product_id}',    [\App\Controllers\ProductController::class, 'update'],          $auth);
-$router->delete('/api/v1/products/{product_id}', [\App\Controllers\ProductController::class, 'destroy'],         $auth);
+$router->get('/api/v1/products',                               [\App\Controllers\ProductController::class, 'index'],           $auth);
+$router->post('/api/v1/products',                              [\App\Controllers\ProductController::class, 'store'],           $auth);
+$router->post('/api/v1/products/bulk-import',                  [\App\Controllers\ProductController::class, 'bulkImport'],      $auth);
+$router->get('/api/v1/products/import-template',               [\App\Controllers\ProductController::class, 'downloadTemplate'],$auth);
+$router->get('/api/v1/products/{product_id}',                  [\App\Controllers\ProductController::class, 'show'],            $auth);
+$router->put('/api/v1/products/{product_id}',                  [\App\Controllers\ProductController::class, 'update'],          $auth);
+$router->delete('/api/v1/products/{product_id}',               [\App\Controllers\ProductController::class, 'destroy'],         $auth);
+$router->get('/api/v1/products/{product_id}/stock-requirements', [\App\Controllers\ProductController::class, 'getRequirements'], $auth);
+$router->put('/api/v1/products/{product_id}/stock-requirements', [\App\Controllers\ProductController::class, 'saveRequirements'], $auth);
+
+// Stock Products web route
+$router->get('/stock-products', [\App\Controllers\StockProductController::class, 'index'], $auth);
+
+// Stock Products API
+$router->get('/api/v1/stock-products',                              [\App\Controllers\StockProductController::class, 'list'],            $auth);
+$router->post('/api/v1/stock-products',                             [\App\Controllers\StockProductController::class, 'store'],           $auth);
+$router->get('/api/v1/stock-products/import-template',              [\App\Controllers\StockProductController::class, 'downloadTemplate'],$auth);
+$router->post('/api/v1/stock-products/bulk-import',                 [\App\Controllers\StockProductController::class, 'bulkImport'],      $auth);
+$router->get('/api/v1/stock-products/all',                          [\App\Controllers\StockProductController::class, 'allForSelect'],    $auth);
+$router->post('/api/v1/stock-products/bulk-adjust',                 [\App\Controllers\StockProductController::class, 'bulkAdjust'],      $auth);
+$router->get('/api/v1/stock-products/{stock_product_id}',           [\App\Controllers\StockProductController::class, 'show'],            $auth);
+$router->put('/api/v1/stock-products/{stock_product_id}',           [\App\Controllers\StockProductController::class, 'update'],          $auth);
+$router->delete('/api/v1/stock-products/{stock_product_id}',        [\App\Controllers\StockProductController::class, 'destroy'],         $auth);
+$router->post('/api/v1/stock-products/{stock_product_id}/adjust',   [\App\Controllers\StockProductController::class, 'adjust'],          $auth);
+$router->get('/api/v1/stock-products/{stock_product_id}/movements', [\App\Controllers\StockProductController::class, 'movements'],       $auth);
 
 // Inventory API
 $router->get('/api/v1/inventory',                         [\App\Controllers\InventoryController::class, 'index'],         $auth);
