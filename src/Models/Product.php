@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+/**
+ * Sellable Product model.
+ * Stock is NOT directly owned here — availability is computed from assigned StockProducts.
+ */
 class Product extends Model
 {
     protected static string $table = 'products';
@@ -96,7 +100,13 @@ class Product extends Model
 
     public static function forPos(array $filters = []): array
     {
-        $where  = "p.status = 'active' AND p.deleted_at IS NULL AND p.current_stock > 0";
+        // Only fetch active products that have at least one stock requirement assigned
+        $where  = "p.status = 'active' AND p.deleted_at IS NULL
+                   AND EXISTS (
+                       SELECT 1 FROM product_stock_requirements psr
+                       INNER JOIN stock_products sp ON sp.id = psr.stock_product_id
+                       WHERE psr.product_id = p.id AND sp.deleted_at IS NULL
+                   )";
         $params = [];
 
         if (!empty($filters['search'])) {
@@ -126,17 +136,30 @@ class Product extends Model
         }
 
         $limit = (int)($filters['limit'] ?? 200);
-        $sql   = "SELECT p.*, c.name as category_name, c.code as category_code, cl.name as color_name, s.name as size_name, s.code as size_code, t.name as type_name, t.code as type_code
+        $sql   = "SELECT p.*, c.name as category_name, c.code as category_code,
+                         cl.name as color_name, s.name as size_name, s.code as size_code,
+                         t.name as type_name, t.code as type_code
                   FROM products p
-                  LEFT JOIN categories c ON c.id = p.category_id
-                  LEFT JOIN colors cl ON cl.id = p.color_id
-                  LEFT JOIN sizes s ON s.id = p.size_id
-                  LEFT JOIN types t ON t.id = p.type_id
+                  LEFT JOIN categories c  ON c.id  = p.category_id
+                  LEFT JOIN colors cl     ON cl.id = p.color_id
+                  LEFT JOIN sizes s       ON s.id  = p.size_id
+                  LEFT JOIN types t       ON t.id  = p.type_id
                   WHERE {$where}
                   ORDER BY p.name ASC
                   LIMIT {$limit}";
 
-        return static::db()->select($sql, $params);
+        $products = static::db()->select($sql, $params);
+
+        // Augment each product with computed stock availability from stock requirements
+        foreach ($products as &$product) {
+            $maxSellable = StockProduct::computeMaxSellable((int)$product['id']);
+            $product['computed_stock']  = $maxSellable;
+            $product['current_stock']   = $maxSellable; // keep field name for POS JS compatibility
+        }
+        unset($product);
+
+        // Only return products that can actually be sold right now
+        return array_values(array_filter($products, fn($p) => $p['computed_stock'] > 0));
     }
 
     public static function decrementStock(int $productId, int $qty): void
