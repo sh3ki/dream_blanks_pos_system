@@ -30,4 +30,20 @@ class RestockOrder extends Model
         $order['items'] = static::getItems($id);
         return $order;
     }
+
+    public static function getRecent(int $limit = 20): array
+    {
+        return static::db()->select(
+            "SELECT ro.*,
+                    CONCAT(u.first_name,' ',u.last_name) as created_by_name,
+                    COUNT(ri.id) as items_count
+             FROM restock_orders ro
+             INNER JOIN users u ON u.id = ro.created_by
+             LEFT JOIN restock_items ri ON ri.restock_id = ro.id
+             GROUP BY ro.id
+             ORDER BY ro.created_at DESC
+             LIMIT " . (int)$limit,
+            []
+        );
+    }
 }
