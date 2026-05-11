@@ -102,16 +102,18 @@
   - Barcode (optional)
   - Status (Active/Inactive - default: Active)
 
-### 4.2 Product Pricing & Inventory
+### 4.2 Product Pricing & Stock Assignment
 - **Pricing**:
   - Cost Price (required) - internal cost to business
   - Selling Price (required) - retail price
   - Profit Margin (auto-calculated)
-- **Inventory**:
+- **Stock Assignment** (replaces direct stock ownership):
   - Unit Type (Piece, Box, Dozen, etc. - default: Piece)
-  - Initial Stock (required)
-  - Current Stock (tracked automatically)
-  - Low Stock Alert Threshold (optional)
+  - Assign one or more Stock Products this sellable product consumes
+  - For each assignment: required quantity per unit sold
+  - Optional waste percentage per assignment
+  - Computed availability shown (derived from assigned stock products)
+  - Product is available in POS only when all assigned stock products have sufficient quantity
 
 ### 4.3 Product Variants/Attributes
 - **Category**: Select from database (optional)
@@ -130,11 +132,11 @@
 - **Bulk Edit**: Edit multiple products at once
 - **Export Products**: Download product list as CSV
 
-### 4.5 Stock Management
-- **Stock Tracking**: Real-time inventory count
-- **Stock Adjustment**: Manual adjustment with reason logging
-- **Low Stock Alerts**: Automatic alerts when stock falls below threshold
-- **Stock History**: Audit trail of all stock movements
+### 4.5 Stock Assignment Management
+- **Assign Stock Products**: Link one or more stock products to a sellable product with required qty per unit
+- **Multi-Stock Support**: A single sellable product can consume multiple stock products per sale
+- **Remove Assignment**: Unlink a stock product from a sellable product
+- **Availability Preview**: Show computed max sellable quantity based on current stock product levels
 
 ---
 
@@ -173,56 +175,81 @@
 
 ---
 
-## 6. Inventory Management
+## 6. Stock Products Management
 
-### 6.1 Inventory Overview
-- **Stock Dashboard**: Real-time view of all product inventory
-- **Stock Levels**: Display current quantity, reorder point, status
-- **Stock Status**: 
-  - In Stock (quantity > reorder point)
-  - Low Stock (quantity ≤ reorder point)
+> **Architecture Note:** Stock Products are the inventory-tracked physical items.
+> Sellable Products (Section 4) consume stock products. Inventory is owned by stock products, not by sellable products.
+
+### 6.1 Stock Product Definition
+- **Stock Product Fields**:
+  - Code (required, unique) — stock identity key
+  - Name (required)
+  - Description (optional)
+  - Type (required) — e.g. Pro Club, Gildan
+  - Color (optional) — links to colors table
+  - Size (optional) — links to sizes table
+  - Current Quantity (tracked automatically)
+  - Low Stock Alert Threshold
+  - Status (Active/Inactive)
+- **No Category** — stock identity is type + color + size, not category
+
+### 6.2 Stock Product Operations
+- **Add Stock Product**: Create a new trackable stock item
+- **Edit Stock Product**: Update code, name, description, type, color, size, alert threshold
+- **Deactivate**: Mark a stock product inactive (does not delete)
+- **Delete**: Soft delete (only if not assigned to active sellable products)
+- **View**: Full detail with movement history
+- **Search**: By code, name, type, color, size
+- **Filter**: By status, type, color, size, stock level
+- **Export**: Download stock product list as CSV
+
+### 6.3 Inventory Overview (Stock-Product-Based)
+- **Stock Dashboard**: Real-time view of all stock product inventory
+- **Stock Levels**: Display current quantity, alert threshold, status per stock product
+- **Stock Status**:
+  - In Stock (quantity > alert threshold)
+  - Low Stock (quantity ≤ alert threshold)
   - Out of Stock (quantity = 0)
+- **Linked Products**: Show which sellable products use each stock product
 
-### 6.2 Inventory Operations
-- **View Inventory**: Complete inventory listing with pagination
-- **Search Inventory**: Find products by name, category, color, size
-- **Filter Inventory**: Filter by stock status, category, date range
-- **Sort Inventory**: Sort by quantity, product name, status
+### 6.4 Inventory Operations
+- **View Inventory**: Complete stock product inventory listing with pagination
+- **Search Inventory**: Find by code, name, type, color, size
+- **Filter Inventory**: Filter by stock status, type, color, size, date range
+- **Sort Inventory**: Sort by quantity, name, status, last updated
+- **Stock Adjustment**: Manual adjust with reason logging
 - **Export Inventory**: Download as CSV
 
-### 6.3 Restocking Management
-- **Restock Request**: Create restock orders for products
-- **Bulk Restock**: Add multiple products to single restock order
+### 6.5 Restocking Management
+- **Restock Request**: Create restock orders for stock products (not sellable products)
+- **Bulk Restock**: Add multiple stock products to a single restock order
 - **Restock Details**:
-  - Product (name, category, color, size)
+  - Stock Product (code, name, type, color, size)
   - Current Quantity
   - Restock Quantity (how many to order)
   - Order Date (recorded automatically)
   - Delivery Date (expected)
   - Supplier Name
-  - Delivery Status:
-    - Ordered (default)
-    - Delivered
-    - Incomplete
-    - Problematic
-  - Days to Deliver (auto-calculated from order to delivery date)
+  - Delivery Status: Ordered / Delivered / Incomplete / Problematic
+  - Days to Deliver (auto-calculated)
   - Notes (optional)
-  - Recorded By (user who created the restock)
+  - Recorded By
 
-### 6.4 Restock Operations
-- **Create Restock Order**: Initiate new restock request
-- **View Restock Orders**: See all pending and completed restocks
-- **Update Delivery Status**: Mark order as delivered/incomplete/problematic
-- **Edit Restock**: Modify order details before delivery
-- **Cancel Restock**: Cancel incomplete restock orders
-- **Restock History**: Complete audit trail of all restocking activities
+### 6.6 Restock Operations
+- **Create Restock Order**: Initiate restock using stock product IDs
+- **View Restock Orders**: All pending and completed restocks
+- **Update Delivery Status**: On delivery, stock product quantities are automatically increased
+- **Edit Restock**: Modify before delivery
+- **Cancel Restock**: Cancel pending orders
+- **Restock History**: Full audit trail
 - **Filter & Search**: By supplier, status, date range
 - **Export Restock Reports**: Download as CSV
 
-### 6.5 Stock Movement Tracking
-- **Movement Log**: Record of all inventory changes
-- **Reasons for Movement**: Purchase, Sale, Adjustment, Damage, Loss
-- **User Tracking**: Know who made each adjustment
+### 6.7 Stock Movement Tracking
+- **Movement Log**: All inventory changes per stock product
+- **Reasons**: Purchase (restock delivery), Sale (checkout deduction), Adjustment, Damage, Loss
+- **User Tracking**: Who made each change
+- **Sale Traceability**: Movement linked to invoice ID and the sellable product sold
 - **Timestamp**: Exact time of each movement
 
 ---
