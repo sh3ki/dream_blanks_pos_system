@@ -42,6 +42,12 @@
         <option value="active" <?= ($filters['status'] ?? '') === 'active' ? 'selected' : '' ?>>Active</option>
         <option value="inactive" <?= ($filters['status'] ?? '') === 'inactive' ? 'selected' : '' ?>>Inactive</option>
       </select>
+      <select id="stockStatusFilter" class="form-select" style="width:150px;height:38px" onchange="filterByStockStatus()">
+        <option value="">All Stock Status</option>
+        <option value="in_stock">In Stock</option>
+        <option value="low_stock">Low Stock</option>
+        <option value="out_of_stock">Out of Stock</option>
+      </select>
       <button class="btn btn-secondary btn-sm" onclick="resetFilters()" style="height:38px">Reset</button>
     </div>
   </div>
@@ -69,14 +75,15 @@
           <th style="padding:0"><?= sortLink('cl.name', 'Color', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('s.name', 'Size', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('p.selling_price', 'Price', $sort, $order, $filters) ?></th>
-          <th style="padding:0"><?= sortLink('p.current_stock', 'Stock', $sort, $order, $filters) ?></th>
+          <th>Stock</th>
+          <th>Stock Status</th>
           <th style="padding:0"><?= sortLink('p.status', 'Status', $sort, $order, $filters) ?></th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="productsBody">
         <?php foreach ($products as $p): ?>
-        <tr style="cursor:pointer" onclick="viewProduct(<?= $p['id'] ?>)">
+        <tr style="cursor:pointer" onclick="viewProduct(<?= $p['id'] ?>)" data-stock-status="<?= $p['stock_status'] ?? 'out_of_stock' ?>">
           <td onclick="event.stopPropagation()">
             <img
               src="<?= htmlspecialchars(!empty($p['image_path']) ? app_url($p['image_path']) : asset_url('/assets/images/no-image.png')) ?>"
@@ -94,12 +101,14 @@
           <td><strong>₱<?= number_format($p['selling_price'], 2) ?></strong></td>
           <td>
             <?php
-              $stock = (int)$p['current_stock'];
-              $alert = (int)($p['low_stock_alert'] ?? 10);
-              $cls = $stock <= 0 ? 'badge-danger' : ($stock <= $alert ? 'badge-warning' : 'badge-success');
+              $qty = (int)($p['computed_stock'] ?? 0);
+              $ss  = $p['stock_status'] ?? 'out_of_stock';
+              $sCls = $ss === 'in_stock' ? 'badge-success' : ($ss === 'low_stock' ? 'badge-warning' : 'badge-danger');
+              $sLbl = $ss === 'in_stock' ? 'In Stock' : ($ss === 'low_stock' ? 'Low Stock' : 'Out of Stock');
             ?>
-            <span class="badge <?= $cls ?>"><?= $stock ?></span>
+            <span class="badge <?= $sCls ?>"><?= $qty ?></span>
           </td>
+          <td><span class="badge <?= $sCls ?>"><?= $sLbl ?></span></td>
           <td><span class="badge <?= $p['status']==='active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($p['status']) ?></span></td>
           <td onclick="event.stopPropagation()">
             <button class="icon-btn" onclick="editProduct(<?= $p['id'] ?>)" title="Edit"><?= icon('edit', 15) ?></button>
@@ -108,7 +117,7 @@
         </tr>
         <?php endforeach; ?>
         <?php if (empty($products)): ?>
-          <tr><td colspan="11" class="text-center text-muted" style="padding:48px">No products found</td></tr>
+          <tr><td colspan="12" class="text-center text-muted" style="padding:48px">No products found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
@@ -201,15 +210,17 @@
             <input type="number" id="pPrice" name="selling_price" class="form-input" min="0" step="0.01" required>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Initial Stock</label>
-            <input type="number" id="pStock" name="initial_stock" class="form-input" min="0" value="0">
+
+        <!-- Stock Requirements Section -->
+        <div class="form-group" style="margin-top:8px">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Stock Requirements <span style="font-size:.75rem;color:var(--color-gray-400);font-weight:400">(which stock products are consumed per unit sold)</span></span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addStockReqRow()" style="padding:3px 10px;font-size:.78rem">+ Add</button>
+          </label>
+          <div id="stockReqRows" style="display:flex;flex-direction:column;gap:8px;min-height:40px">
+            <!-- rows injected by JS -->
           </div>
-          <div class="form-group">
-            <label class="form-label">Low Stock Alert</label>
-            <input type="number" id="pAlert" name="low_stock_alert" class="form-input" min="0" value="10">
-          </div>
+          <div id="stockReqEmpty" style="font-size:.8rem;color:var(--color-gray-400);padding:8px 4px;display:none">No stock requirements assigned. Click "+ Add" to assign stock products.</div>
         </div>
         <div class="form-group">
           <label class="form-label">Product Image</label>
@@ -228,7 +239,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('productModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProduct()" id="saveProductBtn">Save Product</button>
+      <button class="btn btn-primary" onclick="confirmSaveProduct()" id="saveProductBtn">Save Product</button>
     </div>
   </div>
 </div>
@@ -302,6 +313,21 @@
   </div>
 </div>
 
+<!-- Action Confirm Modal (save) -->
+<div class="modal-overlay" id="prodActionConfirmModal">
+  <div class="modal-content" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="prodActionConfirmTitle">Confirm</h2>
+      <button class="modal-close" onclick="closeModal('prodActionConfirmModal')">✕</button>
+    </div>
+    <div class="modal-body"><p id="prodActionConfirmMessage" style="margin:0"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('prodActionConfirmModal')">Cancel</button>
+      <button class="btn btn-primary" id="prodActionConfirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const noImagePreview = '<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>';
@@ -328,14 +354,122 @@ function showProductModal(id = null) {
   if (!id) {
     document.getElementById('productForm').reset();
     setImagePreview(noImagePreview);
+    renderStockReqRows([]);
   }
   document.getElementById('productModal').classList.add('show');
+}
+
+// Stock requirements data cache for the open modal
+let _stockProducts = [];
+
+async function loadStockProductsCache() {
+  if (_stockProducts.length > 0) return;
+  try {
+    const res  = await fetch('<?= htmlspecialchars(app_url('/api/v1/stock-products')) ?>');
+    const data = await res.json();
+    if (data.success) _stockProducts = data.data?.stock_products ?? [];
+  } catch (e) { /* ignore */ }
+}
+
+function renderStockReqRows(rows) {
+  const container = document.getElementById('stockReqRows');
+  const empty     = document.getElementById('stockReqEmpty');
+  container.innerHTML = '';
+  if (!rows || rows.length === 0) {
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  rows.forEach((r, i) => {
+    container.appendChild(buildStockReqRow(r, i));
+  });
+}
+
+function buildStockReqRow(r, i) {
+  const div = document.createElement('div');
+  div.className   = 'stock-req-row';
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 100px 90px 32px;gap:6px;align-items:center';
+  div.dataset.idx = i;
+
+  const sel = document.createElement('select');
+  sel.className = 'form-select';
+  sel.style.height = '34px';
+  sel.innerHTML = '<option value="">-- Select Stock Product --</option>'
+    + _stockProducts.map(sp => {
+        const parts = [sp.type_name, sp.color_name, sp.size_name].filter(Boolean).join(' / ');
+        const label = `[${sp.code}] ${sp.name}${parts ? ' — ' + parts : ''}`;
+        return `<option value="${sp.id}" ${parseInt(r.stock_product_id) === sp.id ? 'selected' : ''}>${label.replace(/"/g, '&quot;')}</option>`;
+      }).join('');
+
+  const qty = document.createElement('input');
+  qty.type        = 'number';
+  qty.className   = 'form-input';
+  qty.style.height = '34px';
+  qty.placeholder = 'Qty/unit';
+  qty.min         = '0.001';
+  qty.step        = '0.001';
+  qty.value       = r.qty_required_per_unit || 1;
+  qty.title       = 'Qty of stock product consumed per 1 unit sold';
+
+  const waste = document.createElement('input');
+  waste.type      = 'number';
+  waste.className = 'form-input';
+  waste.style.height = '34px';
+  waste.placeholder = 'Waste %';
+  waste.min       = '0';
+  waste.step      = '0.1';
+  waste.value     = r.waste_percent || 0;
+  waste.title     = 'Waste % added to qty_per_unit';
+
+  const del = document.createElement('button');
+  del.type      = 'button';
+  del.className = 'icon-btn danger';
+  del.title     = 'Remove row';
+  del.innerHTML = '✕';
+  del.onclick   = () => { div.remove(); syncStockReqEmpty(); };
+
+  div.appendChild(sel);
+  div.appendChild(qty);
+  div.appendChild(waste);
+  div.appendChild(del);
+  return div;
+}
+
+async function addStockReqRow() {
+  await loadStockProductsCache();
+  const container = document.getElementById('stockReqRows');
+  const empty     = document.getElementById('stockReqEmpty');
+  if (empty) empty.style.display = 'none';
+  const i = container.children.length;
+  container.appendChild(buildStockReqRow({}, i));
+}
+
+function syncStockReqEmpty() {
+  const container = document.getElementById('stockReqRows');
+  const empty     = document.getElementById('stockReqEmpty');
+  if (!empty) return;
+  empty.style.display = container.children.length === 0 ? '' : 'none';
+}
+
+function collectStockReqs() {
+  const rows = document.querySelectorAll('.stock-req-row');
+  const result = [];
+  rows.forEach(row => {
+    const sp  = row.querySelector('select')?.value;
+    const qty = row.querySelectorAll('input')[0]?.value;
+    const wp  = row.querySelectorAll('input')[1]?.value;
+    if (sp && parseFloat(qty) > 0) {
+      result.push({ stock_product_id: sp, qty_required_per_unit: qty, waste_percent: wp || 0 });
+    }
+  });
+  return result;
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 async function editProduct(id) {
-  const res = await fetch('/api/v1/products/' + id);
+  await loadStockProductsCache();
+  const res  = await fetch('/api/v1/products/' + id);
   const data = await res.json();
   if (!data.success) return;
   const p = data.data;
@@ -348,9 +482,29 @@ async function editProduct(id) {
   document.getElementById('pCost').value     = p.cost_price;
   document.getElementById('pType').value     = p.type_id || '';
   document.getElementById('pPrice').value    = p.selling_price;
-  document.getElementById('pAlert').value    = p.low_stock_alert || 10;
   setImagePreview(p.image_path ? appPath(p.image_path) : noImagePreview);
+
+  // Load stock requirements
+  try {
+    const rRes  = await fetch('/api/v1/products/' + id + '/stock-requirements');
+    const rData = await rRes.json();
+    renderStockReqRows(rData.success ? (rData.data?.requirements ?? []) : []);
+  } catch (e) { renderStockReqRows([]); }
+
   showProductModal(id);
+}
+
+function confirmSaveProduct() {
+  const id   = document.getElementById('productId')?.value;
+  const name = document.getElementById('productName')?.value.trim() || 'this product';
+  const code = document.getElementById('productCode')?.value.trim();
+  if (!code || !name) return saveProduct(); // let saveProduct show validation errors
+  const title = id ? 'Update Product' : 'Add Product';
+  const msg   = id ? `Update "${name}"?` : `Create new product "${name}"?`;
+  document.getElementById('prodActionConfirmTitle').textContent   = title;
+  document.getElementById('prodActionConfirmMessage').textContent = msg;
+  document.getElementById('prodActionConfirmBtn').onclick = () => { closeModal('prodActionConfirmModal'); saveProduct(); };
+  openModal('prodActionConfirmModal');
 }
 
 async function saveProduct() {
@@ -361,11 +515,13 @@ async function saveProduct() {
 
   const formData = new FormData(form);
 
+  // Append stock requirements as JSON array
+  const reqs = collectStockReqs();
+  formData.append('stock_requirements', JSON.stringify(reqs));
+
   const method = 'POST';
   const url    = id ? '/api/v1/products/' + id : '/api/v1/products';
-  if (id) {
-    formData.append('_method', 'PUT');
-  }
+  if (id) formData.append('_method', 'PUT');
 
   try {
     const res  = await fetch(url, { method, headers: { 'X-CSRF-Token': csrfToken }, body: formData });
@@ -457,14 +613,42 @@ async function viewProduct(id) {
   document.getElementById('viewEditBtn').onclick = () => { closeModal('viewProductModal'); editProduct(id); };
   openModal('viewProductModal');
   try {
-    const res  = await fetch('/api/v1/products/' + id);
-    const data = await res.json();
-    if (!data.success) { document.getElementById('viewProductBody').innerHTML = '<p class="text-danger">Failed to load product</p>'; return; }
-    const p = data.data;
-    const img = p.image_path ? appPath(p.image_path) : appPath('/assets/images/no-image.png');
-    const stock = parseInt(p.current_stock);
-    const alert = parseInt(p.low_stock_alert || 10);
-    const stockCls = stock <= 0 ? 'badge-danger' : (stock <= alert ? 'badge-warning' : 'badge-success');
+    const [pRes, rRes] = await Promise.all([
+      fetch('/api/v1/products/' + id),
+      fetch('/api/v1/products/' + id + '/stock-requirements'),
+    ]);
+    const [pData, rData] = await Promise.all([pRes.json(), rRes.json()]);
+    if (!pData.success) { document.getElementById('viewProductBody').innerHTML = '<p class="text-danger">Failed to load product</p>'; return; }
+    const p    = pData.data;
+    const reqs = rData.success ? (rData.data?.requirements ?? []) : [];
+    const max  = rData.success ? (rData.data?.max_sellable ?? '?') : '?';
+    const img  = p.image_path ? appPath(p.image_path) : appPath('/assets/images/no-image.png');
+    const maxBadge = max === 0 ? 'badge-danger' : (max <= 10 ? 'badge-warning' : 'badge-success');
+
+    let reqsHtml = '';
+    if (reqs.length > 0) {
+      reqsHtml = `<div style="margin-top:16px">
+        <div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600;margin-bottom:6px">Stock Requirements</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+          <thead><tr style="background:var(--color-gray-50)">
+            <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--color-gray-100)">Stock Product</th>
+            <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--color-gray-100)">Qty/unit</th>
+            <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--color-gray-100)">Waste %</th>
+            <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--color-gray-100)">In Stock</th>
+          </tr></thead><tbody>
+          ${reqs.map(r => `<tr>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50)">[${r.stock_product_code}] ${r.stock_product_name}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50);text-align:right">${parseFloat(r.qty_required_per_unit)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50);text-align:right">${parseFloat(r.waste_percent || 0)}%</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50);text-align:right">${parseInt(r.current_qty)}</td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    } else {
+      reqsHtml = `<div style="margin-top:16px;padding:10px;background:var(--color-gray-50);border-radius:6px;font-size:.82rem;color:var(--color-gray-400)">No stock requirements assigned yet.</div>`;
+    }
+
     document.getElementById('viewProductBody').innerHTML = `
       <div style="display:grid;grid-template-columns:140px 1fr;gap:20px;align-items:start">
         <img src="${img}" onerror="this.src='${appPath('/assets/images/no-image.png')}'"
@@ -482,10 +666,10 @@ async function viewProduct(id) {
         <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Size</div><div>${p.size_name || '-'}</div></div>
         <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Cost Price</div><div>₱${parseFloat(p.cost_price).toFixed(2)}</div></div>
         <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Selling Price</div><div style="font-weight:700;color:var(--color-primary)">₱${parseFloat(p.selling_price).toFixed(2)}</div></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Stock</div><div><span class="badge ${stockCls}">${stock}</span></div></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Low Stock Alert</div><div>${p.low_stock_alert || 10}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Max Sellable</div><div><span class="badge ${maxBadge}">${max}</span></div></div>
         <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Status</div><div><span class="badge ${p.status === 'active' ? 'badge-success' : 'badge-gray'}">${p.status}</span></div></div>
-      </div>`;
+      </div>
+      ${reqsHtml}`;
   } catch (e) { document.getElementById('viewProductBody').innerHTML = '<p class="text-danger">Network error</p>'; }
 }
 
@@ -525,15 +709,23 @@ function loadProducts() {
     .then(html => {
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const el = doc.getElementById('productsResultsContainer');
-      if (el && container) { container.innerHTML = el.innerHTML; container.style.opacity = '1'; }
+      if (el && container) { container.innerHTML = el.innerHTML; container.style.opacity = '1'; filterByStockStatus(); }
     })
     .catch(() => { if (container) container.style.opacity = '1'; });
 }
 
+function filterByStockStatus() {
+  const val = document.getElementById('stockStatusFilter')?.value || '';
+  document.querySelectorAll('#productsBody tr[data-stock-status]').forEach(tr => {
+    tr.style.display = (!val || tr.dataset.stockStatus === val) ? '' : 'none';
+  });
+}
+
 function resetFilters() {
-  ['searchInput','categoryFilter','typeFilter','colorFilter','sizeFilter','statusFilter'].forEach(id => {
+  ['searchInput','categoryFilter','typeFilter','colorFilter','sizeFilter','statusFilter','stockStatusFilter'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  filterByStockStatus();
   loadProducts();
 }
 </script>
