@@ -57,18 +57,19 @@ define('ROLE_SALES',      'Sales Staff');
 define('ROLE_INVENTORY',  'Inventory Staff');
 
 // Modules for permissions
-define('MODULE_USERS',       'users');
-define('MODULE_ROLES',       'roles');
-define('MODULE_CLIENTS',     'clients');
-define('MODULE_PRODUCTS',    'products');
-define('MODULE_INVENTORY',   'inventory');
-define('MODULE_POS',         'pos');
-define('MODULE_INVOICES',    'invoices');
-define('MODULE_PAYMENTS',    'payments');
-define('MODULE_REPORTS',     'reports');
-define('MODULE_SETTINGS',    'settings');
-define('MODULE_AUDIT_LOGS',  'audit_logs');
-define('MODULE_NOTIFICATIONS','notifications');
+define('MODULE_USERS',          'users');
+define('MODULE_ROLES',          'roles');
+define('MODULE_CLIENTS',        'clients');
+define('MODULE_PRODUCTS',       'products');
+define('MODULE_STOCK_PRODUCTS', 'stock_products');
+define('MODULE_INVENTORY',      'inventory');
+define('MODULE_POS',            'pos');
+define('MODULE_INVOICES',       'invoices');
+define('MODULE_PAYMENTS',       'payments');
+define('MODULE_REPORTS',        'reports');
+define('MODULE_SETTINGS',       'settings');
+define('MODULE_AUDIT_LOGS',     'audit_logs');
+define('MODULE_NOTIFICATIONS',  'notifications');
 
 // Permission actions
 define('ACTION_VIEW',   'view');
