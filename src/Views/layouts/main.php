@@ -70,6 +70,9 @@ $currentPath = strtok($currentPath, '?');
       <a href="<?= htmlspecialchars(app_url('/products')) ?>" class="nav-link <?= str_starts_with($currentPath,'/products') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('products') ?></span><span class="nav-label">Products</span>
       </a>
+      <a href="<?= htmlspecialchars(app_url('/stock-products')) ?>" class="nav-link <?= str_starts_with($currentPath,'/stock-products') ? 'active':'' ?>">
+        <span class="nav-icon"><?= icon('package') ?></span><span class="nav-label">Stock Products</span>
+      </a>
       <a href="<?= htmlspecialchars(app_url('/inventory')) ?>" class="nav-link <?= str_starts_with($currentPath,'/inventory') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('inventory') ?></span><span class="nav-label">Inventory</span>
       </a>
