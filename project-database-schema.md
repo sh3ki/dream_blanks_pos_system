@@ -226,34 +226,83 @@ CREATE TABLE product_images (
 
 ### Inventory Management
 
+> **Architecture Note (v2):** Inventory is now owned by **Stock Products**, not directly by sellable Products.
+> Sellable products assign which stock products they consume and how many per unit sold.
+> Checkout deducts stock from stock products only. Restock replenishes stock products only.
+
 ```sql
--- Inventory Table
+-- Stock Products Table (inventory-tracked raw/physical items)
+-- NOTE: No category_id — stock identity is determined by type + color + size + code,
+--       and the same stock can be shared across sellable products of different categories.
+CREATE TABLE stock_products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    type_id INT,
+    color_id INT,
+    size_id INT,
+    current_qty INT DEFAULT 0,
+    low_stock_alert INT DEFAULT 10,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (type_id) REFERENCES types(id) ON DELETE SET NULL,
+    FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET NULL,
+    FOREIGN KEY (size_id) REFERENCES sizes(id) ON DELETE SET NULL,
+    INDEX idx_code (code),
+    INDEX idx_name (name),
+    INDEX idx_type (type_id),
+    INDEX idx_status (status)
+);
+
+-- Product Stock Requirements Table (sellable product → stock product assignment)
+CREATE TABLE product_stock_requirements (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    stock_product_id INT NOT NULL,
+    qty_required_per_unit DECIMAL(10, 4) NOT NULL DEFAULT 1,
+    waste_percent DECIMAL(5, 2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (stock_product_id) REFERENCES stock_products(id) ON DELETE RESTRICT,
+    UNIQUE KEY unique_product_stock (product_id, stock_product_id),
+    INDEX idx_product (product_id),
+    INDEX idx_stock_product (stock_product_id)
+);
+
+-- Inventory Table (mirrors stock_products current state; keyed by stock_product_id)
 CREATE TABLE inventory (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT UNIQUE NOT NULL,
+    stock_product_id INT UNIQUE NOT NULL,
     quantity_on_hand INT DEFAULT 0,
     quantity_reserved INT DEFAULT 0,
     stock_status ENUM('in_stock', 'low_stock', 'out_of_stock') DEFAULT 'in_stock',
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     updated_by INT,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (stock_product_id) REFERENCES stock_products(id) ON DELETE CASCADE,
     FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_product (product_id),
+    INDEX idx_stock_product (stock_product_id),
     INDEX idx_status (stock_status)
 );
 
--- Stock Movement History Table
+-- Stock Movement History Table (now tracks stock_product_id)
 CREATE TABLE stock_movements (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
+    stock_product_id INT NOT NULL,
+    product_id INT,
     movement_type ENUM('purchase', 'sale', 'adjustment', 'damage', 'loss') NOT NULL,
     quantity_change INT NOT NULL,
     reason TEXT,
     reference_id INT,
     created_by INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (stock_product_id) REFERENCES stock_products(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_stock_product (stock_product_id),
     INDEX idx_product (product_id),
     INDEX idx_date (created_at),
     INDEX idx_type (movement_type)
@@ -276,18 +325,19 @@ CREATE TABLE restock_orders (
     INDEX idx_status (delivery_status)
 );
 
--- Restock Items Table
+-- Restock Items Table (now targets stock_product_id, not product_id)
 CREATE TABLE restock_items (
     id INT PRIMARY KEY AUTO_INCREMENT,
     restock_id INT NOT NULL,
-    product_id INT NOT NULL,
+    stock_product_id INT NOT NULL,
     quantity_requested INT NOT NULL,
     quantity_received INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (restock_id) REFERENCES restock_orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
+    FOREIGN KEY (stock_product_id) REFERENCES stock_products(id) ON DELETE RESTRICT,
     INDEX idx_restock (restock_id),
-    INDEX idx_product (product_id)
+    INDEX idx_stock_product (stock_product_id)
 );
 ```
 
