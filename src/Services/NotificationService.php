@@ -32,13 +32,13 @@ class NotificationService
         }
     }
 
-    public static function lowStockAlert(int $productId, string $productName, int $stock): void
+    public static function lowStockAlert(int $stockProductId, string $stockProductName, int $qty): void
     {
         static::notifyAdmins(
             'low_stock',
             'Low Stock Alert',
-            "Product '{$productName}' is running low. Only {$stock} unit(s) remaining.",
-            $productId
+            "Stock product '{$stockProductName}' is running low. Only {$qty} unit(s) remaining.",
+            $stockProductId
         );
     }
 
