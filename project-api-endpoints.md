@@ -358,10 +358,131 @@ file: products.csv
 
 ---
 
-## 5. Inventory Endpoints
+## 5. Stock Products Endpoints
 
-### 5.1 Get Inventory
+> **Architecture Note:** These endpoints manage the inventory-level items. Sellable Products (Section 4) assign which stock products they consume.
+
+### 5.1 List Stock Products
+**Endpoint**: `GET /api/v1/stock-products`
+
+**Query Parameters**:
+- `page`, `per_page`, `search` (code/name), `type_id`, `color_id`, `size_id`, `status`, `sort`, `order`
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "stock_products": [
+      {
+        "id": 1,
+        "code": "SP-PROCLB-WHT-M",
+        "name": "Pro Club White Medium",
+        "type_name": "Pro Club",
+        "color_name": "White",
+        "size_name": "Medium",
+        "current_qty": 150,
+        "low_stock_alert": 20,
+        "status": "active"
+      }
+    ],
+    "pagination": {}
+  }
+}
+```
+
+### 5.2 Get Stock Product
+**Endpoint**: `GET /api/v1/stock-products/{stock_product_id}`
+
+### 5.3 Create Stock Product
+**Endpoint**: `POST /api/v1/stock-products`
+
+**Request**:
+```json
+{
+  "code": "SP-PROCLB-WHT-M",
+  "name": "Pro Club White Medium",
+  "description": "Pro Club blank t-shirt white medium",
+  "type_id": 1,
+  "color_id": 3,
+  "size_id": 2,
+  "current_qty": 100,
+  "low_stock_alert": 20,
+  "status": "active"
+}
+```
+
+### 5.4 Update Stock Product
+**Endpoint**: `PUT /api/v1/stock-products/{stock_product_id}`
+
+### 5.5 Delete Stock Product
+**Endpoint**: `DELETE /api/v1/stock-products/{stock_product_id}`
+
+### 5.6 Adjust Stock Quantity
+**Endpoint**: `POST /api/v1/stock-products/{stock_product_id}/adjust`
+
+**Request**:
+```json
+{
+  "quantity_change": -5,
+  "movement_type": "adjustment",
+  "reason": "Damaged goods removed"
+}
+```
+
+### 5.7 Get Stock Movement History
+**Endpoint**: `GET /api/v1/stock-products/{stock_product_id}/movements`
+
+---
+
+## 5b. Product Stock Requirements Endpoints
+
+### 5b.1 Get Requirements for Product
+**Endpoint**: `GET /api/v1/products/{product_id}/stock-requirements`
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "requirements": [
+      {
+        "id": 1,
+        "stock_product_id": 3,
+        "stock_product_code": "SP-PROCLB-WHT-M",
+        "stock_product_name": "Pro Club White Medium",
+        "qty_required_per_unit": 1,
+        "waste_percent": 0
+      }
+    ]
+  }
+}
+```
+
+### 5b.2 Save Requirements for Product
+**Endpoint**: `PUT /api/v1/products/{product_id}/stock-requirements`
+
+**Request**:
+```json
+{
+  "requirements": [
+    { "stock_product_id": 3, "qty_required_per_unit": 1, "waste_percent": 0 },
+    { "stock_product_id": 7, "qty_required_per_unit": 0.5, "waste_percent": 2 }
+  ]
+}
+```
+
+---
+
+## 6. Inventory Endpoints
+
+### 6.1 Get Inventory
 **Endpoint**: `GET /api/v1/inventory`
+
+> Returns inventory keyed by stock products (not sellable products).
+
+**Query Parameters**:
+- `page`, `per_page`, `search` (code/name), `status`, `type_id`, `color_id`, `size_id`, `sort`, `order`
 
 **Response**:
 ```json
@@ -370,35 +491,37 @@ file: products.csv
   "data": {
     "inventory": [
       {
-        "product_id": 1,
-        "product_name": "White T-Shirt",
+        "stock_product_id": 1,
+        "code": "SP-PROCLB-WHT-M",
+        "name": "Pro Club White Medium",
+        "type_name": "Pro Club",
+        "color_name": "White",
+        "size_name": "Medium",
         "quantity_on_hand": 50,
         "stock_status": "in_stock",
-        "low_stock_alert": 10
+        "low_stock_alert": 20,
+        "last_updated": "2026-05-01T10:00:00Z"
       }
     ]
   }
 }
 ```
 
-### 5.2 Create Restock Order
+### 6.2 Create Restock Order
 **Endpoint**: `POST /api/v1/inventory/restock`
+
+> Items must reference `stock_product_id`, not `product_id`.
 
 **Request**:
 ```json
 {
   "items": [
-    {
-      "product_id": 1,
-      "quantity_requested": 50
-    },
-    {
-      "product_id": 2,
-      "quantity_requested": 30
-    }
+    { "stock_product_id": 1, "quantity_requested": 50 },
+    { "stock_product_id": 2, "quantity_requested": 30 }
   ],
   "supplier_name": "Supplier XYZ",
-  "delivery_date": "2026-05-15"
+  "delivery_date": "2026-05-15",
+  "notes": "Urgent order"
 }
 ```
 
@@ -415,8 +538,10 @@ file: products.csv
 }
 ```
 
-### 5.3 Update Restock Status
+### 6.3 Update Restock Status
 **Endpoint**: `PUT /api/v1/inventory/restock/{restock_id}`
+
+> On `delivery_status: delivered`, system auto-increments `stock_products.current_qty` for each item.
 
 **Request**:
 ```json
