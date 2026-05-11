@@ -10,20 +10,20 @@ class Invoice extends Model
     public static function generateNumber(): string
     {
         $prefix  = static::db()->selectOne("SELECT setting_value FROM settings WHERE setting_key = 'invoice_prefix'")['setting_value'] ?? 'INV-';
-        $year    = date('Y');
         $lastRow = static::db()->selectOne(
             "SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY id DESC LIMIT 1",
-            ["{$prefix}{$year}%"]
+            ["{$prefix}%"]
         );
 
         if ($lastRow) {
-            preg_match('/(\d+)$/', $lastRow['invoice_number'], $m);
-            $next = (int)($m[1] ?? 0) + 1;
+            // Extract only the trailing numeric sequence (after the prefix)
+            $suffix = ltrim(substr($lastRow['invoice_number'], strlen($prefix)), '0') ?: '0';
+            $next   = (int)$suffix + 1;
         } else {
             $next = 1;
         }
 
-        return $prefix . $year . str_pad($next, 5, '0', STR_PAD_LEFT);
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     public static function findWithDetails(int $id): ?array
