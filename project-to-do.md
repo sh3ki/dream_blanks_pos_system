@@ -476,3 +476,38 @@
 ---
 
 **Document Version**: 1.0 | **Last Updated**: May 2026
+
+---
+
+## STOCK PRODUCTS REFACTOR (Completed — June 2026)
+
+### Summary
+Inventory ownership moved from sellable `products` to a new `stock_products` entity. Sellable products now assign stock via `product_stock_requirements`. POS checkout deducts from stock products, not product records.
+
+### Completed Tasks
+- ✅ Database: Created `stock_products` table (name, description, code, type_id, color_id, size_id, current_qty, low_stock_alert, status)
+- ✅ Database: Created `product_stock_requirements` junction table (product_id, stock_product_id, qty_required_per_unit, waste_percent)
+- ✅ Migration: `database/migrate_stock_products.sql` — safe 3-phase migration
+- ✅ Model: `src/Models/StockProduct.php` — CRUD, computeMaxSellable(), syncInventoryStatus(), getLowStock()
+- ✅ Model: `src/Models/ProductStockRequirement.php` — forProduct(), saveForProduct(), productsUsing()
+- ✅ Model: `src/Models/StockMovement.php` — added logForStockProduct(), forStockProduct()
+- ✅ Model: `src/Models/Product.php` — forPos() rewritten to compute stock from requirements
+- ✅ Model: `src/Models/Inventory.php` — getAll(), getLowStock() now join stock_products
+- ✅ Service: `src/Services/PosService.php` — checkout deducts from stock_products
+- ✅ Service: `src/Services/NotificationService.php` — lowStockAlert() updated to stock_product signature
+- ✅ Controller: `src/Controllers/StockProductController.php` — full CRUD + adjust + movements
+- ✅ Controller: `src/Controllers/ProductController.php` — getRequirements(), saveRequirements()
+- ✅ Controller: `src/Controllers/InventoryController.php` — restock items use stock_product_id
+- ✅ Routes: `config/routes.php` — stock-products web + API routes added
+- ✅ View: `src/Views/stock-products/index.php` — full CRUD with adjust modal
+- ✅ View: `src/Views/products/index.php` — removed stock fields, added requirements UI
+- ✅ View: `src/Views/inventory/index.php` — rewritten for stock product columns
+- ✅ Nav: `src/Views/layouts/main.php` — "Stock Products" link added
+- ✅ Constants: `config/constants.php` — MODULE_STOCK_PRODUCTS added
+
+### Outstanding / Follow-up
+- ⬜ Run `database/migrate_stock_products.sql` on production DB
+- ⬜ Backfill existing products: create stock_product records and assign via product_stock_requirements
+- ⬜ Verify `icon('package')` is defined in IconHelper.php (fallback to 'inventory' icon if not)
+- ⬜ Add RBAC permission rows for MODULE_STOCK_PRODUCTS in DB seeder
+- ⬜ Test POS checkout end-to-end after migration
