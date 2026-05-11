@@ -16,13 +16,13 @@ function showToast(message, type = 'info') {
 
 window.APP_BASE_PATH = window.APP_BASE_PATH || (document.querySelector('meta[name="app-base-path"]')?.content || '');
 
-const originalFetch = window.fetch ? window.fetch.bind(window) : null;
-if (originalFetch && !window.__appFetchPatched) {
+if (!window.__appFetchPatched && window.fetch) {
+  const _origFetch = window.fetch.bind(window);
   window.fetch = function(resource, init) {
     if (typeof resource === 'string' && resource.startsWith('/') && !resource.startsWith('//')) {
       resource = (window.APP_BASE_PATH || '') + resource;
     }
-    return originalFetch(resource, init);
+    return _origFetch(resource, init);
   };
   window.__appFetchPatched = true;
 }
