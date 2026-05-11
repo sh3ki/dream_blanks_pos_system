@@ -9,6 +9,8 @@ use App\Models\Category;
 use App\Models\Color;
 use App\Models\Size;
 use App\Models\Type;
+use App\Models\ProductStockRequirement;
+use App\Models\StockProduct;
 use App\Services\AuditService;
 use App\Helpers\FileHelper;
 use App\Exceptions\ValidationException;
@@ -21,6 +23,16 @@ class ProductController extends Controller
         [$page, $perPage] = $this->paginate($request);
         $filters = $request->only(['search', 'category_id', 'type_id', 'color_id', 'size_id', 'status', 'sort', 'order']);
         $result  = Product::search($filters, $page, $perPage);
+
+        // Attach computed stock (from stock products) for each product on this page
+        $ids        = array_column($result['data'], 'id');
+        $stockMap   = StockProduct::computeMaxSellableForProducts($ids);
+        $result['data'] = array_map(function ($p) use ($stockMap) {
+            $info = $stockMap[$p['id']] ?? ['computed_stock' => 0, 'stock_status' => 'out_of_stock'];
+            $p['computed_stock'] = $info['computed_stock'];
+            $p['stock_status']   = $info['stock_status'];
+            return $p;
+        }, $result['data']);
 
         if ($request->isApi()) {
             return $this->success(['products' => $result['data'], 'pagination' => $result['pagination']]);
@@ -58,26 +70,20 @@ class ProductController extends Controller
         }
 
         // Handle image upload
-        $imagePath = null;
         if (($file = $request->file('image')) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-            $imagePath = FileHelper::upload($file, 'products');
-            $data['image_path'] = $imagePath;
+            $data['image_path'] = FileHelper::upload($file, 'products');
         }
 
-        $initialStock = (int)($data['initial_stock'] ?? 0);
-        unset($data['initial_stock']);
+        // Remove legacy stock fields — stock is managed through stock products
+        unset($data['initial_stock'], $data['current_stock']);
 
-        $data['current_stock'] = $initialStock;
         $productId = Product::create($data);
 
-        // Initialize inventory record
-        Product::db()->insert('inventory', [
-            'product_id'      => $productId,
-            'quantity_on_hand'=> $initialStock,
-            'quantity_reserved'=> 0,
-            'stock_status'    => $initialStock > 0 ? STOCK_IN_STOCK : STOCK_OUT,
-            'updated_by'      => $this->currentUserId(),
-        ]);
+        // Save stock requirements if provided
+        $requirements = $request->input('stock_requirements', []);
+        if (!empty($requirements)) {
+            ProductStockRequirement::saveForProduct($productId, $requirements);
+        }
 
         AuditService::log(AUDIT_CREATE, MODULE_PRODUCTS, $productId, null, Product::find($productId), "Created product: {$data['name']}");
         return $this->success(['id' => $productId], 'Product created', 201);
@@ -89,15 +95,50 @@ class ProductController extends Controller
         $id  = (int)$request->param('product_id');
         $old = Product::findOrFail($id);
 
-        $data = $request->only(['sku', 'name', 'description', 'category_id', 'color_id', 'size_id', 'cost_price', 'selling_price', 'unit_type', 'low_stock_alert', 'barcode', 'status']);
+        $data = $request->only(['sku', 'name', 'description', 'category_id', 'color_id', 'size_id', 'cost_price', 'selling_price', 'unit_type', 'barcode', 'status']);
 
         if (($file = $request->file('image')) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
             $data['image_path'] = FileHelper::upload($file, 'products');
         }
 
         Product::update($id, array_filter($data, fn($v) => $v !== null));
+
+        // Update stock requirements if provided
+        $requirements = $request->input('stock_requirements');
+        if ($requirements !== null) {
+            ProductStockRequirement::saveForProduct($id, $requirements);
+        }
+
         AuditService::log(AUDIT_UPDATE, MODULE_PRODUCTS, $id, $old, Product::find($id), "Updated product #{$id}");
         return $this->success(null, 'Product updated');
+    }
+
+    /** GET /api/v1/products/{id}/stock-requirements */
+    public function getRequirements(Request $request): Response
+    {
+        $this->requirePermission(MODULE_PRODUCTS, ACTION_VIEW);
+        $id           = (int)$request->param('product_id');
+        $requirements = ProductStockRequirement::forProduct($id);
+        $maxSellable  = StockProduct::computeMaxSellable($id);
+
+        return $this->success([
+            'requirements' => $requirements,
+            'max_sellable' => $maxSellable,
+        ]);
+    }
+
+    /** PUT /api/v1/products/{id}/stock-requirements */
+    public function saveRequirements(Request $request): Response
+    {
+        $this->requirePermission(MODULE_PRODUCTS, ACTION_EDIT);
+        $id = (int)$request->param('product_id');
+        Product::findOrFail($id);
+
+        $requirements = $request->input('requirements', []);
+        ProductStockRequirement::saveForProduct($id, $requirements);
+
+        AuditService::log(AUDIT_UPDATE, MODULE_PRODUCTS, $id, null, null, "Updated stock requirements for product #{$id}");
+        return $this->success(null, 'Stock requirements saved');
     }
 
     public function destroy(Request $request): Response
