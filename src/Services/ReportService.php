@@ -69,14 +69,14 @@ class ReportService
                SUM(CASE WHEN stock_status='in_stock' THEN 1 ELSE 0 END) as in_stock,
                SUM(CASE WHEN stock_status='low_stock' THEN 1 ELSE 0 END) as low_stock,
                SUM(CASE WHEN stock_status='out_of_stock' THEN 1 ELSE 0 END) as out_of_stock
-             FROM inventory i INNER JOIN products p ON p.id = i.product_id WHERE p.deleted_at IS NULL"
+             FROM stock_products WHERE deleted_at IS NULL"
         );
 
         $lowStockItems = $this->db->select(
-            "SELECT p.name, p.sku, i.quantity_on_hand, p.low_stock_alert
-             FROM inventory i INNER JOIN products p ON p.id = i.product_id
-             WHERE i.stock_status IN ('low_stock','out_of_stock') AND p.deleted_at IS NULL
-             ORDER BY i.quantity_on_hand ASC"
+            "SELECT sp.name, sp.code, sp.current_qty as quantity_on_hand, sp.low_stock_alert
+             FROM stock_products sp
+             WHERE sp.stock_status IN ('low_stock','out_of_stock') AND sp.deleted_at IS NULL
+             ORDER BY sp.current_qty ASC"
         );
 
         $valuation = $this->db->selectOne(
@@ -150,7 +150,7 @@ class ReportService
         )['t'] ?? 0);
 
         $lowStock = (int)($this->db->selectOne(
-            "SELECT COUNT(*) as c FROM inventory WHERE stock_status IN ('low_stock','out_of_stock')"
+            "SELECT COUNT(*) as c FROM stock_products WHERE stock_status IN ('low_stock','out_of_stock') AND deleted_at IS NULL"
         )['c'] ?? 0);
 
         $pendingRestocks = (int)($this->db->selectOne(
