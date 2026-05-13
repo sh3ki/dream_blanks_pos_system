@@ -39,24 +39,22 @@ class StockProduct extends Model
             $params[] = $filters['status'];
         }
 
-        // stock_status filter: computed from current_qty vs low_stock_alert
+        // stock_status filter: use stored column
         if (!empty($filters['stock_status'])) {
-            switch ($filters['stock_status']) {
-                case 'out_of_stock':
-                    $where .= " AND sp.current_qty <= 0";
-                    break;
-                case 'low_stock':
-                    $where .= " AND sp.current_qty > 0 AND sp.current_qty <= sp.low_stock_alert";
-                    break;
-                case 'in_stock':
-                    $where .= " AND sp.current_qty > sp.low_stock_alert";
-                    break;
+            $allowed = ['in_stock', 'low_stock', 'out_of_stock'];
+            if (in_array($filters['stock_status'], $allowed)) {
+                $where   .= " AND sp.stock_status = ?";
+                $params[] = $filters['stock_status'];
             }
         }
 
-        $allowed = ['sp.name', 'sp.code', 'sp.current_qty', 'sp.status', 'sp.created_at'];
-        $sort    = in_array($filters['sort'] ?? '', $allowed) ? $filters['sort'] : 'sp.created_at';
-        $dir     = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+        $allowed    = ['sp.name', 'sp.code', 'sp.current_qty', 'sp.status', 'sp.created_at', 'sp.stock_status', 'stock_status'];
+        $sortKey    = $filters['sort'] ?? 'sp.created_at';
+        $sort       = in_array($sortKey, $allowed) ? $sortKey : 'sp.created_at';
+        $dir        = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+        if ($sort === 'stock_status') {
+            $sort = 'sp.stock_status';
+        }
 
         $db    = static::db();
         $total = (int)($db->selectOne(
@@ -143,7 +141,7 @@ class StockProduct extends Model
         static::syncInventoryStatus($stockProductId);
     }
 
-    /** Recompute and persist stock_status in the inventory table. */
+    /** Recompute and persist stock_status directly in stock_products. */
     public static function syncInventoryStatus(int $stockProductId): void
     {
         $sp = static::find($stockProductId);
@@ -162,41 +160,19 @@ class StockProduct extends Model
             $status = STOCK_IN_STOCK;
         }
 
-        $db = static::db();
-        $existing = $db->selectOne(
-            "SELECT id FROM inventory WHERE stock_product_id = ?",
-            [$stockProductId]
-        );
-
-        if ($existing) {
-            $db->update(
-                'inventory',
-                ['quantity_on_hand' => $qty, 'stock_status' => $status],
-                'stock_product_id = ?',
-                [$stockProductId]
-            );
-        } else {
-            $db->insert('inventory', [
-                'stock_product_id'  => $stockProductId,
-                'quantity_on_hand'  => $qty,
-                'quantity_reserved' => 0,
-                'stock_status'      => $status,
-            ]);
-        }
+        static::db()->update('stock_products', ['stock_status' => $status], 'id = ?', [$stockProductId]);
     }
 
     /** Return low-stock and out-of-stock records. */
     public static function getLowStock(): array
     {
         return static::db()->select(
-            "SELECT sp.*, t.name as type_name, c.name as color_name, s.name as size_name,
-                    i.stock_status
+            "SELECT sp.*, t.name as type_name, c.name as color_name, s.name as size_name
              FROM stock_products sp
-             INNER JOIN inventory i ON i.stock_product_id = sp.id
              LEFT JOIN types t  ON t.id  = sp.type_id
              LEFT JOIN colors c ON c.id  = sp.color_id
              LEFT JOIN sizes s  ON s.id  = sp.size_id
-             WHERE i.stock_status IN ('low_stock','out_of_stock') AND sp.deleted_at IS NULL
+             WHERE sp.stock_status IN ('low_stock','out_of_stock') AND sp.deleted_at IS NULL
              ORDER BY sp.current_qty ASC"
         );
     }
