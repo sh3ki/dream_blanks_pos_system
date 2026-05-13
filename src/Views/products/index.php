@@ -76,7 +76,7 @@
           <th style="padding:0"><?= sortLink('s.name', 'Size', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('p.selling_price', 'Price', $sort, $order, $filters) ?></th>
           <th>Stock</th>
-          <th>Stock Status</th>
+          <th style="padding:0"><?= sortLink('stock_status', 'Stock Status', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('p.status', 'Status', $sort, $order, $filters) ?></th>
           <th>Actions</th>
         </tr>
@@ -123,16 +123,10 @@
     </table>
   </div>
 
-  <!-- Pagination -->
-  <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
-  <?php $pq = http_build_query(array_filter(array_merge($filters, ['page' => null]), fn($v) => $v !== null && $v !== '')); ?>
-  <div class="pagination">
-    <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
-      <?php $href = '?' . ($pq ? $pq . '&' : '') . 'page=' . $i; ?>
-      <a href="<?= $href ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
-    <?php endfor; ?>
-  </div>
-  <?php endif; ?>
+  <?php
+    $pqFilters = array_filter(array_merge($filters, ['page' => null, 'per_page' => null]), fn($v) => $v !== null && $v !== '');
+    echo renderPagination($pagination, $pqFilters);
+  ?>
   </div><!-- /productsResultsContainer -->
 </div>
 
@@ -213,14 +207,53 @@
 
         <!-- Stock Requirements Section -->
         <div class="form-group" style="margin-top:8px">
-          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
-            <span>Stock Requirements <span style="font-size:.75rem;color:var(--color-gray-400);font-weight:400">(which stock products are consumed per unit sold)</span></span>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="addStockReqRow()" style="padding:3px 10px;font-size:.78rem">+ Add</button>
+          <label class="form-label">
+            Stock Requirements <span style="font-size:.75rem;color:var(--color-gray-400);font-weight:400">(which stock products are consumed per unit sold)</span>
           </label>
-          <div id="stockReqRows" style="display:flex;flex-direction:column;gap:8px;min-height:40px">
-            <!-- rows injected by JS -->
+
+          <!-- Search + Filters -->
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <input type="text" id="sreqSearch" class="form-input" placeholder="Search code or name..." style="flex:1;min-width:140px;height:34px" oninput="filterSreqPicker()">
+            <select id="sreqTypeFilter" class="form-select" style="width:120px;height:34px" onchange="filterSreqPicker()">
+              <option value="">All Types</option>
+              <?php foreach ($types ?? [] as $t): ?>
+              <option value="<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <select id="sreqColorFilter" class="form-select" style="width:110px;height:34px" onchange="filterSreqPicker()">
+              <option value="">All Colors</option>
+              <?php foreach ($colors as $c): ?>
+              <option value="<?= (int)$c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <select id="sreqSizeFilter" class="form-select" style="width:100px;height:34px" onchange="filterSreqPicker()">
+              <option value="">All Sizes</option>
+              <?php foreach ($sizes as $s): ?>
+              <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
           </div>
-          <div id="stockReqEmpty" style="font-size:.8rem;color:var(--color-gray-400);padding:8px 4px;display:none">No stock requirements assigned. Click "+ Add" to assign stock products.</div>
+
+          <!-- Picker Table -->
+          <div style="max-height:260px;overflow-y:auto;border:1px solid var(--color-gray-100);border-radius:6px">
+            <table class="data-table" style="margin:0;font-size:.82rem">
+              <thead style="position:sticky;top:0;z-index:1">
+                <tr>
+                  <th style="width:32px"><input type="checkbox" id="sreqSelectAll" onchange="toggleSreqSelectAll(this)" title="Select all"></th>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Color</th>
+                  <th>Size</th>
+                  <th style="width:90px">Qty/unit</th>
+                </tr>
+              </thead>
+              <tbody id="sreqPickerBody">
+                <tr><td colspan="7" class="text-center text-muted" style="padding:20px">Loading stock products...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="sreqSelectedCount" style="margin-top:5px;font-size:.8rem;color:var(--color-gray-400)">0 item(s) selected</div>
         </div>
         <div class="form-group">
           <label class="form-label">Product Image</label>
@@ -354,112 +387,124 @@ function showProductModal(id = null) {
   if (!id) {
     document.getElementById('productForm').reset();
     setImagePreview(noImagePreview);
-    renderStockReqRows([]);
+    _sreqSelections = new Map();
   }
   document.getElementById('productModal').classList.add('show');
+  // Load picker and render after cache is ready
+  loadSreqCache().then(() => filterSreqPicker());
 }
 
 // Stock requirements data cache for the open modal
-let _stockProducts = [];
+let _allSPsReq     = [];
+let _sreqLoaded    = false;
+let _sreqSelections = new Map(); // id → { qty }
 
-async function loadStockProductsCache() {
-  if (_stockProducts.length > 0) return;
+async function loadSreqCache() {
+  if (_sreqLoaded) return;
   try {
-    const res  = await fetch('<?= htmlspecialchars(app_url('/api/v1/stock-products')) ?>');
+    const res  = await fetch('/api/v1/stock-products/all');
     const data = await res.json();
-    if (data.success) _stockProducts = data.data?.stock_products ?? [];
+    if (data.success) { _allSPsReq = data.data?.stock_products || []; _sreqLoaded = true; }
   } catch (e) { /* ignore */ }
 }
 
-function renderStockReqRows(rows) {
-  const container = document.getElementById('stockReqRows');
-  const empty     = document.getElementById('stockReqEmpty');
-  container.innerHTML = '';
-  if (!rows || rows.length === 0) {
-    if (empty) empty.style.display = '';
+function filterSreqPicker() {
+  const search = (document.getElementById('sreqSearch')?.value || '').toLowerCase();
+  const typeId = parseInt(document.getElementById('sreqTypeFilter')?.value || '0', 10) || 0;
+  const colId  = parseInt(document.getElementById('sreqColorFilter')?.value || '0', 10) || 0;
+  const sizId  = parseInt(document.getElementById('sreqSizeFilter')?.value || '0', 10) || 0;
+  const filtered = _allSPsReq.filter(sp => {
+    if (typeId && parseInt(sp.type_id)  !== typeId) return false;
+    if (colId  && parseInt(sp.color_id) !== colId)  return false;
+    if (sizId  && parseInt(sp.size_id)  !== sizId)  return false;
+    if (search && !sp.code.toLowerCase().includes(search) && !sp.name.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  renderSreqPicker(filtered);
+}
+
+function _escHtml(str) {
+  const d = document.createElement('span');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function renderSreqPicker(filtered) {
+  const tbody = document.getElementById('sreqPickerBody');
+  if (!tbody) return;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:20px">No stock products found</td></tr>';
+    updateSreqSelectedCount();
     return;
   }
-  if (empty) empty.style.display = 'none';
-  rows.forEach((r, i) => {
-    container.appendChild(buildStockReqRow(r, i));
+  tbody.innerHTML = filtered.map(sp => {
+    const sel   = _sreqSelections.has(sp.id);
+    const entry = sel ? _sreqSelections.get(sp.id) : { qty: 1 };
+    return `<tr>
+      <td><input type="checkbox" class="sreq-cb" data-id="${sp.id}" ${sel ? 'checked' : ''} onchange="onSreqCheck(this, ${sp.id})"></td>
+      <td><code style="font-size:.78rem">${_escHtml(sp.code)}</code></td>
+      <td>${_escHtml(sp.name)}</td>
+      <td style="font-size:.8rem">${_escHtml(sp.type_name || '-')}</td>
+      <td style="font-size:.8rem">${_escHtml(sp.color_name || '-')}</td>
+      <td style="font-size:.8rem">${_escHtml(sp.size_name || '-')}</td>
+      <td><input type="number" class="form-input sreq-qty" data-id="${sp.id}" min="0.001" step="0.001" value="${entry.qty}" style="height:28px;width:78px" oninput="onSreqQtyChange(this,${sp.id})" ${!sel ? 'disabled' : ''}></td>
+    </tr>`;
+  }).join('');
+  updateSreqSelectedCount();
+}
+
+function onSreqCheck(cb, id) {
+  if (cb.checked) {
+    const row   = cb.closest('tr');
+    const qty   = parseFloat(row?.querySelector('.sreq-qty')?.value) || 1;
+    _sreqSelections.set(id, { qty: qty > 0 ? qty : 1 });
+    row?.querySelector('.sreq-qty')?.removeAttribute('disabled');
+  } else {
+    _sreqSelections.delete(id);
+    const row = cb.closest('tr');
+    row?.querySelector('.sreq-qty')?.setAttribute('disabled', 'disabled');
+  }
+  updateSreqSelectedCount();
+}
+
+function onSreqQtyChange(input, id) {
+  const qty = parseFloat(input.value);
+  if (_sreqSelections.has(id) && qty > 0) {
+    const e = _sreqSelections.get(id);
+    _sreqSelections.set(id, { ...e, qty });
+  }
+}
+
+function toggleSreqSelectAll(cb) {
+  const search = (document.getElementById('sreqSearch')?.value || '').toLowerCase();
+  const typeId = parseInt(document.getElementById('sreqTypeFilter')?.value || '0', 10) || 0;
+  const colId  = parseInt(document.getElementById('sreqColorFilter')?.value || '0', 10) || 0;
+  const sizId  = parseInt(document.getElementById('sreqSizeFilter')?.value || '0', 10) || 0;
+  const filtered = _allSPsReq.filter(sp => {
+    if (typeId && parseInt(sp.type_id)  !== typeId) return false;
+    if (colId  && parseInt(sp.color_id) !== colId)  return false;
+    if (sizId  && parseInt(sp.size_id)  !== sizId)  return false;
+    if (search && !sp.code.toLowerCase().includes(search) && !sp.name.toLowerCase().includes(search)) return false;
+    return true;
   });
+  if (cb.checked) {
+    filtered.forEach(sp => { if (!_sreqSelections.has(sp.id)) _sreqSelections.set(sp.id, { qty: 1 }); });
+  } else {
+    filtered.forEach(sp => _sreqSelections.delete(sp.id));
+  }
+  renderSreqPicker(filtered);
 }
 
-function buildStockReqRow(r, i) {
-  const div = document.createElement('div');
-  div.className   = 'stock-req-row';
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 100px 90px 32px;gap:6px;align-items:center';
-  div.dataset.idx = i;
-
-  const sel = document.createElement('select');
-  sel.className = 'form-select';
-  sel.style.height = '34px';
-  sel.innerHTML = '<option value="">-- Select Stock Product --</option>'
-    + _stockProducts.map(sp => {
-        const parts = [sp.type_name, sp.color_name, sp.size_name].filter(Boolean).join(' / ');
-        const label = `[${sp.code}] ${sp.name}${parts ? ' — ' + parts : ''}`;
-        return `<option value="${sp.id}" ${parseInt(r.stock_product_id) === sp.id ? 'selected' : ''}>${label.replace(/"/g, '&quot;')}</option>`;
-      }).join('');
-
-  const qty = document.createElement('input');
-  qty.type        = 'number';
-  qty.className   = 'form-input';
-  qty.style.height = '34px';
-  qty.placeholder = 'Qty/unit';
-  qty.min         = '0.001';
-  qty.step        = '0.001';
-  qty.value       = r.qty_required_per_unit || 1;
-  qty.title       = 'Qty of stock product consumed per 1 unit sold';
-
-  const waste = document.createElement('input');
-  waste.type      = 'number';
-  waste.className = 'form-input';
-  waste.style.height = '34px';
-  waste.placeholder = 'Waste %';
-  waste.min       = '0';
-  waste.step      = '0.1';
-  waste.value     = r.waste_percent || 0;
-  waste.title     = 'Waste % added to qty_per_unit';
-
-  const del = document.createElement('button');
-  del.type      = 'button';
-  del.className = 'icon-btn danger';
-  del.title     = 'Remove row';
-  del.innerHTML = '✕';
-  del.onclick   = () => { div.remove(); syncStockReqEmpty(); };
-
-  div.appendChild(sel);
-  div.appendChild(qty);
-  div.appendChild(waste);
-  div.appendChild(del);
-  return div;
-}
-
-async function addStockReqRow() {
-  await loadStockProductsCache();
-  const container = document.getElementById('stockReqRows');
-  const empty     = document.getElementById('stockReqEmpty');
-  if (empty) empty.style.display = 'none';
-  const i = container.children.length;
-  container.appendChild(buildStockReqRow({}, i));
-}
-
-function syncStockReqEmpty() {
-  const container = document.getElementById('stockReqRows');
-  const empty     = document.getElementById('stockReqEmpty');
-  if (!empty) return;
-  empty.style.display = container.children.length === 0 ? '' : 'none';
+function updateSreqSelectedCount() {
+  const el = document.getElementById('sreqSelectedCount');
+  if (el) el.textContent = `${_sreqSelections.size} item(s) selected`;
 }
 
 function collectStockReqs() {
-  const rows = document.querySelectorAll('.stock-req-row');
   const result = [];
-  rows.forEach(row => {
-    const sp  = row.querySelector('select')?.value;
-    const qty = row.querySelectorAll('input')[0]?.value;
-    const wp  = row.querySelectorAll('input')[1]?.value;
-    if (sp && parseFloat(qty) > 0) {
-      result.push({ stock_product_id: sp, qty_required_per_unit: qty, waste_percent: wp || 0 });
+  _sreqSelections.forEach((entry, id) => {
+    if (entry.qty > 0) {
+      result.push({ stock_product_id: id, qty_required_per_unit: entry.qty, waste_percent: 0 });
     }
   });
   return result;
@@ -468,7 +513,7 @@ function collectStockReqs() {
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 async function editProduct(id) {
-  await loadStockProductsCache();
+  await loadSreqCache();
   const res  = await fetch('/api/v1/products/' + id);
   const data = await res.json();
   if (!data.success) return;
@@ -484,12 +529,19 @@ async function editProduct(id) {
   document.getElementById('pPrice').value    = p.selling_price;
   setImagePreview(p.image_path ? appPath(p.image_path) : noImagePreview);
 
-  // Load stock requirements
+  // Load stock requirements into picker
+  _sreqSelections = new Map();
   try {
     const rRes  = await fetch('/api/v1/products/' + id + '/stock-requirements');
     const rData = await rRes.json();
-    renderStockReqRows(rData.success ? (rData.data?.requirements ?? []) : []);
-  } catch (e) { renderStockReqRows([]); }
+    if (rData.success) {
+      (rData.data?.requirements ?? []).forEach(r => {
+        _sreqSelections.set(parseInt(r.stock_product_id), {
+          qty:   parseFloat(r.qty_required_per_unit) || 1,
+        });
+      });
+    }
+  } catch (e) { /* ignore */ }
 
   showProductModal(id);
 }
@@ -633,13 +685,11 @@ async function viewProduct(id) {
           <thead><tr style="background:var(--color-gray-50)">
             <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--color-gray-100)">Stock Product</th>
             <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--color-gray-100)">Qty/unit</th>
-            <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--color-gray-100)">Waste %</th>
             <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--color-gray-100)">In Stock</th>
           </tr></thead><tbody>
           ${reqs.map(r => `<tr>
             <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50)">[${r.stock_product_code}] ${r.stock_product_name}</td>
             <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50);text-align:right">${parseFloat(r.qty_required_per_unit)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50);text-align:right">${parseFloat(r.waste_percent || 0)}%</td>
             <td style="padding:6px 10px;border-bottom:1px solid var(--color-gray-50);text-align:right">${parseInt(r.current_qty)}</td>
           </tr>`).join('')}
           </tbody>
