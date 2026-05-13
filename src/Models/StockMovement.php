@@ -93,6 +93,30 @@ class StockMovement extends Model
             $where   .= " AND sm.movement_type = ?";
             $params[] = $filters['movement_type'];
         }
+        if (!empty($filters['type_id'])) {
+            $where   .= " AND sp.type_id = ?";
+            $params[] = (int)$filters['type_id'];
+        }
+        if (!empty($filters['color_id'])) {
+            $where   .= " AND sp.color_id = ?";
+            $params[] = (int)$filters['color_id'];
+        }
+        if (!empty($filters['size_id'])) {
+            $where   .= " AND sp.size_id = ?";
+            $params[] = (int)$filters['size_id'];
+        }
+        if (!empty($filters['created_by'])) {
+            $where   .= " AND sm.created_by = ?";
+            $params[] = (int)$filters['created_by'];
+        }
+        if (!empty($filters['date_from'])) {
+            $where   .= " AND DATE(sm.created_at) >= ?";
+            $params[] = $filters['date_from'];
+        }
+        if (!empty($filters['date_to'])) {
+            $where   .= " AND DATE(sm.created_at) <= ?";
+            $params[] = $filters['date_to'];
+        }
 
         $db    = static::db();
         $total = (int)($db->selectOne(
