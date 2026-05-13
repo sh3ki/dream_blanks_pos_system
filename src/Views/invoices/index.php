@@ -87,17 +87,11 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
     </table>
   </div>
 
-  <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
   <?php
-    $iQuery = array_filter($filters ?? [], fn($v) => $v !== '');
-    $iBase  = $iQuery ? '?' . http_build_query($iQuery) . '&page=' : '?page=';
+    $iPqFilters = array_filter($filters ?? [], fn($v) => $v !== '');
+    unset($iPqFilters['page'], $iPqFilters['per_page']);
+    echo renderPagination($pagination, $iPqFilters);
   ?>
-  <div class="pagination">
-    <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
-      <a href="<?= $iBase . $i ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
-    <?php endfor; ?>
-  </div>
-  <?php endif; ?>
 </div>
 
 <!-- Add Payment Modal -->
