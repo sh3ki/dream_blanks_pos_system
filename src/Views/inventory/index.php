@@ -510,7 +510,7 @@ async function viewSp(id) {
   document.getElementById('viewSpBody').innerHTML = '<div style="text-align:center;padding:48px"><span class="spinner"></span></div>';
   openModal('viewSpModal');
   try {
-    const res  = await fetch((window.APP_BASE_PATH || '') + '/api/v1/stock-products/' + id);
+    const res  = await fetch('/api/v1/stock-products/' + id);
     const data = await res.json();
     if (!data.success) { document.getElementById('viewSpBody').innerHTML = '<p class="text-danger">Failed to load</p>'; return; }
     const s    = data.data;
@@ -674,9 +674,9 @@ function resetHistFilters() {
 // ===== RESTOCK PICKER =====
 async function loadAllSPs() {
   if (_spLoaded) return;
-  const res  = await fetch((window.APP_BASE_PATH || '') + '/api/v1/stock-products?per_page=999&status=active');
+  const res  = await fetch('/api/v1/stock-products?per_page=999&status=active');
   const data = await res.json();
-  _allSPs   = data.data?.data || data.data || [];
+  _allSPs   = data.data?.stock_products || [];
   _spLoaded = true;
 }
 
@@ -710,16 +710,22 @@ function renderRestockPickerBody(list) {
       <td>${esc(sp.color_name || '-')}</td>
       <td>${esc(sp.size_name  || '-')}</td>
       <td>${parseInt(sp.current_qty || 0)}</td>
-      <td><input type="number" min="1" value="${qty}" style="width:72px;padding:3px 6px;border:1px solid var(--color-gray-200);border-radius:4px"
-        id="roQty_${sp.id}" onchange="updateRoQty(${sp.id},this.value)" onclick="event.stopPropagation()"></td>
+      <td><input type="number" min="1" value="${qty}" style="width:72px;padding:3px 6px;border:1px solid var(--color-gray-200);border-radius:4px${checked ? '' : ';opacity:.4;cursor:not-allowed'}"
+        id="roQty_${sp.id}" ${checked ? '' : 'disabled'} onchange="updateRoQty(${sp.id},this.value)" onclick="event.stopPropagation()"></td>
     </tr>`;
   }).join('');
   updateRoSummary();
 }
 
 function toggleRoSp(id, cb) {
-  if (cb.checked) { _spSels[id] = parseInt(document.getElementById('roQty_' + id)?.value || 1); }
-  else            { delete _spSels[id]; }
+  const qtyEl = document.getElementById('roQty_' + id);
+  if (cb.checked) {
+    _spSels[id] = parseInt(qtyEl?.value || 1);
+    if (qtyEl) { qtyEl.disabled = false; qtyEl.style.opacity = '1'; qtyEl.style.cursor = ''; }
+  } else {
+    delete _spSels[id];
+    if (qtyEl) { qtyEl.disabled = true; qtyEl.style.opacity = '.4'; qtyEl.style.cursor = 'not-allowed'; }
+  }
   updateRoSummary();
 }
 
@@ -732,9 +738,15 @@ function toggleRestockSelectAll(cb) {
   const chks = document.querySelectorAll('.ro-sp-chk');
   chks.forEach(c => {
     c.checked = cb.checked;
-    const id  = parseInt(c.value);
-    if (cb.checked) { _spSels[id] = parseInt(document.getElementById('roQty_' + id)?.value || 1); }
-    else            { delete _spSels[id]; }
+    const id    = parseInt(c.value);
+    const qtyEl = document.getElementById('roQty_' + id);
+    if (cb.checked) {
+      _spSels[id] = parseInt(qtyEl?.value || 1);
+      if (qtyEl) { qtyEl.disabled = false; qtyEl.style.opacity = '1'; qtyEl.style.cursor = ''; }
+    } else {
+      delete _spSels[id];
+      if (qtyEl) { qtyEl.disabled = true; qtyEl.style.opacity = '.4'; qtyEl.style.cursor = 'not-allowed'; }
+    }
   });
   updateRoSummary();
 }
@@ -769,7 +781,7 @@ async function submitRestock() {
   const btn = document.getElementById('roSubmitBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating...';
   try {
-    const res  = await fetch((window.APP_BASE_PATH || '') + '/api/v1/inventory/restock', {
+    const res  = await fetch('/api/v1/inventory/restock', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
       body:    JSON.stringify({
@@ -803,7 +815,7 @@ function updateRestockDeliveryStatus(id, newStatus, selectEl) {
     closeModal('invActionConfirmModal');
     selectEl.disabled = true;
     try {
-      const res  = await fetch((window.APP_BASE_PATH || '') + '/api/v1/inventory/restock/' + id, {
+      const res  = await fetch('/api/v1/inventory/restock/' + id, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body:    JSON.stringify({ _method: 'PUT', delivery_status: newStatus }),
@@ -838,7 +850,7 @@ async function viewRestockOrder(id) {
   document.getElementById('vrmoBody').innerHTML    = '<div style="text-align:center;padding:48px"><span class="spinner"></span></div>';
   openModal('viewRestockModal');
   try {
-    const res  = await fetch((window.APP_BASE_PATH || '') + '/api/v1/inventory/restock/' + id);
+    const res  = await fetch('/api/v1/inventory/restock/' + id);
     const data = await res.json();
     if (!data.success) { document.getElementById('vrmoBody').innerHTML = '<p class="text-danger">Failed to load</p>'; return; }
     const o  = data.data?.restock ?? data.data;
