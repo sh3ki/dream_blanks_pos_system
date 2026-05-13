@@ -4,8 +4,10 @@ namespace App\Controllers;
 
 use App\Core\Request;
 use App\Core\Response;
+use App\Core\Database;
 use App\Models\StockProduct;
 use App\Models\StockMovement;
+use App\Models\RestockOrder;
 use App\Models\ProductStockRequirement;
 use App\Models\Color;
 use App\Models\Size;
@@ -32,15 +34,64 @@ class StockProductController extends Controller
             return $this->success(['stock_products' => $result['data'], 'pagination' => $result['pagination']]);
         }
 
+        // History tab data
+        $historyPage    = (int)($request->query('history_page') ?? 1);
+        $histPerPage    = min(100, max(1, (int)$request->query('per_page', 20)));
+        $histFilters    = $request->only(['history_search', 'movement_type', 'hist_type_id', 'hist_color_id', 'hist_size_id', 'hist_created_by', 'hist_date_from', 'hist_date_to']);
+        $histFiltersMap = [
+            'search'        => $histFilters['history_search']  ?? '',
+            'movement_type' => $histFilters['movement_type']   ?? '',
+            'type_id'       => $histFilters['hist_type_id']    ?? '',
+            'color_id'      => $histFilters['hist_color_id']   ?? '',
+            'size_id'       => $histFilters['hist_size_id']    ?? '',
+            'created_by'    => $histFilters['hist_created_by'] ?? '',
+            'date_from'     => $histFilters['hist_date_from']  ?? '',
+            'date_to'       => $histFilters['hist_date_to']    ?? '',
+        ];
+        $historyResult  = StockMovement::getAll($historyPage, $histPerPage, $histFiltersMap);
+
+        // Restock orders tab data
+        $restockPage    = (int)($request->query('restock_page') ?? 1);
+        $restockPerPage = min(100, max(1, (int)$request->query('restock_per_page', 10)));
+        $restockFilters = $request->only(['restock_sort', 'restock_order', 'restock_status']);
+        $restockResult  = RestockOrder::paginated($restockPage, $restockPerPage, $restockFilters);
+
+        $db = Database::getInstance();
+
+        $spStats = $db->selectOne(
+            "SELECT
+                SUM(CASE WHEN stock_status = 'in_stock'     THEN 1 ELSE 0 END) as in_stock_count,
+                SUM(CASE WHEN stock_status = 'low_stock'    THEN 1 ELSE 0 END) as low_stock_count,
+                SUM(CASE WHEN stock_status = 'out_of_stock' THEN 1 ELSE 0 END) as out_of_stock_count
+             FROM stock_products WHERE deleted_at IS NULL"
+        ) ?? [];
+
+        $restockStats = $db->selectOne(
+            "SELECT
+                SUM(CASE WHEN delivery_status = 'ordered'   THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN delivery_status = 'delivered' THEN 1 ELSE 0 END) as delivered_count
+             FROM restock_orders"
+        ) ?? [];
+
         return $this->view('stock-products/index', [
-            'stock_products' => $result['data'],
-            'pagination'     => $result['pagination'],
-            'types'          => Type::allActive(),
-            'colors'         => Color::allActive(),
-            'sizes'          => Size::allActive(),
-            'filters'        => $filters,
-            'title'          => 'Stock Products',
-            'pageTitle'      => 'Stock Products',
+            'stock_products'     => $result['data'],
+            'pagination'         => $result['pagination'],
+            'types'              => Type::allActive(),
+            'colors'             => Color::allActive(),
+            'sizes'              => Size::allActive(),
+            'filters'            => $filters,
+            'active_tab'         => $request->query('tab', 'stock-products'),
+            'history'            => $historyResult['data'],
+            'hist_pagination'    => $historyResult['pagination'],
+            'hist_filters'       => $histFiltersMap,
+            'restock_orders'     => $restockResult['data'],
+            'restock_pagination' => $restockResult['pagination'],
+            'restock_filters'    => $restockFilters,
+            'sp_stats'           => $spStats,
+            'restock_stats'      => $restockStats,
+            'all_users'          => $db->select("SELECT id, CONCAT(first_name,' ',last_name) as name FROM users WHERE deleted_at IS NULL ORDER BY first_name", []),
+            'title'              => 'Stock Products',
+            'pageTitle'          => 'Stock Products',
         ]);
     }
 
