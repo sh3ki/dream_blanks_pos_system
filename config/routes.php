@@ -121,6 +121,7 @@ $router->get('/api/v1/stock-products/{stock_product_id}/movements', [\App\Contro
 // Inventory API
 $router->get('/api/v1/inventory',                         [\App\Controllers\InventoryController::class, 'index'],         $auth);
 $router->post('/api/v1/inventory/restock',                [\App\Controllers\InventoryController::class, 'createRestock'], $auth);
+$router->get('/api/v1/inventory/restock/{restock_id}',    [\App\Controllers\InventoryController::class, 'getRestock'],    $auth);
 $router->put('/api/v1/inventory/restock/{restock_id}',    [\App\Controllers\InventoryController::class, 'updateRestock'], $auth);
 
 // POS API
