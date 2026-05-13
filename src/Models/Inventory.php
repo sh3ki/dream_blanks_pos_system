@@ -74,7 +74,7 @@ class Inventory extends Model
             $params[] = $filters['size_id'];
         }
 
-        $allowedSort = ['sp.name','sp.code','i.quantity_on_hand','i.stock_status','i.last_updated'];
+        $allowedSort = ['sp.name','sp.code','i.quantity_on_hand','i.stock_status','i.last_updated','t.name','c.name','s.name'];
         $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.stock_status';
         $order = strtoupper($filters['order'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
         $orderClause = $sort === 'i.stock_status' ? "{$sort} {$order}, sp.name ASC" : "{$sort} {$order}";
