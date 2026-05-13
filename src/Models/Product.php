@@ -47,8 +47,18 @@ class Product extends Model
             $params[] = $filters['status'];
         }
 
-        $orderBy = $filters['sort'] ?? 'p.created_at';
+        $allowedSort = [
+            'p.sku', 'p.name', 'c.name', 'cl.name', 's.name', 't.name',
+            'p.selling_price', 'p.cost_price', 'p.status', 'p.created_at', 'stock_status',
+        ];
+        $rawSort = $filters['sort'] ?? 'p.created_at';
+        $orderBy = in_array($rawSort, $allowedSort, true) ? $rawSort : 'p.created_at';
         $dir     = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+
+        // stock_status is computed; translate to an expression on max_sellable
+        if ($orderBy === 'stock_status') {
+            $orderBy = 'COALESCE(_ss.max_sellable, 0)';
+        }
 
         $db = static::db();
         $countSql = "SELECT COUNT(*) as cnt
@@ -67,6 +77,13 @@ class Product extends Model
                    LEFT JOIN colors cl ON cl.id = p.color_id
                    LEFT JOIN sizes s ON s.id = p.size_id
                    LEFT JOIN types t ON t.id = p.type_id
+                   LEFT JOIN (
+                       SELECT psr.product_id,
+                              MIN(FLOOR(COALESCE(sp.current_qty, 0) / NULLIF(psr.qty_required_per_unit, 0))) as max_sellable
+                       FROM product_stock_requirements psr
+                       INNER JOIN stock_products sp ON sp.id = psr.stock_product_id AND sp.deleted_at IS NULL
+                       GROUP BY psr.product_id
+                   ) _ss ON _ss.product_id = p.id
                    WHERE {$where}
                    ORDER BY {$orderBy} {$dir}
                    LIMIT {$perPage} OFFSET {$offset}";
