@@ -37,12 +37,7 @@ function appPath(path) {
 function openModal(id) { document.getElementById(id)?.classList.add('show'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('show'); }
 
-// Close modal on overlay click
-document.addEventListener('click', function(e) {
-  if (e.target.classList.contains('modal-overlay')) {
-    e.target.classList.remove('show');
-  }
-});
+// Modal overlays do NOT close on backdrop click — only the X button closes them.
 
 // Sidebar toggle
 function applySidebarState(collapsed) {
