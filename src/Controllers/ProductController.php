@@ -419,11 +419,6 @@ class ProductController extends Controller
                     'size_id'         => $sizeId,
                     'status'          => $status,
                 ]);
-                Product::db()->insert('inventory', [
-                    'product_id'       => $productId,
-                    'quantity_on_hand' => $stock,
-                    'stock_status'     => $stock > 0 ? STOCK_IN_STOCK : STOCK_OUT,
-                ]);
                 $created++;
             } catch (\Throwable $e) {
                 $errors[] = ['row' => $rowNum, 'col' => '—', 'value' => $data['sku'] ?? '', 'message' => 'Database error: ' . $e->getMessage()];
