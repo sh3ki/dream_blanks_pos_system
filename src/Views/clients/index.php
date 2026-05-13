@@ -71,17 +71,10 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
     </table>
   </div>
 
-  <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
   <?php
-    $pQuery = array_filter(['search' => $search ?? '', 'status' => $status ?? '', 'sort' => $sort ?? '', 'order' => $order ?? ''], fn($v) => $v !== '');
-    $pBase  = $pQuery ? '?' . http_build_query($pQuery) . '&page=' : '?page=';
+    $cPqFilters = array_filter(['search' => $search ?? '', 'status' => $status ?? '', 'sort' => $sort ?? '', 'order' => $order ?? ''], fn($v) => $v !== '');
+    echo renderPagination($pagination, $cPqFilters);
   ?>
-  <div class="pagination">
-    <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
-      <a href="<?= $pBase . $i ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
-    <?php endfor; ?>
-  </div>
-  <?php endif; ?>
   </div><!-- /clientsResultsContainer -->
 </div>
 
