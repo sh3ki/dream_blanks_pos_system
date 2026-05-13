@@ -4,10 +4,13 @@ namespace App\Controllers;
 
 use App\Core\Request;
 use App\Core\Response;
+use App\Models\Color;
 use App\Models\Inventory;
 use App\Models\RestockOrder;
-use App\Models\StockProduct;
+use App\Models\Size;
 use App\Models\StockMovement;
+use App\Models\StockProduct;
+use App\Models\Type;
 use App\Services\AuditService;
 use App\Services\NotificationService;
 use App\Core\Database;
@@ -19,36 +22,77 @@ class InventoryController extends Controller
     {
         $this->requirePermission(MODULE_INVENTORY, ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'status', 'type_id', 'color_id', 'size_id', 'sort', 'order']);
-        $result  = Inventory::getAll($filters, $page, $perPage);
 
-        if ($request->isApi()) {
-            return $this->success(['inventory' => $result['data'], 'pagination' => $result['pagination']]);
-        }
+        $rawFilters = $request->only(['search', 'type_id', 'color_id', 'size_id', 'status', 'stock_status', 'sort', 'order']);
+        $result = StockProduct::search($rawFilters, $page, $perPage);
 
+        // History tab data
         $historyPage    = (int)($request->query('history_page') ?? 1);
-        $histFilters    = $request->only(['history_search', 'movement_type']);
-        $histFiltersMap = ['search' => $histFilters['history_search'] ?? '', 'movement_type' => $histFilters['movement_type'] ?? ''];
-        $historyResult  = StockMovement::getAll($historyPage, 20, $histFiltersMap);
+        $histPerPage    = min(100, max(1, (int)$request->query('per_page', 20)));
+        $histFilters    = $request->only(['history_search', 'movement_type', 'hist_type_id', 'hist_color_id', 'hist_size_id', 'hist_created_by', 'hist_date_from', 'hist_date_to']);
+        $histFiltersMap = [
+            'search'        => $histFilters['history_search']  ?? '',
+            'movement_type' => $histFilters['movement_type']   ?? '',
+            'type_id'       => $histFilters['hist_type_id']    ?? '',
+            'color_id'      => $histFilters['hist_color_id']   ?? '',
+            'size_id'       => $histFilters['hist_size_id']    ?? '',
+            'created_by'    => $histFilters['hist_created_by'] ?? '',
+            'date_from'     => $histFilters['hist_date_from']  ?? '',
+            'date_to'       => $histFilters['hist_date_to']    ?? '',
+        ];
+        $historyResult  = StockMovement::getAll($historyPage, $histPerPage, $histFiltersMap);
 
-        $restockOrders = RestockOrder::getRecent(20);
+        // Restock orders tab data
+        $restockPage    = (int)($request->query('restock_page') ?? 1);
+        $restockPerPage = min(100, max(1, (int)$request->query('restock_per_page', 10)));
+        $restockFilters = $request->only(['restock_sort', 'restock_order', 'restock_status']);
+        $restockResult  = RestockOrder::paginated($restockPage, $restockPerPage, $restockFilters);
+
+        $db = Database::getInstance();
+        $invStats = $db->selectOne(
+            "SELECT
+                SUM(CASE WHEN stock_status = 'in_stock'     THEN 1 ELSE 0 END) as in_stock_count,
+                SUM(CASE WHEN stock_status = 'low_stock'    THEN 1 ELSE 0 END) as low_stock_count,
+                SUM(CASE WHEN stock_status = 'out_of_stock' THEN 1 ELSE 0 END) as out_of_stock_count
+             FROM stock_products WHERE deleted_at IS NULL"
+        ) ?? [];
+        $restockStats = $db->selectOne(
+            "SELECT
+                SUM(CASE WHEN delivery_status = 'ordered'   THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN delivery_status = 'delivered' THEN 1 ELSE 0 END) as delivered_count
+             FROM restock_orders"
+        ) ?? [];
 
         return $this->view('inventory/index', [
-            'inventory'      => $result['data'],
-            'pagination'     => $result['pagination'],
-            'low_stock'      => Inventory::getLowStock(),
-            'filters'        => $filters,
-            'history'        => $historyResult['data'],
-            'hist_pagination'=> $historyResult['pagination'],
-            'hist_filters'   => $histFiltersMap,
-            'active_tab'     => $request->query('tab') ?? 'inventory',
-            'restock_orders' => $restockOrders,
-            'types'          => \App\Models\Type::allActive(),
-            'colors'         => \App\Models\Color::allActive(),
-            'sizes'          => \App\Models\Size::allActive(),
-            'title'          => 'Inventory',
-            'pageTitle'      => 'Inventory',
+            'inventory'          => $result['data'],
+            'pagination'         => $result['pagination'],
+            'types'              => Type::allActive(),
+            'colors'             => Color::allActive(),
+            'sizes'              => Size::allActive(),
+            'filters'            => $rawFilters,
+            'low_stock'          => [],
+            'active_tab'         => $request->query('tab', 'inventory'),
+            'history'            => $historyResult['data'],
+            'hist_pagination'    => $historyResult['pagination'],
+            'hist_filters'       => $histFiltersMap,
+            'restock_orders'     => $restockResult['data'],
+            'restock_pagination' => $restockResult['pagination'],
+            'restock_filters'    => $restockFilters,
+            'inv_stats'          => $invStats,
+            'restock_stats'      => $restockStats,
+            'all_users'          => $db->select("SELECT id, CONCAT(first_name,' ',last_name) as name FROM users WHERE deleted_at IS NULL ORDER BY first_name", []),
         ]);
+    }
+
+    public function getRestock(Request $request): Response
+    {
+        $this->requirePermission(MODULE_INVENTORY, ACTION_VIEW);
+        $id    = (int)$request->param('restock_id');
+        $order = RestockOrder::getWithItems($id);
+        if (!$order) {
+            return $this->error('Restock order not found', 404);
+        }
+        return $this->success(['restock' => $order]);
     }
 
     public function createRestock(Request $request): Response
@@ -101,49 +145,81 @@ class InventoryController extends Controller
     public function updateRestock(Request $request): Response
     {
         $this->requirePermission(MODULE_INVENTORY, ACTION_EDIT);
-        $id     = (int)$request->param('restock_id');
-        $order  = RestockOrder::findOrFail($id);
-        $status = $request->input('delivery_status');
+        $id         = (int)$request->param('restock_id');
+        $order      = RestockOrder::findOrFail($id);
+        $newStatus  = $request->input('delivery_status');
+        $prevStatus = $order['delivery_status'];
+
+        $allowedStatuses = ['ordered', 'delivered', 'incomplete', 'problematic'];
+        if (!in_array($newStatus, $allowedStatuses)) {
+            $newStatus = $prevStatus;
+        }
 
         RestockOrder::update($id, array_filter([
-            'delivery_status' => $status,
+            'delivery_status' => $newStatus,
             'delivery_date'   => $request->input('delivery_date'),
             'notes'           => $request->input('notes'),
         ], fn($v) => $v !== null));
 
-        // When delivered: increment stock products and log movements
-        if ($status === DELIVERY_DELIVERED) {
+        $db = Database::getInstance();
+
+        if ($prevStatus !== $newStatus) {
             $items = RestockOrder::getItems($id);
-            foreach ($items as $item) {
-                $stockProductId = (int)($item['stock_product_id'] ?? 0);
-                if ($stockProductId <= 0) {
-                    continue;
+
+            if ($newStatus === DELIVERY_DELIVERED && $prevStatus !== DELIVERY_DELIVERED) {
+                // Apply delivery: increment qty + log purchase movements
+                foreach ($items as $item) {
+                    $stockProductId = (int)($item['stock_product_id'] ?? 0);
+                    if ($stockProductId <= 0) continue;
+
+                    $qty = (int)$item['quantity_requested'];
+                    StockProduct::incrementQty($stockProductId, $qty);
+                    StockMovement::logForStockProduct(
+                        $stockProductId,
+                        MOVEMENT_PURCHASE,
+                        $qty,
+                        "Restock #{$order['order_number']} delivered",
+                        $id,
+                        $this->currentUserId()
+                    );
+                    $db->update(
+                        'restock_items',
+                        ['quantity_received' => $qty],
+                        'restock_id = ? AND stock_product_id = ?',
+                        [$id, $stockProductId]
+                    );
                 }
+                NotificationService::restockDelivered($id, $order['order_number']);
 
-                $qty = (int)$item['quantity_requested'];
-                StockProduct::incrementQty($stockProductId, $qty);
-                StockMovement::logForStockProduct(
-                    $stockProductId,
-                    MOVEMENT_PURCHASE,
-                    $qty,
-                    "Restock #{$order['order_number']}",
-                    $id,
-                    $this->currentUserId()
-                );
+            } elseif ($prevStatus === DELIVERY_DELIVERED && $newStatus !== DELIVERY_DELIVERED) {
+                // Reverse delivery: decrement qty + log negative adjustment
+                foreach ($items as $item) {
+                    $stockProductId = (int)($item['stock_product_id'] ?? 0);
+                    if ($stockProductId <= 0) continue;
 
-                // Update restock_item quantity_received
-                Database::getInstance()->update(
-                    'restock_items',
-                    ['quantity_received' => $qty],
-                    'restock_id = ? AND stock_product_id = ?',
-                    [$id, $stockProductId]
-                );
+                    $received = (int)($item['quantity_received'] ?? 0);
+                    if ($received > 0) {
+                        StockProduct::decrementQty($stockProductId, $received);
+                        StockMovement::logForStockProduct(
+                            $stockProductId,
+                            MOVEMENT_ADJUSTMENT,
+                            -$received,
+                            "Restock #{$order['order_number']} delivery reversed (changed to: {$newStatus})",
+                            $id,
+                            $this->currentUserId()
+                        );
+                        $db->update(
+                            'restock_items',
+                            ['quantity_received' => 0],
+                            'restock_id = ? AND stock_product_id = ?',
+                            [$id, $stockProductId]
+                        );
+                    }
+                }
             }
-
-            NotificationService::restockDelivered($id, $order['order_number']);
         }
 
-        AuditService::log(AUDIT_UPDATE, MODULE_INVENTORY, $id, $order, RestockOrder::find($id), "Updated restock #{$id}");
+        AuditService::log(AUDIT_UPDATE, MODULE_INVENTORY, $id, $order, RestockOrder::find($id), "Updated restock #{$id} status: {$prevStatus} → {$newStatus}");
         return $this->success(null, 'Restock updated');
     }
 }
