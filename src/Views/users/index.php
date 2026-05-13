@@ -80,17 +80,10 @@ function userSortLink(string $col, string $label, string $currentSort, string $c
     </table>
   </div>
 
-  <?php if (!empty($pagination) && $pagination['last_page'] > 1): ?>
   <?php
-    $uQuery = array_filter(['search' => $search ?? '', 'status' => $status ?? '', 'sort' => $sort ?? '', 'order' => $order ?? ''], fn($v) => $v !== '');
-    $uBase  = $uQuery ? '?' . http_build_query($uQuery) . '&page=' : '?page=';
+    $uPqFilters = array_filter(['search' => $search ?? '', 'status' => $status ?? '', 'sort' => $sort ?? '', 'order' => $order ?? ''], fn($v) => $v !== '');
+    echo renderPagination($pagination, $uPqFilters);
   ?>
-  <div class="pagination">
-    <?php for ($i = 1; $i <= $pagination['last_page']; $i++): ?>
-      <a href="<?= $uBase . $i ?>" class="page-link <?= $pagination['current_page'] == $i ? 'active' : '' ?>"><?= $i ?></a>
-    <?php endfor; ?>
-  </div>
-  <?php endif; ?>
   </div><!-- /usersResultsContainer -->
 </div>
 
