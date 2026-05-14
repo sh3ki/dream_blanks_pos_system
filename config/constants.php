@@ -49,6 +49,7 @@ define('MOVEMENT_SALE',       'sale');
 define('MOVEMENT_ADJUSTMENT', 'adjustment');
 define('MOVEMENT_DAMAGE',     'damage');
 define('MOVEMENT_LOSS',       'loss');
+define('MOVEMENT_RESTOCK',    'purchase'); // alias: initial stock import = purchase
 
 // Roles
 define('ROLE_ADMIN',      'Admin');
