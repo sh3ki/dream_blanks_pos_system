@@ -134,6 +134,8 @@ class PosService
             }
 
             foreach ($deductions as $spId => $totalDeduct) {
+                $spBefore = StockProduct::find($spId);
+                $qtyBefore = (int)($spBefore['current_qty'] ?? 0);
                 StockProduct::decrementQty($spId, $totalDeduct);
 
                 // Build reason string
@@ -149,7 +151,9 @@ class PosService
                     $reason,
                     $invoiceId,
                     $createdBy,
-                    $primaryProductId
+                    $primaryProductId,
+                    $qtyBefore,
+                    $qtyBefore - $totalDeduct
                 );
 
                 // Low stock notification
