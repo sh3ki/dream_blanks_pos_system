@@ -231,7 +231,8 @@ class StockProductController extends Controller
             $movementType = MOVEMENT_ADJUSTMENT;
         }
 
-        StockMovement::logForStockProduct($id, $movementType, $movement, $reason, null, $this->currentUserId());
+        $qtyBefore = (int)$sp['current_qty'];
+        StockMovement::logForStockProduct($id, $movementType, $movement, $reason, null, $this->currentUserId(), null, $qtyBefore, $qtyBefore + $movement);
 
         // Low stock notification
         $updated = StockProduct::find($id);
@@ -303,11 +304,13 @@ class StockProductController extends Controller
 
             if ($type === 'deduct') {
                 if ((int)$sp['current_qty'] < $qty) continue;
+                $qtyBefore = (int)$sp['current_qty'];
                 StockProduct::decrementQty($id, $qty);
-                StockMovement::logForStockProduct($id, MOVEMENT_ADJUSTMENT, -$qty, $reason, null, $this->currentUserId());
+                StockMovement::logForStockProduct($id, MOVEMENT_ADJUSTMENT, -$qty, $reason, null, $this->currentUserId(), null, $qtyBefore, $qtyBefore - $qty);
             } else {
+                $qtyBefore = (int)$sp['current_qty'];
                 StockProduct::incrementQty($id, $qty);
-                StockMovement::logForStockProduct($id, MOVEMENT_ADJUSTMENT, $qty, $reason, null, $this->currentUserId());
+                StockMovement::logForStockProduct($id, MOVEMENT_ADJUSTMENT, $qty, $reason, null, $this->currentUserId(), null, $qtyBefore, $qtyBefore + $qty);
             }
             $updated = StockProduct::find($id);
             if ($updated && (int)$updated['current_qty'] <= (int)($updated['low_stock_alert'] ?? 10)) {
@@ -411,7 +414,7 @@ class StockProductController extends Controller
 
             if ($id && $initQty > 0) {
                 StockProduct::syncInventoryStatus((int)$id);
-                \App\Models\StockMovement::logForStockProduct((int)$id, MOVEMENT_RESTOCK, $initQty, 'Initial stock (import)', null, $this->currentUserId());
+                \App\Models\StockMovement::logForStockProduct((int)$id, MOVEMENT_RESTOCK, $initQty, 'Initial stock (import)', null, $this->currentUserId(), null, 0, $initQty);
             }
             $created++;
         }
