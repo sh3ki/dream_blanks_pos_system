@@ -173,6 +173,7 @@ class InventoryController extends Controller
                     if ($stockProductId <= 0) continue;
 
                     $qty = (int)$item['quantity_requested'];
+                    $qtyBefore = (int)(StockProduct::find($stockProductId)['current_qty'] ?? 0);
                     StockProduct::incrementQty($stockProductId, $qty);
                     StockMovement::logForStockProduct(
                         $stockProductId,
@@ -180,7 +181,10 @@ class InventoryController extends Controller
                         $qty,
                         "Restock #{$order['order_number']} delivered",
                         $id,
-                        $this->currentUserId()
+                        $this->currentUserId(),
+                        null,
+                        $qtyBefore,
+                        $qtyBefore + $qty
                     );
                     $db->update(
                         'restock_items',
@@ -199,6 +203,7 @@ class InventoryController extends Controller
 
                     $received = (int)($item['quantity_received'] ?? 0);
                     if ($received > 0) {
+                        $qtyBefore = (int)(StockProduct::find($stockProductId)['current_qty'] ?? 0);
                         StockProduct::decrementQty($stockProductId, $received);
                         StockMovement::logForStockProduct(
                             $stockProductId,
@@ -206,7 +211,10 @@ class InventoryController extends Controller
                             -$received,
                             "Restock #{$order['order_number']} delivery reversed (changed to: {$newStatus})",
                             $id,
-                            $this->currentUserId()
+                            $this->currentUserId(),
+                            null,
+                            $qtyBefore,
+                            $qtyBefore - $received
                         );
                         $db->update(
                             'restock_items',
@@ -215,6 +223,24 @@ class InventoryController extends Controller
                             [$id, $stockProductId]
                         );
                     }
+                }
+            } else {
+                // Non-qty status change (e.g. ordered → incomplete/problematic): log audit entry per item
+                foreach ($items as $item) {
+                    $stockProductId = (int)($item['stock_product_id'] ?? 0);
+                    if ($stockProductId <= 0) continue;
+                    $currentQty = (int)(StockProduct::find($stockProductId)['current_qty'] ?? 0);
+                    StockMovement::logForStockProduct(
+                        $stockProductId,
+                        MOVEMENT_ADJUSTMENT,
+                        0,
+                        "Restock #{$order['order_number']} status changed: {$prevStatus} → {$newStatus}",
+                        $id,
+                        $this->currentUserId(),
+                        null,
+                        $currentQty,
+                        $currentQty
+                    );
                 }
             }
         }
