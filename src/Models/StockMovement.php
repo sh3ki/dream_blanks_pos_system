@@ -18,13 +18,17 @@ class StockMovement extends Model
         string $reason,
         ?int $referenceId,
         int $createdBy,
-        ?int $productId = null
+        ?int $productId = null,
+        ?int $qtyBefore = null,
+        ?int $qtyAfter  = null
     ): int {
         return static::db()->insert('stock_movements', [
             'stock_product_id' => $stockProductId,
             'product_id'       => $productId,
             'movement_type'    => $type,
             'quantity_change'  => $qtyChange,
+            'qty_before'       => $qtyBefore,
+            'qty_after'        => $qtyAfter,
             'reason'           => $reason,
             'reference_id'     => $referenceId,
             'created_by'       => $createdBy,
