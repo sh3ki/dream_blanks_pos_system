@@ -239,13 +239,26 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
         <thead>
           <tr>
             <th>Date</th><th>Stock Product</th><th>Type</th><th>Color</th><th>Size</th>
-            <th>Movement Type</th><th>Change</th><th>Notes</th><th>By</th>
+            <th>Movement Type</th><th>Change</th><th style="text-align:right">Before</th><th style="text-align:right">After</th><th>Notes</th><th>By</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($history ?? [] as $h): ?>
-          <?php $qty = (int)$h['quantity_change']; $mvCls = $qty > 0 ? 'badge-success' : 'badge-danger'; ?>
-          <tr>
+          <?php $qty = (int)$h['quantity_change']; $mvCls = $qty > 0 ? 'badge-success' : ($qty < 0 ? 'badge-danger' : 'badge-gray'); ?>
+          <tr style="cursor:pointer" onclick='viewHistDetail(<?= htmlspecialchars(json_encode([
+            "created_at"      => $h["created_at"] ?? "",
+            "sp_code"         => $h["sp_code"] ?? "-",
+            "sp_name"         => $h["sp_name"] ?? "-",
+            "type_name"       => $h["type_name"] ?? "-",
+            "color_name"      => $h["color_name"] ?? "-",
+            "size_name"       => $h["size_name"] ?? "-",
+            "movement_type"   => $h["movement_type"] ?? "-",
+            "quantity_change" => (int)($h["quantity_change"] ?? 0),
+            "qty_before"      => $h["qty_before"] !== null ? (int)$h["qty_before"] : null,
+            "qty_after"       => $h["qty_after"]  !== null ? (int)$h["qty_after"]  : null,
+            "reason"          => $h["reason"] ?? "-",
+            "created_by_name" => $h["created_by_name"] ?? "-",
+          ]), ENT_QUOTES) ?>)'>
             <td style="white-space:nowrap;font-size:.82rem"><?= !empty($h['created_at']) ? date('M d, Y H:i', strtotime($h['created_at'])) : '-' ?></td>
             <td>
               <code style="font-size:.78rem"><?= htmlspecialchars($h['sp_code'] ?? '-') ?></code>
@@ -258,12 +271,14 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
             <td><?= htmlspecialchars($h['size_name']  ?? '-') ?></td>
             <td><span class="badge badge-gray" style="font-size:.75rem"><?= ucfirst($h['movement_type'] ?? '-') ?></span></td>
             <td><span class="badge <?= $mvCls ?>"><?= $qty > 0 ? '+' . $qty : $qty ?></span></td>
+            <td style="text-align:right;font-size:.85rem"><?= $h['qty_before'] !== null ? (int)$h['qty_before'] : '-' ?></td>
+            <td style="text-align:right;font-size:.85rem"><?= $h['qty_after']  !== null ? (int)$h['qty_after']  : '-' ?></td>
             <td style="font-size:.82rem;max-width:180px;word-break:break-word"><?= htmlspecialchars($h['reason'] ?? '-') ?></td>
             <td style="font-size:.82rem"><?= htmlspecialchars($h['created_by_name'] ?? '-') ?></td>
           </tr>
           <?php endforeach; ?>
           <?php if (empty($history)): ?>
-            <tr><td colspan="9" class="text-center text-muted" style="padding:48px">No history records found</td></tr>
+            <tr><td colspan="11" class="text-center text-muted" style="padding:48px">No history records found</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
@@ -658,6 +673,17 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
       <button class="btn btn-secondary" onclick="closeModal('restockModal')">Cancel</button>
       <button class="btn btn-primary" onclick="submitRestock()" id="roSubmitBtn">Create Restock Order</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== History Detail Modal ===== -->
+<div class="modal-overlay" id="histDetailModal">
+  <div class="modal-content" style="max-width:540px">
+    <div class="modal-header">
+      <h2 class="modal-title">Movement Detail</h2>
+      <button class="modal-close" onclick="closeModal('histDetailModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body" id="histDetailBody"></div>
   </div>
 </div>
 
@@ -1345,6 +1371,26 @@ function updateRestockDeliveryStatus(id, newStatus, selectEl) {
   openModal('invActionConfirmModal');
 }
 
+function viewHistDetail(h) {
+  const mvCls = h.quantity_change > 0 ? 'badge-success' : 'badge-danger';
+  const chg   = h.quantity_change > 0 ? '+' + h.quantity_change : h.quantity_change;
+  const dateStr = h.created_at ? new Date(h.created_at.replace(' ', 'T')).toLocaleString('en-US', {month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+  document.getElementById('histDetailBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Date</div>${dateStr}</div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">By</div>${esc(h.created_by_name)}</div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Stock Product</div><code style="font-size:.82rem">${esc(h.sp_code)}</code> ${esc(h.sp_name)}</div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Movement Type</div><span class="badge badge-gray">${h.movement_type.charAt(0).toUpperCase()+h.movement_type.slice(1)}</span></div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Type / Color / Size</div>${esc(h.type_name)} / ${esc(h.color_name)} / ${esc(h.size_name)}</div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Change</div><span class="badge ${mvCls}">${chg}</span></div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Before Qty</div>${h.qty_before !== null ? h.qty_before : '-'}</div>
+      <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">After Qty</div>${h.qty_after !== null ? h.qty_after : '-'}</div>
+    </div>
+    <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600;margin-bottom:4px">Notes / Reason</div>
+      <p style="font-size:.875rem;color:var(--color-gray-700);margin:0">${esc(h.reason)}</p></div>`;
+  openModal('histDetailModal');
+}
+
 async function viewRestockOrder(id) {
   document.getElementById('vrmoTitle').textContent = 'Restock Order';
   document.getElementById('vrmoBody').innerHTML    = '<div style="text-align:center;padding:48px"><span class="spinner"></span></div>';
@@ -1362,9 +1408,10 @@ async function viewRestockOrder(id) {
       <td>${esc(i.type_name || '-')}</td>
       <td>${esc(i.color_name || '-')}</td>
       <td>${esc(i.size_name || '-')}</td>
+      <td style="text-align:right">${parseInt(i.current_qty || 0)}</td>
       <td style="text-align:right">${parseInt(i.quantity_ordered || 0)}</td>
       <td style="text-align:right">${parseInt(i.quantity_received || 0)}</td>
-    </tr>`).join('') || '<tr><td colspan="7" class="text-center text-muted" style="padding:16px">No items</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="8" class="text-center text-muted" style="padding:16px">No items</td></tr>';
     document.getElementById('vrmoTitle').textContent = 'Restock #' + (o.order_number || id);
     document.getElementById('vrmoBody').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
@@ -1379,7 +1426,7 @@ async function viewRestockOrder(id) {
       ${o.notes ? `<p style="font-size:.875rem;color:var(--color-gray-600);margin-bottom:16px"><strong>Notes:</strong> ${esc(o.notes)}</p>` : ''}
       <div style="font-weight:600;margin-bottom:8px">Items (${(o.items||[]).length})</div>
       <div class="table-wrapper"><table class="data-table">
-        <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Color</th><th>Size</th><th style="text-align:right">Ordered</th><th style="text-align:right">Received</th></tr></thead>
+        <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Color</th><th>Size</th><th style="text-align:right">Current Stock</th><th style="text-align:right">Ordered</th><th style="text-align:right">Received</th></tr></thead>
         <tbody>${items}</tbody>
       </table></div>`;
   } catch (e) { document.getElementById('vrmoBody').innerHTML = '<p class="text-danger">Network error</p>'; }
