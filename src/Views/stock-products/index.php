@@ -152,9 +152,9 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
           </td>
           <td onclick="event.stopPropagation()"><code style="font-size:.8rem"><?= htmlspecialchars($sp['code']) ?></code></td>
           <td><?= htmlspecialchars($sp['name']) ?></td>
-          <td><?= htmlspecialchars($sp['type_name']  ?? '-') ?></td>
+          <td><?= htmlspecialchars($sp['type_code']  ?? $sp['type_name']  ?? '-') ?></td>
           <td><?= htmlspecialchars($sp['color_name'] ?? '-') ?></td>
-          <td><?= htmlspecialchars($sp['size_name']  ?? '-') ?></td>
+          <td><?= htmlspecialchars($sp['size_code']  ?? $sp['size_name']  ?? '-') ?></td>
           <td>
             <?php
               $qty   = (int)$sp['current_qty'];
@@ -266,9 +266,9 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
                 <br><span style="font-size:.8rem"><?= htmlspecialchars($h['sp_name']) ?></span>
               <?php endif; ?>
             </td>
-            <td><?= htmlspecialchars($h['type_name']  ?? '-') ?></td>
+            <td><?= htmlspecialchars($h['type_code']  ?? $h['type_name']  ?? '-') ?></td>
             <td><?= htmlspecialchars($h['color_name'] ?? '-') ?></td>
-            <td><?= htmlspecialchars($h['size_name']  ?? '-') ?></td>
+            <td><?= htmlspecialchars($h['size_code']  ?? $h['size_name']  ?? '-') ?></td>
             <td><span class="badge badge-gray" style="font-size:.75rem"><?= ucfirst($h['movement_type'] ?? '-') ?></span></td>
             <td><span class="badge <?= $mvCls ?>"><?= $qty > 0 ? '+' . $qty : $qty ?></span></td>
             <td style="text-align:right;font-size:.85rem"><?= $h['qty_before'] !== null ? (int)$h['qty_before'] : '-' ?></td>
@@ -1237,9 +1237,9 @@ function renderRestockPickerBody(list) {
       <td><input type="checkbox" class="ro-sp-chk" value="${sp.id}" ${checked ? 'checked' : ''} onchange="toggleRoSp(${sp.id},this)"></td>
       <td><code style="font-size:.78rem">${esc(sp.code)}</code></td>
       <td>${esc(sp.name)}</td>
-      <td>${esc(sp.type_name || '-')}</td>
+      <td>${esc(sp.type_code  || sp.type_name  || '-')}</td>
       <td>${esc(sp.color_name || '-')}</td>
-      <td>${esc(sp.size_name || '-')}</td>
+      <td>${esc(sp.size_code  || sp.size_name  || '-')}</td>
       <td>${parseInt(sp.current_qty || 0)}</td>
       <td><input type="number" min="1" value="${qty}" style="width:72px;padding:3px 6px;border:1px solid var(--color-gray-200);border-radius:4px${checked ? '' : ';opacity:.4;cursor:not-allowed'}"
         id="roQty_${sp.id}" ${checked ? '' : 'disabled'} onchange="updateRoQty(${sp.id},this.value)" onclick="event.stopPropagation()"></td>
@@ -1399,17 +1399,17 @@ async function viewRestockOrder(id) {
     const res  = await fetch('/api/v1/inventory/restock/' + id);
     const data = await res.json();
     if (!data.success) { document.getElementById('vrmoBody').innerHTML = '<p class="text-danger">Failed to load</p>'; return; }
-    const o  = data.data;
+    const o  = data.data?.restock ?? data.data;
     const ds = o.delivery_status || 'ordered';
     const c  = _dsColors[ds] || _dsColors['ordered'];
     const items = (o.items || []).map(i => `<tr>
-      <td><code style="font-size:.78rem">${esc(i.sp_code || '-')}</code></td>
-      <td>${esc(i.sp_name || '-')}</td>
-      <td>${esc(i.type_name || '-')}</td>
+      <td><code style="font-size:.78rem">${esc(i.sp_code || i.code || '-')}</code></td>
+      <td>${esc(i.sp_name || i.name || '-')}</td>
+      <td>${esc(i.type_code || i.type_name || '-')}</td>
       <td>${esc(i.color_name || '-')}</td>
-      <td>${esc(i.size_name || '-')}</td>
+      <td>${esc(i.size_code || i.size_name || '-')}</td>
       <td style="text-align:right">${parseInt(i.current_qty || 0)}</td>
-      <td style="text-align:right">${parseInt(i.quantity_ordered || 0)}</td>
+      <td style="text-align:right">${parseInt(i.quantity_requested || i.quantity_ordered || 0)}</td>
       <td style="text-align:right">${parseInt(i.quantity_received || 0)}</td>
     </tr>`).join('') || '<tr><td colspan="8" class="text-center text-muted" style="padding:16px">No items</td></tr>';
     document.getElementById('vrmoTitle').textContent = 'Restock #' + (o.order_number || id);
