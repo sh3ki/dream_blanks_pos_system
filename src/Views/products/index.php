@@ -94,10 +94,10 @@
           </td>
           <td onclick="event.stopPropagation()"><code style="font-size:.8rem"><?= htmlspecialchars($p['sku']) ?></code></td>
           <td><?= htmlspecialchars($p['name']) ?></td>
-          <td><?= htmlspecialchars($p['category_name'] ?? '-') ?></td>
-          <td><?= htmlspecialchars($p['type_name'] ?? '-') ?></td>
+          <td><?= htmlspecialchars($p['category_code'] ?? $p['category_name'] ?? '-') ?></td>
+          <td><?= htmlspecialchars($p['type_code'] ?? $p['type_name'] ?? '-') ?></td>
           <td><?= htmlspecialchars($p['color_name'] ?? '-') ?></td>
-          <td><?= htmlspecialchars($p['size_name'] ?? '-') ?></td>
+          <td><?= htmlspecialchars($p['size_code'] ?? $p['size_name'] ?? '-') ?></td>
           <td><strong>₱<?= number_format($p['selling_price'], 2) ?></strong></td>
           <td>
             <?php
