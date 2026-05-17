@@ -135,7 +135,9 @@ class StockMovement extends Model
         $rows   = $db->select(
             "SELECT sm.*,
                     sp.code as sp_code, sp.name as sp_name,
-                    t.name as type_name, c.name as color_name, s.name as size_name,
+                    t.name as type_name, t.code as type_code,
+                    c.name as color_name,
+                    s.name as size_name,  s.code as size_code,
                     CONCAT(u.first_name,' ',u.last_name) as created_by_name
              FROM stock_movements sm
              LEFT JOIN stock_products sp ON sp.id = sm.stock_product_id
