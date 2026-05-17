@@ -71,7 +71,7 @@ class Product extends Model
         $total = (int)($db->selectOne($countSql, $params)['cnt'] ?? 0);
 
         $offset = ($page - 1) * $perPage;
-        $sql    = "SELECT p.*, c.name as category_name, cl.name as color_name, s.name as size_name, t.name as type_name
+        $sql    = "SELECT p.*, c.name as category_name, c.code as category_code, cl.name as color_name, s.name as size_name, s.code as size_code, t.name as type_name, t.code as type_code
                    FROM products p
                    LEFT JOIN categories c ON c.id = p.category_id
                    LEFT JOIN colors cl ON cl.id = p.color_id
