@@ -11,10 +11,11 @@ class RestockOrder extends Model
         return static::db()->select(
             "SELECT ri.*,
                     sp.name, sp.code,
+                    sp.name as sp_name, sp.code as sp_code,
                     sp.current_qty,
-                    t.name  as type_name,
+                    t.name  as type_name,  t.code as type_code,
                     c.name  as color_name,
-                    s.name  as size_name
+                    s.name  as size_name,  s.code as size_code
              FROM restock_items ri
              INNER JOIN stock_products sp ON sp.id = ri.stock_product_id
              LEFT  JOIN types  t ON t.id  = sp.type_id
