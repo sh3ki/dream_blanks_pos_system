@@ -48,7 +48,7 @@ $jsClients  = json_encode($r['top_clients']  ?? []);
 .rpt-b-unpaid{background:var(--color-danger-light);color:var(--color-danger)}
 @media(max-width:1200px){.rpt-kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:800px){.rpt-kpi-grid{grid-template-columns:repeat(2,1fr)}.rpt-row.c21,.rpt-row.c11{grid-template-columns:1fr}}
-@media print{.rpt-filter-bar,.btn{display:none!important}.rpt-card{box-shadow:none;border:1px solid #ddd}}
+@media print{@page{margin:0}body{padding:12mm!important}.rpt-filter-bar,.btn,form{display:none!important}.rpt-card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid;page-break-inside:avoid}.rpt-row{break-inside:avoid;page-break-inside:avoid}.rpt-kpi-card{break-inside:avoid;page-break-inside:avoid}.rpt-kpi-grid{break-inside:avoid;page-break-inside:avoid}}
 </style>
 
 <form id="filterForm" method="GET">
@@ -70,14 +70,16 @@ $jsClients  = json_encode($r['top_clients']  ?? []);
     </div>
     <div style="display:flex;gap:6px">
       <?php if(can('reports_financial','export')): ?>
-      <a href="<?php echo $exportUrl; ?>" class="btn btn-secondary" style="height:32px;padding:0 14px;font-size:.78rem">&#8595; Export CSV</a>
+      <button type="button" class="btn btn-secondary" onclick="exportPDF(this,'financial-report-<?php echo $from; ?>_to_<?php echo $to; ?>.pdf')" style="height:32px;padding:0 14px;font-size:.78rem">&#128196; Export PDF</button>
       <?php endif; ?>
+      <?php if(can('reports_financial','view')): ?>
       <button type="button" class="btn btn-secondary" onclick="window.print()" style="height:32px;padding:0 14px;font-size:.78rem">&#128438; Print</button>
+      <?php endif; ?>
     </div>
   </div>
 </div>
 </form>
-
+<div id="rpt-content">
 <div class="rpt-sl">Financial Overview &mdash; <?php echo htmlspecialchars($dateRange); ?></div>
 <div class="rpt-kpi-grid">
   <div class="rpt-kpi-card" style="--rpt-accent:#0056B3">
@@ -204,7 +206,9 @@ $jsClients  = json_encode($r['top_clients']  ?? []);
     </table>
   </div>
 </div>
+</div><!-- /rpt-content -->
 
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
@@ -285,6 +289,11 @@ const clients=<?php echo $jsClients; ?>;
     }
   });
 })();
+function exportPDF(btn,filename){
+  const el=document.getElementById('rpt-content');
+  const orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML='\u231B Generating…';
+  html2pdf().set({margin:[10,8],filename:filename,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}}).from(el).save().then(()=>{btn.disabled=false;btn.innerHTML=orig;});}
 function setPreset(days){
   const to=new Date(),from=new Date();
   from.setDate(from.getDate()-(days-1));
