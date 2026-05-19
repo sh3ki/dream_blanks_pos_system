@@ -72,7 +72,22 @@ class InvoiceController extends Controller
         $updated = Invoice::find($id);
 
         NotificationService::paymentReceived($id, $amount, $invoice['invoice_number']);
-        AuditService::log(AUDIT_CREATE, MODULE_PAYMENTS, $paymentId, null, null, "Payment #{$paymentNumber} added to invoice #{$id}");
+
+        $refNumber = $request->input('reference_number');
+        AuditService::log(AUDIT_PAYMENT, MODULE_PAYMENTS, $paymentId, null, [
+            'invoice_id'       => $id,
+            'invoice_number'   => $invoice['invoice_number'],
+            'client'           => $invoice['client_name'] ?? null,
+            'payment_number'   => $paymentNumber,
+            'payment_date'     => $request->input('payment_date', date('Y-m-d')),
+            'payment_amount'   => $amount,
+            'payment_mode'     => $mode,
+            'reference_number' => $refNumber ?: null,
+            'notes'            => $request->input('notes') ?: null,
+            'new_status'       => $updated['payment_status'],
+            'total_paid_after' => (float)$updated['total_paid'],
+            'balance_after'    => (float)$updated['total_amount'] - (float)$updated['total_paid'],
+        ], "Payment #{$paymentNumber} of ₱" . number_format($amount, 2) . " added to Invoice #{$invoice['invoice_number']}");
 
         return $this->success([
             'payment_id'        => $paymentId,
