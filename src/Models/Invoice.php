@@ -29,7 +29,7 @@ class Invoice extends Model
     public static function findWithDetails(int $id): ?array
     {
         $invoice = static::db()->selectOne(
-            "SELECT i.*, CONCAT(c.first_name,' ',c.last_name) as client_name,
+            "SELECT i.*, c.full_name as client_name,
                     CONCAT(u.first_name,' ',u.last_name) as created_by_name
              FROM invoices i
              LEFT JOIN clients c ON c.id = i.client_id
@@ -75,7 +75,7 @@ class Invoice extends Model
 
         if (!empty($filters['search'])) {
             $term    = "%{$filters['search']}%";
-            $where  .= " AND (i.invoice_number LIKE ? OR CONCAT(c.first_name,' ',c.last_name) LIKE ?)";
+            $where  .= " AND (i.invoice_number LIKE ? OR c.full_name LIKE ?)";
             $params  = array_merge($params, [$term, $term]);
         }
 
@@ -94,7 +94,7 @@ class Invoice extends Model
             $params[] = $filters['date_to'];
         }
 
-        $allowedSort = ['i.invoice_number','i.invoice_date','i.total_amount','i.payment_status','i.created_at'];
+        $allowedSort = ['i.invoice_number','i.invoice_date','i.total_amount','i.payment_status','i.created_at','c.full_name','i.total_paid','i.balance'];
         $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.created_at';
         $order = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 
@@ -105,11 +105,13 @@ class Invoice extends Model
         )['cnt'] ?? 0);
 
         $offset = ($page - 1) * $perPage;
-        $sql    = "SELECT i.*, CONCAT(c.first_name,' ',c.last_name) as client_name
+        $sortExpr = $sort === 'i.balance' ? '(i.total_amount - i.total_paid)' : $sort;
+        $sql    = "SELECT i.*, c.full_name as client_name,
+                          (i.total_amount - i.total_paid) as balance
                    FROM invoices i
                    LEFT JOIN clients c ON c.id = i.client_id
                    WHERE {$where}
-                   ORDER BY {$sort} {$order}
+                   ORDER BY {$sortExpr} {$order}
                    LIMIT {$perPage} OFFSET {$offset}";
         $items  = $db->select($sql, $params);
 
