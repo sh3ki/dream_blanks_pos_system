@@ -57,6 +57,9 @@ $router->get('/reports/financial', [\App\Controllers\ReportController::class, 'f
 // Roles
 $router->get('/roles', [\App\Controllers\RoleController::class, 'index'], $auth);
 
+// Audit Logs
+$router->get('/audit-logs', [\App\Controllers\AuditLogController::class, 'index'], $auth);
+
 // Variations
 $router->get('/variations', [\App\Controllers\VariationController::class, 'index'], $auth);
 
@@ -71,6 +74,10 @@ $router->post('/api/v1/auth/logout',         [\App\Controllers\AuthController::c
 $router->post('/api/v1/auth/forgot-password',[\App\Controllers\AuthController::class, 'forgotPassword']);
 $router->post('/api/v1/auth/verify-otp',     [\App\Controllers\AuthController::class, 'verifyOtp']);
 $router->post('/api/v1/auth/reset-password', [\App\Controllers\AuthController::class, 'resetPassword']);
+
+// Audit Logs API
+$router->get('/api/v1/audit-logs',         [\App\Controllers\AuditLogController::class, 'index'],  $auth);
+$router->get('/api/v1/audit-logs/export',  [\App\Controllers\AuditLogController::class, 'export'], $auth);
 
 // Users API
 $router->get('/api/v1/users',               [\App\Controllers\UserController::class, 'index'],   $auth);
