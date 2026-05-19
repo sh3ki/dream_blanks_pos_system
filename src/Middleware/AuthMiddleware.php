@@ -15,7 +15,17 @@ class AuthMiddleware
             // Detect auto-logout: cookie was set at login but session no longer exists
             if (!empty($_COOKIE['auth_uid'])) {
                 $userId = (int)$_COOKIE['auth_uid'];
-                $ip     = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+                if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+                    $ip = trim($_SERVER['HTTP_CLIENT_IP']);
+                } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                    $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+                } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+                    $ip = trim($_SERVER['HTTP_X_REAL_IP']);
+                } else {
+                    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+                }
+                if ($ip === '::1') $ip = '127.0.0.1';
+                if (str_starts_with($ip, '::ffff:')) $ip = substr($ip, 7);
                 $ua     = $_SERVER['HTTP_USER_AGENT'] ?? '';
                 AuditLog::log([
                     'user_id'     => $userId,
