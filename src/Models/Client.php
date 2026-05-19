@@ -41,8 +41,8 @@ class Client extends Model
     public static function search(string $term, int $page, int $perPage, string $status = '', string $orderBy = 'c.created_at', string $direction = 'DESC'): array
     {
         $like   = "%{$term}%";
-        $where  = "(c.first_name LIKE ? OR c.middle_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ?) AND c.deleted_at IS NULL";
-        $params = [$like, $like, $like, $like];
+        $where  = "(c.full_name LIKE ? OR c.email LIKE ?) AND c.deleted_at IS NULL";
+        $params = [$like, $like];
 
         if ($status) {
             $where   .= " AND c.status = ?";
