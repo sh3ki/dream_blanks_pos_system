@@ -109,6 +109,23 @@
   margin: 6px 0 10px; display: flex; align-items: center; gap: 8px;
 }
 .dash-section-label::after { content: ''; flex: 1; height: 1px; background: var(--color-gray-100); }
+.dash-filter-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.dash-fb-btn {
+  padding:5px 14px; border:1px solid var(--color-gray-100); border-radius:6px;
+  background:#fff; font-size:.78rem; font-weight:600; cursor:pointer;
+  color:var(--color-dark-gray); transition:all .15s; height:32px; line-height:1;
+}
+.dash-fb-btn:hover { border-color:var(--color-primary); color:var(--color-primary); }
+.dash-fb-btn.active { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+.dash-fb-sep { width:1px; height:20px; background:var(--color-gray-200); margin:0 2px; flex-shrink:0; }
+.dash-fb-label { font-size:.73rem; font-weight:600; color:var(--color-gray-500); white-space:nowrap; }
+.dash-fb-date {
+  height:32px; padding:4px 8px; font-size:.78rem;
+  border:1px solid var(--color-gray-200); border-radius:6px;
+  background:#fff; color:var(--color-dark-gray);
+}
+.dash-fb-apply { height:32px; padding:0 16px; font-size:.78rem; font-weight:600; }
+.dash-fb-range-label { font-size:.73rem; color:var(--color-gray-500); font-style:italic; }
 @media (max-width: 1150px) {
   .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .dash-row.c21,.dash-row.c12,.dash-row.c11,.dash-row.c111 { grid-template-columns: 1fr; }
@@ -144,12 +161,16 @@ $collectionRate = ($metrics['total_sales_month'] ?? 0) > 0
     <h1 style="margin:0 0 2px">Dashboard</h1>
     <span style="color:var(--color-gray-500);font-size:.82rem"><?php echo date('l, F d, Y'); ?></span>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <select id="periodSelect" class="form-select" style="width:auto;height:34px;padding:4px 12px;font-size:.8rem"
-            onchange="reloadTrend(this.value)">
-      <option value="week">Last 7 Days</option>
-      <option value="month">Last 30 Days</option>
-    </select>
+  <div class="dash-filter-bar">
+    <button class="dash-fb-btn active" id="fbWeek" onclick="applyPreset('week')">Last 7 Days</button>
+    <button class="dash-fb-btn" id="fbMonth" onclick="applyPreset('month')">Last 30 Days</button>
+    <span class="dash-fb-sep"></span>
+    <label class="dash-fb-label">From</label>
+    <input type="date" id="filterFrom" class="dash-fb-date" max="<?php echo date('Y-m-d'); ?>">
+    <label class="dash-fb-label">To</label>
+    <input type="date" id="filterTo" class="dash-fb-date" max="<?php echo date('Y-m-d'); ?>">
+    <button class="btn btn-primary dash-fb-apply" onclick="applyCustomRange()">Apply</button>
+    <span id="filterRangeLabel" class="dash-fb-range-label"></span>
   </div>
 </div>
 
@@ -229,11 +250,7 @@ $collectionRate = ($metrics['total_sales_month'] ?? 0) > 0
   <div class="dash-card">
     <div class="dash-card-head">
       <span class="dash-card-title">Sales Trend</span>
-      <select id="trendSelect" class="form-select" style="width:auto;height:28px;padding:2px 10px;font-size:.78rem"
-              onchange="reloadTrend(this.value)">
-        <option value="week">Last 7 Days</option>
-        <option value="month">Last 30 Days</option>
-      </select>
+      <span id="trendPeriodLabel" style="font-size:.73rem;color:var(--color-gray-500)">Last 7 Days</span>
     </div>
     <div class="dash-card-body"><canvas id="salesTrendChart" height="88"></canvas></div>
   </div>
@@ -361,7 +378,11 @@ $collectionRate = ($metrics['total_sales_month'] ?? 0) > 0
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
+// Register datalabels plugin globally
+Chart.register(ChartDataLabels);
+
 const DASH = <?php echo json_encode($charts ?? []); ?>;
 Chart.defaults.font.family = "'Inter','Segoe UI','Helvetica Neue',sans-serif";
 Chart.defaults.font.size   = 11;
@@ -377,6 +398,26 @@ function fmtAxis(v){if(v>=1000000)return'\u20b1'+(v/1000000).toFixed(1)+'M';if(v
 const yScale={beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{callback:fmtAxis}};
 const xScale={grid:{display:false}};
 
+// Doughnut label color: white on dark backgrounds, dark on yellow
+function dlColorDonut(ctx){
+  const bg=ctx.dataset.backgroundColor[ctx.dataIndex];
+  return bg===P.yellow?'#333':'#fff';
+}
+// Doughnut formatter: value + percentage
+function dlFmtDonutCount(v,ctx){
+  if(!v)return'';
+  const total=ctx.dataset.data.reduce((a,b)=>a+b,0);
+  if(!total)return'';
+  return v+'\n'+Math.round(v/total*100)+'%';
+}
+function dlFmtDonutAmt(v,ctx){
+  if(!v)return'';
+  const total=ctx.dataset.data.reduce((a,b)=>a+b,0);
+  if(!total)return'';
+  return fmtCurrency(v)+'\n'+Math.round(v/total*100)+'%';
+}
+
+// ── 1. SALES TREND (line) ────────────────────────────────────────────────────
 let trendInst;
 function renderSalesTrend(trend){
   const ctx=document.getElementById('salesTrendChart');
@@ -390,70 +431,134 @@ function renderSalesTrend(trend){
       pointBackgroundColor:P.blue,pointRadius:4,pointHoverRadius:7,borderWidth:2
     }]},
     options:{
-      responsive:true,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtCurrency(ctx.parsed.y)}}},
+      responsive:true,
+      layout:{padding:{top:22}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' '+fmtCurrency(ctx.parsed.y)}},
+        datalabels:{
+          display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+          anchor:'end',align:'top',offset:4,
+          formatter:(v)=>fmtCurrency(v),
+          font:{size:9,weight:'700'},
+          color:P.blue,
+          clip:false,
+        }
+      },
       scales:{y:yScale,x:xScale}
     }
   });
 }
 
-(function(){
-  const modes=DASH.payment_modes||[];
-  const labels=modes.map(m=>(m.mode||'N/A').toUpperCase());
-  const amounts=modes.map(m=>parseFloat(m.amount||0));
-  new Chart(document.getElementById('paymentModeChart'),{
+// ── 2. PAYMENT MODES (doughnut) ──────────────────────────────────────────────
+let paymentInst;
+function renderPaymentModes(modes){
+  const labels=(modes||[]).map(m=>(m.mode||'N/A').toUpperCase());
+  const amounts=(modes||[]).map(m=>parseFloat(m.amount||0));
+  if(paymentInst)paymentInst.destroy();
+  paymentInst=new Chart(document.getElementById('paymentModeChart'),{
     type:'doughnut',
     data:{labels,datasets:[{data:amounts,backgroundColor:[P.blue,P.green,P.teal,P.purple],borderWidth:2,hoverOffset:10}]},
     options:{responsive:true,cutout:'62%',plugins:{
       legend:{position:'bottom',labels:{padding:14,boxWidth:13}},
-      tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+fmtCurrency(ctx.parsed)}}
+      tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+fmtCurrency(ctx.parsed)}},
+      datalabels:{
+        display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+        anchor:'center',align:'center',
+        formatter:dlFmtDonutAmt,
+        font:{size:9,weight:'700',lineHeight:1.4},
+        color:dlColorDonut,
+        textAlign:'center',
+      }
     }}
   });
-})();
+}
 
+// ── 3. 12-MONTH REVENUE vs COLLECTED (grouped bar) ───────────────────────────
 (function(){
   const d=DASH.monthly_revenue||{labels:[],revenue:[],collected:[]};
   new Chart(document.getElementById('monthlyRevenueChart'),{
     type:'bar',
     data:{labels:d.labels,datasets:[
-      {label:'Billed',data:d.revenue,backgroundColor:P.blueA75,borderRadius:4,borderSkipped:false},
-      {label:'Collected',data:d.collected,backgroundColor:P.greenA75,borderRadius:4,borderSkipped:false}
+      {label:'Billed',   data:d.revenue,   backgroundColor:P.blueA75, borderRadius:4,borderSkipped:false},
+      {label:'Collected',data:d.collected, backgroundColor:P.greenA75,borderRadius:4,borderSkipped:false}
     ]},
-    options:{responsive:true,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'top',labels:{boxWidth:12,padding:12}},
-        tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmtCurrency(ctx.parsed.y)}}},
+    options:{responsive:true,
+      layout:{padding:{top:4}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',labels:{boxWidth:12,padding:12}},
+        tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmtCurrency(ctx.parsed.y)}},
+        datalabels:{
+          display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+          anchor:'center',align:'center',
+          rotation:-90,
+          formatter:(v)=>fmtCurrency(v),
+          font:{size:8,weight:'700'},
+          color:'#fff',
+        }
+      },
       scales:{y:yScale,x:xScale}
     }
   });
 })();
 
-(function(){
-  const d=DASH.invoice_status||{labels:[],data:[]};
-  new Chart(document.getElementById('invoiceStatusChart'),{
+// ── 4. INVOICE STATUS (doughnut) ─────────────────────────────────────────────
+let invoiceStatusInst;
+function renderInvoiceStatus(d){
+  if(invoiceStatusInst)invoiceStatusInst.destroy();
+  invoiceStatusInst=new Chart(document.getElementById('invoiceStatusChart'),{
     type:'doughnut',
     data:{labels:d.labels,datasets:[{data:d.data,backgroundColor:[P.green,P.yellow,P.red],borderWidth:2,hoverOffset:10}]},
     options:{responsive:true,cutout:'58%',plugins:{
       legend:{position:'bottom',labels:{padding:14,boxWidth:13}},
-      tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed+' invoices'}}
+      tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed+' invoices'}},
+      datalabels:{
+        display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+        anchor:'center',align:'center',
+        formatter:dlFmtDonutCount,
+        font:{size:10,weight:'700',lineHeight:1.4},
+        color:dlColorDonut,
+        textAlign:'center',
+      }
     }}
   });
-})();
+}
 
-(function(){
-  const products=DASH.top_products||[];
-  if(!products.length)return;
-  const labels=products.map(p=>p.name.length>22?p.name.substring(0,22)+'\u2026':p.name);
+// ── 5. TOP PRODUCTS (horizontal bar) ────────────────────────────────────────
+let topProductsInst;
+function renderTopProducts(products){
+  if(!products||!products.length){
+    if(topProductsInst){topProductsInst.destroy();topProductsInst=null;}
+    return;
+  }
+  const labels=products.map(p=>p.name.length>22?p.name.substring(0,22)+'…':p.name);
   const revenues=products.map(p=>parseFloat(p.revenue||0));
-  new Chart(document.getElementById('topProductsChart'),{
+  if(topProductsInst)topProductsInst.destroy();
+  topProductsInst=new Chart(document.getElementById('topProductsChart'),{
     type:'bar',
     data:{labels,datasets:[{label:'Revenue',data:revenues,backgroundColor:PALETTE,borderRadius:5,borderSkipped:false}]},
     options:{indexAxis:'y',responsive:true,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtCurrency(ctx.parsed.x)}}},
+      layout:{padding:{right:8}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' '+fmtCurrency(ctx.parsed.x)}},
+        datalabels:{
+          display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+          anchor:'end',align:'right',offset:4,
+          formatter:(v)=>fmtCurrency(v),
+          font:{size:9,weight:'700'},
+          color:'#444',
+          clip:false,
+        }
+      },
       scales:{x:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{callback:fmtAxis}},y:{grid:{display:false}}}
     }
   });
-})();
+}
 
+// ── 6. STOCK HEALTH (doughnut) ───────────────────────────────────────────────
 (function(){
   const d=DASH.stock_status||{labels:[],data:[]};
   new Chart(document.getElementById('stockHealthChart'),{
@@ -461,11 +566,20 @@ function renderSalesTrend(trend){
     data:{labels:d.labels,datasets:[{data:d.data,backgroundColor:[P.green,P.yellow,P.red],borderWidth:2,hoverOffset:10}]},
     options:{responsive:true,cutout:'58%',plugins:{
       legend:{position:'bottom',labels:{padding:14,boxWidth:13}},
-      tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed+' items'}}
+      tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed+' items'}},
+      datalabels:{
+        display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+        anchor:'center',align:'center',
+        formatter:dlFmtDonutCount,
+        font:{size:10,weight:'700',lineHeight:1.4},
+        color:dlColorDonut,
+        textAlign:'center',
+      }
     }}
   });
 })();
 
+// ── 7. SALES BY HOUR — TODAY (bar) ──────────────────────────────────────────
 (function(){
   const d=DASH.hourly_sales||{labels:[],data:[]};
   const maxVal=Math.max(...d.data,1);
@@ -477,37 +591,107 @@ function renderSalesTrend(trend){
       borderRadius:4,borderSkipped:false
     }]},
     options:{responsive:true,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtCurrency(ctx.parsed.y)}}},
+      layout:{padding:{top:22}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' '+fmtCurrency(ctx.parsed.y)}},
+        datalabels:{
+          display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+          anchor:'end',align:'top',offset:2,
+          formatter:(v)=>fmtCurrency(v),
+          font:{size:9,weight:'700'},
+          color:P.blue,
+          clip:false,
+        }
+      },
       scales:{y:yScale,x:xScale}
     }
   });
 })();
 
+// ── 8. REVENUE vs COLLECTED — LAST 6 MONTHS (grouped bar) ───────────────────
 (function(){
   const d=DASH.revenue_vs_collected||{labels:[],revenue:[],collected:[]};
   new Chart(document.getElementById('revVsColChart'),{
     type:'bar',
     data:{labels:d.labels,datasets:[
-      {label:'Billed',data:d.revenue,backgroundColor:P.blueA75,borderRadius:4,borderSkipped:false},
-      {label:'Collected',data:d.collected,backgroundColor:P.greenA75,borderRadius:4,borderSkipped:false}
+      {label:'Billed',   data:d.revenue,   backgroundColor:P.blueA75, borderRadius:4,borderSkipped:false},
+      {label:'Collected',data:d.collected, backgroundColor:P.greenA75,borderRadius:4,borderSkipped:false}
     ]},
-    options:{responsive:true,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'top',labels:{boxWidth:12,padding:12}},
-        tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmtCurrency(ctx.parsed.y)}}},
+    options:{responsive:true,
+      layout:{padding:{top:22}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',labels:{boxWidth:12,padding:12}},
+        tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmtCurrency(ctx.parsed.y)}},
+        datalabels:{
+          display:(ctx)=>ctx.dataset.data[ctx.dataIndex]>0,
+          anchor:'end',align:'top',offset:2,
+          formatter:(v)=>fmtCurrency(v),
+          font:{size:9,weight:'700'},
+          color:(ctx)=>ctx.datasetIndex===0?P.blue:P.green,
+          clip:false,
+        }
+      },
       scales:{y:yScale,x:xScale}
     }
   });
 })();
 
-function reloadTrend(period){
-  document.getElementById('periodSelect').value=period;
-  document.getElementById('trendSelect').value=period;
-  fetch('/api/v1/dashboard/charts?period='+encodeURIComponent(period))
+// ── DATE FILTER LOGIC ────────────────────────────────────────────────────────
+let _filter={period:'week',dateFrom:null,dateTo:null};
+
+function applyPreset(period){
+  _filter={period,dateFrom:null,dateTo:null};
+  document.querySelectorAll('.dash-fb-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById(period==='month'?'fbMonth':'fbWeek');
+  if(btn)btn.classList.add('active');
+  document.getElementById('filterRangeLabel').textContent='';
+  const lbl=document.getElementById('trendPeriodLabel');
+  if(lbl)lbl.textContent=period==='month'?'Last 30 Days':'Last 7 Days';
+  reloadFilteredCharts();
+}
+
+function applyCustomRange(){
+  const from=document.getElementById('filterFrom').value;
+  const to=document.getElementById('filterTo').value;
+  if(!from||!to){alert('Please select both a From and To date.');return;}
+  if(from>to){alert('From date must be on or before To date.');return;}
+  _filter={period:null,dateFrom:from,dateTo:to};
+  document.querySelectorAll('.dash-fb-btn').forEach(b=>b.classList.remove('active'));
+  const fD=s=>new Date(s+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+  const rangeText=fD(from)+' \u2013 '+fD(to);
+  document.getElementById('filterRangeLabel').textContent=rangeText;
+  const lbl=document.getElementById('trendPeriodLabel');
+  if(lbl)lbl.textContent=rangeText;
+  reloadFilteredCharts();
+}
+
+function reloadFilteredCharts(){
+  let url='/api/v1/dashboard/charts?';
+  if(_filter.dateFrom&&_filter.dateTo){
+    url+='date_from='+encodeURIComponent(_filter.dateFrom)+'&date_to='+encodeURIComponent(_filter.dateTo);
+  }else{
+    url+='period='+encodeURIComponent(_filter.period||'week');
+  }
+  fetch(url)
     .then(r=>r.json())
-    .then(res=>{if(res.success&&res.data&&res.data.sales_trend)renderSalesTrend(res.data.sales_trend);})
+    .then(res=>{
+      if(!res.success||!res.data)return;
+      const d=res.data;
+      if(d.sales_trend)renderSalesTrend(d.sales_trend);
+      if(d.payment_modes)renderPaymentModes(d.payment_modes);
+      if(d.invoice_status)renderInvoiceStatus(d.invoice_status||{labels:[],data:[]});
+      renderTopProducts(d.top_products||[]);
+    })
     .catch(()=>{});
 }
+
+// ── INITIAL RENDER ────────────────────────────────────────────────────────────
 if(DASH.sales_trend)renderSalesTrend(DASH.sales_trend);
+renderPaymentModes(DASH.payment_modes||[]);
+renderInvoiceStatus(DASH.invoice_status||{labels:[],data:[]});
+renderTopProducts(DASH.top_products||[]);
 </script>
 
 <?php
