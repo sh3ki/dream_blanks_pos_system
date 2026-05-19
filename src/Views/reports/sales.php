@@ -6,7 +6,9 @@ $exportUrl = '/api/v1/reports/export?type=sales&date_from=' . urlencode($from) .
 ?>
 <div class="page-header">
   <h1>Sales Report</h1>
+  <?php if (can('reports_sales', 'export')): ?>
   <a href="<?= $exportUrl ?>" class="btn btn-secondary">⬇ Export CSV</a>
+  <?php endif; ?>
 </div>
 
 <div class="card" style="margin-bottom:16px">
