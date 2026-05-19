@@ -13,9 +13,6 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
 ?>
 <div class="page-header">
   <h1>Invoices</h1>
-  <div class="d-flex gap-8">
-    <a href="<?= app_url('/reports/financial') ?>" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:6px"><?= icon('money', 15) ?> Receivables</a>
-  </div>
 </div>
 
 <div class="card">
