@@ -191,7 +191,7 @@ class Invoice extends Model
             $params[] = $filters['date_to'];
         }
 
-        $allowedSort = ['i.invoice_number', 'i.invoice_date', 'c.full_name', 'i.total_amount', 'i.payment_status'];
+        $allowedSort = ['i.invoice_number', 'i.invoice_date', 'c.full_name', 'i.total_amount', 'i.payment_status', 'i.primary_payment_mode'];
         $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.invoice_date';
         $order = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 
