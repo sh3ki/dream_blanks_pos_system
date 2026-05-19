@@ -116,22 +116,29 @@
       <div class="summary-row" id="feeRow" style="display:none"><span>Extra Fee</span><span id="feeDisplay">+₱0.00</span></div>
       <div class="summary-row total"><span>TOTAL</span><span id="totalAmount">₱0.00</span></div>
 
-      <button class="btn btn-secondary btn-sm" onclick="openAdjustmentsModal()" style="width:100%;margin:8px 0;height:32px;font-size:.82rem">
-        <?= icon('settings', 13) ?> Discount / Tax / Fee / Notes
-      </button>
-
-      <!-- Payment: full-width method + cash received -->
-      <div style="margin-bottom:10px">
-        <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Method</label>
-        <select id="paymentMode" class="form-select" style="width:100%;height:36px;font-size:.82rem" onchange="onPaymentModeChange()">
-          <option value="cash">💵 Cash</option>
-          <option value="bdo">🏦 BDO</option>
-          <option value="gcash">📱 GCash</option>
-        </select>
+      <!-- Adjustments btn + Payment Method: inline -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;align-items:end">
+        <button class="btn btn-secondary btn-sm" onclick="openAdjustmentsModal()" style="height:36px;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          <?= icon('settings', 13) ?> Discount / Tax / Fee / Notes
+        </button>
+        <div>
+          <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Method</label>
+          <input type="hidden" id="paymentMode" value="cash">
+          <div style="display:flex;gap:3px">
+            <button type="button" id="pmBtn_cash" onclick="setPaymentMode('cash')" class="btn btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px;background:var(--color-primary);color:#fff;border-color:var(--color-primary)"><?= icon('wallet', 12) ?> Cash</button>
+            <button type="button" id="pmBtn_bdo" onclick="setPaymentMode('bdo')" class="btn btn-secondary btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px"><?= icon('building', 12) ?> BDO</button>
+            <button type="button" id="pmBtn_gcash" onclick="setPaymentMode('gcash')" class="btn btn-secondary btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px"><?= icon('smartphone', 12) ?> GCash</button>
+          </div>
+        </div>
       </div>
+
+      <!-- Cash Received + Change: inline -->
       <div id="cashReceivedRow" style="margin-bottom:10px">
-        <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Cash Received (₱)</label>
-        <input type="number" id="cashReceived" class="form-input" placeholder="0.00" min="0" step="0.01" oninput="calcPaymentStatus()" style="height:36px;font-size:.82rem">
+        <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Cash Received</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="cashReceived" class="form-input" placeholder="0.00" min="0" step="0.01" oninput="calcPaymentStatus()" style="height:36px;font-size:.82rem;width:50%">
+          <span style="font-size:.8rem;color:var(--color-gray-500);white-space:nowrap">Change: <strong id="changeDisplay" style="color:var(--color-success)">₱0.00</strong></span>
+        </div>
       </div>
 
       <button class="btn btn-primary btn-block" id="checkoutBtn" onclick="openCheckoutConfirm()" style="height:44px;font-size:1rem">
@@ -362,6 +369,24 @@ function recalculate() {
 
 function openAdjustmentsModal() { openModal('adjustmentsModal'); }
 
+function setPaymentMode(mode) {
+  document.getElementById('paymentMode').value = mode;
+  ['cash','bdo','gcash'].forEach(function(m) {
+    var btn = document.getElementById('pmBtn_' + m);
+    if (!btn) return;
+    if (m === mode) {
+      btn.style.background = 'var(--color-primary)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = 'var(--color-primary)';
+    } else {
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }
+  });
+  onPaymentModeChange();
+}
+
 function onPaymentModeChange() {
   // Only show cash received for cash payments
   const mode = document.getElementById('paymentMode').value;
@@ -370,12 +395,21 @@ function onPaymentModeChange() {
 }
 
 function calcPaymentStatus() {
-  const totalEl = document.getElementById('totalAmount');
-  const total = parseFloat(totalEl ? totalEl.textContent.replace(/[^0-9.]/g,'') : '0') || 0;
-  const cashEl = document.getElementById('cashReceived');
-  const cash   = parseFloat(cashEl ? cashEl.value : '0') || 0;
-  const mode   = document.getElementById('paymentMode').value;
-  if (mode !== 'cash') return 'fully_paid'; // non-cash assumed fully paid at POS
+  const totalEl  = document.getElementById('totalAmount');
+  const total    = parseFloat(totalEl ? totalEl.textContent.replace(/[^0-9.]/g,'') : '0') || 0;
+  const cashEl   = document.getElementById('cashReceived');
+  const cash     = parseFloat(cashEl ? cashEl.value : '0') || 0;
+  const mode     = document.getElementById('paymentMode').value;
+
+  // Update change display
+  const changeEl = document.getElementById('changeDisplay');
+  if (changeEl) {
+    const change = cash > total ? cash - total : 0;
+    changeEl.textContent = '₱' + change.toFixed(2);
+    changeEl.style.color = change > 0 ? 'var(--color-success)' : 'var(--color-gray-400)';
+  }
+
+  if (mode !== 'cash') return 'fully_paid';
   if (cash <= 0) return 'unpaid';
   if (cash < total) return 'partially_paid';
   return 'fully_paid';
@@ -457,6 +491,8 @@ async function checkout() {
       document.getElementById('additionalFee').value = '0';
       document.getElementById('orderNotes').value = '';
       document.getElementById('cashReceived').value = '';
+      const changeEl = document.getElementById('changeDisplay');
+      if (changeEl) { changeEl.textContent = '₱0.00'; changeEl.style.color = 'var(--color-gray-400)'; }
       recalculate();
       // Open invoice modal
       openPosInvoiceModal(data.data.invoice_id || data.data.id);
