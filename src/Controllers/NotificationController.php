@@ -23,6 +23,12 @@ class NotificationController extends Controller
         return $this->success(null, 'Notification marked as read');
     }
 
+    public function markAllRead(Request $request): Response
+    {
+        Notification::markAllRead($this->currentUserId());
+        return $this->success(null, 'All notifications marked as read');
+    }
+
     public function destroy(Request $request): Response
     {
         $id = (int)$request->param('notification_id');
