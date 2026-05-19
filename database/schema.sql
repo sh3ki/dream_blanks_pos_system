@@ -95,7 +95,6 @@ CREATE TABLE IF NOT EXISTS `clients` (
     `middle_name` VARCHAR(50) NULL,
     `last_name` VARCHAR(50) NOT NULL,
     `email` VARCHAR(150) NULL,
-    `profile_photo_path` VARCHAR(255) NULL,
     `status` ENUM('active','inactive') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
