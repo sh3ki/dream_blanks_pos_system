@@ -123,10 +123,19 @@ function selectRole(id, name, desc, status) {
   titleEl.textContent = name + ' — Permissions';
   document.getElementById('savePermBtn').style.display = '';
 
+  const moduleLabels = {
+    users: 'Users', roles: 'Roles', clients: 'Clients', products: 'Products',
+    stock_products: 'Stock Products', inventory: 'Inventory', pos: 'POS',
+    invoices: 'Invoices', payments: 'Payments', transactions: 'Transactions',
+    reports_sales: 'Reports — Sales', reports_inventory: 'Reports — Inventory', reports_financial: 'Reports — Financial',
+    settings: 'Settings', audit_logs: 'Audit Logs',
+    notifications: 'Notifications', variations: 'Variations',
+  };
   let html = '<div class="perm-matrix">';
   for (const [module, perms] of Object.entries(allPermissions)) {
+    const label = moduleLabels[module] || module.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     html += `<div class="perm-module">
-      <div class="perm-module-name">${module.charAt(0).toUpperCase() + module.slice(1)}</div>
+      <div class="perm-module-name">${label}</div>
       <div class="perm-actions">`;
     perms.forEach(p => {
       const checked = current.includes(p.id) ? 'checked' : '';
