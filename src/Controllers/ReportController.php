@@ -67,17 +67,41 @@ class ReportController extends Controller
         switch ($type) {
             case 'sales':
                 $data  = $this->reportService->salesReport($from, $to);
-                $rows  = $data['top_products'] ?? [];
+                $rows  = $data['daily_summary'] ?? [];
+                // Add headers matching the array keys
+                if (!empty($rows)) {
+                    $rows = array_map(fn($r) => [
+                        'date'          => $r['date'],
+                        'invoice_count' => $r['invoice_count'],
+                        'revenue'       => number_format($r['revenue'], 2, '.', ''),
+                        'collected'     => number_format($r['collected'], 2, '.', ''),
+                    ], $rows);
+                }
                 $fname = 'sales_report';
                 break;
             case 'inventory':
                 $data  = $this->reportService->inventoryReport();
-                $rows  = $data['low_stock_items'] ?? [];
+                $rows  = array_map(fn($r) => [
+                    'name'            => $r['name'],
+                    'code'            => $r['code'],
+                    'current_qty'     => $r['current_qty'],
+                    'low_stock_alert' => $r['low_stock_alert'],
+                    'stock_status'    => $r['stock_status'],
+                ], $data['all_stock'] ?? []);
                 $fname = 'inventory_report';
                 break;
             case 'financial':
                 $data  = $this->reportService->financialReport($from, $to);
-                $rows  = $data['receivables'] ?? [];
+                $rows  = array_map(fn($r) => [
+                    'invoice_number'   => $r['invoice_number'],
+                    'client_name'      => $r['client_name'],
+                    'total_amount'     => number_format($r['total_amount'], 2, '.', ''),
+                    'total_paid'       => number_format($r['total_paid'], 2, '.', ''),
+                    'balance_due'      => number_format($r['balance_due'], 2, '.', ''),
+                    'payment_status'   => $r['payment_status'],
+                    'invoice_date'     => $r['invoice_date'],
+                    'days_outstanding' => $r['days_outstanding'],
+                ], $data['receivables'] ?? []);
                 $fname = 'financial_report';
                 break;
             default:
