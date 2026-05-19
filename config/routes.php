@@ -142,7 +142,9 @@ $router->post('/api/v1/pos/checkout',[\App\Controllers\PosController::class, 'ch
 // Invoices API
 $router->get('/api/v1/invoices',                              [\App\Controllers\InvoiceController::class, 'index'],     $auth);
 $router->get('/api/v1/invoices/{invoice_id}',                 [\App\Controllers\InvoiceController::class, 'show'],      $auth);
-$router->post('/api/v1/invoices/{invoice_id}/payments',       [\App\Controllers\InvoiceController::class, 'addPayment'],$auth);
+$router->post('/api/v1/invoices/{invoice_id}/payments',       [\App\Controllers\InvoiceController::class, 'addPayment'],    $auth);
+$router->put('/api/v1/payments/{payment_id}',                 [\App\Controllers\InvoiceController::class, 'updatePayment'], $auth);
+$router->delete('/api/v1/payments/{payment_id}',              [\App\Controllers\InvoiceController::class, 'deletePayment'], $auth);
 $router->put('/api/v1/invoices/{invoice_id}/toggle-sent',      [\App\Controllers\InvoiceController::class, 'toggleSent'], $auth);
 $router->get('/api/v1/invoices/{invoice_id}/print',           [\App\Controllers\InvoiceController::class, 'print'],     $auth);
 $router->post('/api/v1/invoices/{invoice_id}/send-email',     [\App\Controllers\InvoiceController::class, 'sendEmail'], $auth);
