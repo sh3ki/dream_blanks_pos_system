@@ -240,7 +240,18 @@ class StockProductController extends Controller
             NotificationService::lowStockAlert($id, $sp['name'], (int)$updated['current_qty']);
         }
 
-        AuditService::log(AUDIT_UPDATE, MODULE_STOCK_PRODUCTS, $id, $sp, StockProduct::find($id), "Manual {$type} {$qty} for stock product #{$id}: {$reason}");
+        AuditService::log(AUDIT_RESTOCK, MODULE_STOCK_PRODUCTS, $id, [
+            'current_qty' => $qtyBefore,
+        ], [
+            'source'          => 'manual_adjustment',
+            'adjustment_type' => $type,
+            'adjustment_qty'  => $qty,
+            'qty_before'      => $qtyBefore,
+            'qty_after'       => $qtyBefore + $movement,
+            'stock_product'   => $sp['name'],
+            'code'            => $sp['code'] ?? '',
+            'reason'          => $reason,
+        ], "Manual stock {$type}: {$qty} units for '{$sp['name']}' ({$sp['code']}) — {$reason}");
         return $this->success(['current_qty' => (int)$updated['current_qty']], 'Stock adjusted');
     }
 
@@ -316,7 +327,19 @@ class StockProductController extends Controller
             if ($updated && (int)$updated['current_qty'] <= (int)($updated['low_stock_alert'] ?? 10)) {
                 NotificationService::lowStockAlert($id, $sp['name'], (int)$updated['current_qty']);
             }
-            AuditService::log(AUDIT_UPDATE, MODULE_STOCK_PRODUCTS, $id, $sp, StockProduct::find($id), "Bulk {$type} {$qty} for stock product #{$id}: {$reason}");
+            $qtyAfter = (int)(StockProduct::find($id)['current_qty'] ?? $qtyBefore);
+            AuditService::log(AUDIT_RESTOCK, MODULE_STOCK_PRODUCTS, $id, [
+                'current_qty' => $qtyBefore,
+            ], [
+                'source'          => 'bulk_manual_adjustment',
+                'adjustment_type' => $type,
+                'adjustment_qty'  => $qty,
+                'qty_before'      => $qtyBefore,
+                'qty_after'       => $qtyAfter,
+                'stock_product'   => $sp['name'],
+                'code'            => $sp['code'] ?? '',
+                'reason'          => $reason,
+            ], "Bulk stock {$type}: {$qty} units for '{$sp['name']}' ({$sp['code']}) — {$reason}");
             $adjusted++;
         }
 
@@ -340,7 +363,7 @@ class StockProductController extends Controller
     /** POST /api/v1/stock-products/bulk-import */
     public function bulkImport(Request $request): Response
     {
-        $this->requirePermission(MODULE_STOCK_PRODUCTS, ACTION_ADD);
+        $this->requirePermission(MODULE_STOCK_PRODUCTS, ACTION_IMPORT);
         $file = $request->file('file');
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
             return $this->error('No file uploaded');
