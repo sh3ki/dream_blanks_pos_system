@@ -15,9 +15,11 @@
         <?= icon('tag', 18) ?> Categories
         <span class="badge badge-gray" id="catCount"><?= count($categories) ?></span>
       </h3>
+      <?php if (can('variations', 'add')): ?>
       <button class="btn btn-primary btn-sm" onclick="openModal('catModal')" style="display:flex;align-items:center;gap:6px">
         <?= icon('plus', 14) ?> Add
       </button>
+      <?php endif; ?>
     </div>
     <div class="card-body" style="padding:0">
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
@@ -37,8 +39,12 @@
           </div>
           <div class="d-flex align-center gap-4">
             <span class="badge <?= $cat['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($cat['status']) ?></span>
+            <?php if (can('variations', 'edit')): ?>
             <button class="icon-btn" onclick="editVariation('cat',<?= $cat['id'] ?>,'<?= htmlspecialchars(addslashes($cat['name'])) ?>','<?= htmlspecialchars(addslashes($cat['code'] ?? '')) ?>','<?= $cat['status'] ?>','<?= htmlspecialchars(addslashes($cat['description'] ?? '')) ?>')" title="Edit"><?= icon('edit', 14) ?></button>
+            <?php endif; ?>
+            <?php if (can('variations', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteVariation('cat',<?= $cat['id'] ?>,'<?= htmlspecialchars(addslashes($cat['name'])) ?>')" title="Delete"><?= icon('delete', 14) ?></button>
+            <?php endif; ?>
           </div>
         </li>
         <?php endforeach; ?>
@@ -56,9 +62,11 @@
         <?= icon('box', 18) ?> Types
         <span class="badge badge-gray" id="typeCount"><?= count($types ?? []) ?></span>
       </h3>
+      <?php if (can('variations', 'add')): ?>
       <button class="btn btn-primary btn-sm" onclick="openModal('typeModal')" style="display:flex;align-items:center;gap:6px">
         <?= icon('plus', 14) ?> Add
       </button>
+      <?php endif; ?>
     </div>
     <div class="card-body" style="padding:0">
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
@@ -75,8 +83,12 @@
           </div>
           <div class="d-flex align-center gap-4">
             <span class="badge <?= $type['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($type['status']) ?></span>
+            <?php if (can('variations', 'edit')): ?>
             <button class="icon-btn" onclick="editVariation('type',<?= $type['id'] ?>,'<?= htmlspecialchars(addslashes($type['name'])) ?>','<?= htmlspecialchars(addslashes($type['code'] ?? '')) ?>','<?= $type['status'] ?>')" title="Edit"><?= icon('edit', 14) ?></button>
+            <?php endif; ?>
+            <?php if (can('variations', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteVariation('type',<?= $type['id'] ?>,'<?= htmlspecialchars(addslashes($type['name'])) ?>')" title="Delete"><?= icon('delete', 14) ?></button>
+            <?php endif; ?>
           </div>
         </li>
         <?php endforeach; ?>
@@ -94,9 +106,11 @@
         <?= icon('color-swatch', 18) ?> Colors
         <span class="badge badge-gray" id="colorCount"><?= count($colors) ?></span>
       </h3>
+      <?php if (can('variations', 'add')): ?>
       <button class="btn btn-primary btn-sm" onclick="openModal('colorModal')" style="display:flex;align-items:center;gap:6px">
         <?= icon('plus', 14) ?> Add
       </button>
+      <?php endif; ?>
     </div>
     <div class="card-body" style="padding:0">
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
@@ -118,8 +132,12 @@
           </div>
           <div class="d-flex align-center gap-4">
             <span class="badge <?= $color['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($color['status']) ?></span>
+            <?php if (can('variations', 'edit')): ?>
             <button class="icon-btn" onclick="editVariation('color',<?= $color['id'] ?>,'<?= htmlspecialchars(addslashes($color['name'])) ?>','<?= htmlspecialchars(addslashes($color['hex_code'] ?? '')) ?>','<?= $color['status'] ?>')" title="Edit"><?= icon('edit', 14) ?></button>
+            <?php endif; ?>
+            <?php if (can('variations', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteVariation('color',<?= $color['id'] ?>,'<?= htmlspecialchars(addslashes($color['name'])) ?>')" title="Delete"><?= icon('delete', 14) ?></button>
+            <?php endif; ?>
           </div>
         </li>
         <?php endforeach; ?>
@@ -137,9 +155,11 @@
         <?= icon('ruler', 18) ?> Sizes
         <span class="badge badge-gray" id="sizeCount"><?= count($sizes) ?></span>
       </h3>
+      <?php if (can('variations', 'add')): ?>
       <button class="btn btn-primary btn-sm" onclick="openModal('sizeModal')" style="display:flex;align-items:center;gap:6px">
         <?= icon('plus', 14) ?> Add
       </button>
+      <?php endif; ?>
     </div>
     <div class="card-body" style="padding:0">
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
@@ -156,8 +176,12 @@
           </div>
           <div class="d-flex align-center gap-4">
             <span class="badge <?= $size['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($size['status']) ?></span>
+            <?php if (can('variations', 'edit')): ?>
             <button class="icon-btn" onclick="editVariation('size',<?= $size['id'] ?>,'<?= htmlspecialchars(addslashes($size['name'])) ?>','<?= htmlspecialchars(addslashes($size['code'] ?? '')) ?>','<?= $size['status'] ?>')" title="Edit"><?= icon('edit', 14) ?></button>
+            <?php endif; ?>
+            <?php if (can('variations', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteVariation('size',<?= $size['id'] ?>,'<?= htmlspecialchars(addslashes($size['name'])) ?>')" title="Delete"><?= icon('delete', 14) ?></button>
+            <?php endif; ?>
           </div>
         </li>
         <?php endforeach; ?>
