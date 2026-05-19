@@ -5,6 +5,7 @@ namespace App\Middleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Models\AuditLog;
+use App\Models\User;
 
 class AuthMiddleware
 {
@@ -32,6 +33,14 @@ class AuthMiddleware
                 return (new Response())->error('Authentication required', 401);
             }
             return (new Response())->redirect('/login');
+        }
+
+        // Refresh permissions from DB on every request so role/permission
+        // changes take effect immediately without requiring re-login.
+        $userId = $_SESSION['user']['id'] ?? null;
+        if ($userId) {
+            $permissions             = User::getPermissions((int)$userId);
+            $_SESSION['permissions'] = array_map(fn($p) => "{$p['module']}.{$p['action']}", $permissions);
         }
 
         return null;
