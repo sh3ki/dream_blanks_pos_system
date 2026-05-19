@@ -2,6 +2,11 @@
 <?php
 $sort  = $filters['sort']  ?? 'i.created_at';
 $order = strtoupper($filters['order'] ?? 'DESC');
+$canDownload    = can('invoices',  'download');
+$canPayView     = can('payments',  'view');
+$canPayAdd      = can('payments',  'add');
+$canPayEdit     = can('payments',  'edit');
+$canPayDelete   = can('payments',  'delete');
 function invSortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
     $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
     $params    = array_filter(array_merge($filters, ['sort' => $col, 'order' => $nextOrder]), fn($v) => $v !== '');
@@ -75,7 +80,7 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
         ?>
         <?php
           $methodBadge = match($inv['primary_payment_mode'] ?? '') {
-            'cash'  => '<span class="badge" style="background:#dcfce7;color:#166534">Cash</span>',
+            'cash'  => '<span class="badge" style="background:#dcfce7;color:#166634">Cash</span>',
             'bdo'   => '<span class="badge" style="background:#fef9c3;color:#854d0e">Bank Transfer</span>',
             'gcash' => '<span class="badge" style="background:#dbeafe;color:#1e40af">GCash</span>',
             default => '<span class="text-muted" style="font-size:.8rem">—</span>',
@@ -108,9 +113,13 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
             </select>
           </td>
           <td onclick="event.stopPropagation()">
+            <?php if ($canDownload): ?>
             <a href="<?= app_url('/api/v1/invoices/' . $inv['id'] . '/print') ?>?download=1" target="_blank" class="icon-btn" title="Download PDF"><?= icon('download', 15) ?></a>
+            <?php endif; ?>
+            <?php if ($canPayView): ?>
             <button class="icon-btn" onclick="viewPayHistory(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number']) ?>')" title="Payment History"><?= icon('history', 15) ?></button>
-            <?php if ($inv['payment_status'] !== 'fully_paid'): ?>
+            <?php endif; ?>
+            <?php if ($canPayAdd && $inv['payment_status'] !== 'fully_paid'): ?>
               <button class="icon-btn" onclick="addPayment(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number']) ?>', <?= $balance ?>)" title="Add Payment"><?= icon('payment', 15) ?></button>
             <?php endif; ?>
           </td>
@@ -132,7 +141,7 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
 
 <!-- Payment History Modal -->
 <div class="modal-overlay" id="payHistModal">
-  <div class="modal-content" style="max-width:600px">
+  <div class="modal-content" style="max-width:680px">
     <div class="modal-header">
       <h2 class="modal-title">Payment History — <span id="payHistInvNum"></span></h2>
       <button class="modal-close" onclick="document.getElementById('payHistModal').classList.remove('show')"><?= icon('close', 16) ?></button>
@@ -148,11 +157,66 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
             <th>Reference</th>
             <th style="text-align:right">Amount</th>
             <th>Recorded By</th>
+            <?php if ($canPayEdit || $canPayDelete): ?><th>Actions</th><?php endif; ?>
           </tr>
         </thead>
         <tbody id="payHistBody"></tbody>
       </table>
       <p id="payHistEmpty" style="display:none;padding:32px;text-align:center;color:var(--color-gray-500)">No payment records found.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Payment Modal -->
+<div class="modal-overlay" id="editPayModal">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Payment</h2>
+      <button class="modal-close" onclick="closeModal('editPayModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editPayId">
+      <div class="form-group">
+        <label class="form-label">Payment Date</label>
+        <input type="date" id="editPayDate" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (₱) <span class="required">*</span></label>
+        <input type="number" id="editPayAmount" class="form-input" min="0.01" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Mode</label>
+        <select id="editPayMode" class="form-select">
+          <option value="cash">💵 Cash</option>
+          <option value="bdo">🏦 BDO</option>
+          <option value="gcash">📱 GCash</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reference Number</label>
+        <input type="text" id="editPayRef" class="form-input">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editPayModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveEditPayBtn" onclick="saveEditPayment()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Payment Confirm Modal -->
+<div class="modal-overlay" id="deletePayModal">
+  <div class="modal-content" style="max-width:380px">
+    <div class="modal-header">
+      <h2 class="modal-title">Delete Payment</h2>
+      <button class="modal-close" onclick="closeModal('deletePayModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p id="deletePayMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('deletePayModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeletePayBtn">Delete</button>
     </div>
   </div>
 </div>
@@ -207,7 +271,10 @@ const APP_BIZ = {
   email:   <?= json_encode($__bizEmail) ?>,
   address: <?= json_encode($__bizAddress) ?>,
 };
+const PAY_CAN_EDIT   = <?= $canPayEdit   ? 'true' : 'false' ?>;
+const PAY_CAN_DELETE = <?= $canPayDelete ? 'true' : 'false' ?>;
 let currentInvoiceId = null;
+let _payHistInvoiceId = null;
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 function addPayment(invoiceId, number, balance) {
@@ -252,6 +319,7 @@ async function toggleInvoiceSent(id, value) {
 }
 
 async function viewPayHistory(invoiceId, invoiceNum) {
+  _payHistInvoiceId = invoiceId;
   document.getElementById('payHistInvNum').textContent = invoiceNum;
   document.getElementById('payHistLoading').style.display = '';
   document.getElementById('payHistTable').style.display  = 'none';
@@ -266,30 +334,7 @@ async function viewPayHistory(invoiceId, invoiceNum) {
       document.getElementById('payHistEmpty').style.display = '';
       return;
     }
-    const modeLabel = { cash: 'Cash', bdo: 'Bank Transfer', gcash: 'GCash' };
-    const modeBadge  = {
-      cash:  '<span class="badge" style="background:#dcfce7;color:#166534">Cash</span>',
-      bdo:   '<span class="badge" style="background:#fef9c3;color:#854d0e">Bank Transfer</span>',
-      gcash: '<span class="badge" style="background:#dbeafe;color:#1e40af">GCash</span>',
-    };
-    document.getElementById('payHistBody').innerHTML = payments.map((p, i) => {
-      const d = new Date(p.payment_date.replace(' ', 'T'));
-      const time = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
-      const date = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-      const badge = modeBadge[p.payment_mode] ?? `<span class="badge badge-secondary">${modeLabel[p.payment_mode] ?? p.payment_mode ?? '—'}</span>`;
-      return `
-      <tr>
-        <td>${i + 1}</td>
-        <td style="white-space:nowrap">
-          <div style="font-size:.78rem;font-weight:600">${time}</div>
-          <div style="font-size:.75rem;color:var(--color-gray-500)">${date}</div>
-        </td>
-        <td>${badge}</td>
-        <td style="font-size:.82rem">${p.reference_number ? p.reference_number : '<span style="color:var(--color-gray-400)">—</span>'}</td>
-        <td style="text-align:right;font-weight:600">&#8369;${parseFloat(p.payment_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
-        <td style="font-size:.82rem">${p.recorded_by_name ?? '—'}</td>
-      </tr>`;
-    }).join('');
+    renderPayHistRows(payments);
     document.getElementById('payHistTable').style.display = '';
   } catch (e) {
     document.getElementById('payHistLoading').style.display = 'none';
@@ -298,7 +343,76 @@ async function viewPayHistory(invoiceId, invoiceNum) {
   }
 }
 
+function renderPayHistRows(payments) {
+  const modeBadge = {
+    cash:  '<span class="badge" style="background:#dcfce7;color:#166534">Cash</span>',
+    bdo:   '<span class="badge" style="background:#fef9c3;color:#854d0e">Bank Transfer</span>',
+    gcash: '<span class="badge" style="background:#dbeafe;color:#1e40af">GCash</span>',
+  };
+  document.getElementById('payHistBody').innerHTML = payments.map((p, i) => {
+    const d    = new Date(p.payment_date.replace(' ', 'T'));
+    const time = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+    const date = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const badge = modeBadge[p.payment_mode] ?? `<span class="badge badge-secondary">${p.payment_mode ?? '—'}</span>`;
+    const actionsCol = (PAY_CAN_EDIT || PAY_CAN_DELETE) ? `<td style="white-space:nowrap">
+      ${PAY_CAN_EDIT   ? `<button class="icon-btn" onclick="openEditPayment(${p.id},'${p.payment_date.slice(0,10)}',${p.payment_amount},'${p.payment_mode}','${p.reference_number??''}')" title="Edit">${<?= json_encode(icon('edit', 14)) ?>}</button>` : ''}
+      ${PAY_CAN_DELETE ? `<button class="icon-btn danger" onclick="openDeletePayment(${p.id},${i+1})" title="Delete">${<?= json_encode(icon('delete', 14)) ?>}</button>` : ''}
+    </td>` : '';
+    return `<tr>
+      <td>${i + 1}</td>
+      <td style="white-space:nowrap">
+        <div style="font-size:.78rem;font-weight:600">${time}</div>
+        <div style="font-size:.75rem;color:var(--color-gray-500)">${date}</div>
+      </td>
+      <td>${badge}</td>
+      <td style="font-size:.82rem">${p.reference_number || '<span style="color:var(--color-gray-400)">—</span>'}</td>
+      <td style="text-align:right;font-weight:600">&#8369;${parseFloat(p.payment_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
+      <td style="font-size:.82rem">${p.recorded_by_name ?? '—'}</td>
+      ${actionsCol}
+    </tr>`;
+  }).join('');
+}
 
+function openEditPayment(id, date, amount, mode, ref) {
+  document.getElementById('editPayId').value     = id;
+  document.getElementById('editPayDate').value   = date;
+  document.getElementById('editPayAmount').value = amount;
+  document.getElementById('editPayMode').value   = mode;
+  document.getElementById('editPayRef').value    = ref;
+  openModal('editPayModal');
+}
+
+async function saveEditPayment() {
+  const btn = document.getElementById('saveEditPayBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const id = document.getElementById('editPayId').value;
+  try {
+    const res  = await fetch('/api/v1/payments/' + id, {
+      method: 'PUT', headers: {'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body: JSON.stringify({
+        payment_date:     document.getElementById('editPayDate').value,
+        payment_amount:   parseFloat(document.getElementById('editPayAmount').value),
+        payment_mode:     document.getElementById('editPayMode').value,
+        reference_number: document.getElementById('editPayRef').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) { showToast('Payment updated', 'success'); closeModal('editPayModal'); setTimeout(() => location.reload(), 600); }
+    else showToast(data.message || 'Error', 'error');
+  } catch (e) { showToast('Network error', 'error'); }
+  btn.disabled = false; btn.innerHTML = 'Save Changes';
+}
+
+function openDeletePayment(id, num) {
+  document.getElementById('deletePayMsg').textContent = `Delete payment #${num}? This cannot be undone.`;
+  document.getElementById('confirmDeletePayBtn').onclick = async () => {
+    const res  = await fetch('/api/v1/payments/' + id, { method:'DELETE', headers:{'X-CSRF-Token':csrfToken} });
+    const data = await res.json();
+    if (data.success) { showToast('Payment deleted', 'success'); closeModal('deletePayModal'); setTimeout(() => location.reload(), 600); }
+    else showToast(data.message || 'Error', 'error');
+  };
+  openModal('deletePayModal');
+}
 </script>
 <?php
 $content = ob_get_clean();
