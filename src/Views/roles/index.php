@@ -1,14 +1,20 @@
 <?php ob_start(); ?>
+<style>@media print{@page{margin:0}body{padding:12mm!important}.btn,.modal-overlay{display:none!important}#rpt-content .card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid;page-break-inside:avoid}}</style>
 
 <div class="page-header">
   <h1>Roles &amp; Permissions</h1>
-  <?php if (can('roles', 'add')): ?>
-  <button class="btn btn-primary" onclick="openAddRole()" style="display:flex;align-items:center;gap:6px">
-    <?= icon('plus', 15) ?> Add Role
-  </button>
-  <?php endif; ?>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button type="button" class="btn btn-secondary" onclick="exportRolesPDF(this)">&#128196; Export PDF</button>
+    <button type="button" class="btn btn-secondary" onclick="window.print()">&#128438; Print</button>
+    <?php if (can('roles', 'add')): ?>
+    <button class="btn btn-primary" onclick="openAddRole()" style="display:flex;align-items:center;gap:6px">
+      <?= icon('plus', 15) ?> Add Role
+    </button>
+    <?php endif; ?>
+  </div>
 </div>
 
+<div id="rpt-content">
 <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">
 
   <!-- Roles List -->
@@ -60,6 +66,7 @@
     </div>
   </div>
 </div>
+</div><!-- /rpt-content -->
 
 <!-- Role Modal -->
 <div class="modal-overlay" id="roleModal">
@@ -108,6 +115,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script>
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const allPermissions = <?= json_encode($permissions) ?>;
@@ -224,6 +232,11 @@ function deleteRole(id, name) {
   openModal('deleteRoleModal');
 }
 
+function exportRolesPDF(btn){
+  const el=document.getElementById('rpt-content');
+  const orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML='\u231B Generating\u2026';
+  html2pdf().set({margin:[10,8],filename:'roles-permissions.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}}).from(el).save().then(()=>{btn.disabled=false;btn.innerHTML=orig;});}
 // Auto-select first role on load
 document.addEventListener('DOMContentLoaded', () => {
   const first = document.querySelector('.role-item');
