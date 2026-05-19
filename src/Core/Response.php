@@ -95,6 +95,12 @@ class Response
 
     public function send(): void
     {
+        // Discard any stray buffered output (PHP warnings, BOM bytes, partial renders)
+        // so headers can always be set. The response body is already in $this->body.
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         http_response_code($this->statusCode);
         foreach ($this->headers as $key => $value) {
             header("{$key}: {$value}");
