@@ -21,7 +21,7 @@ class ClientController extends Controller
         $sortField = $request->query('sort', 'created_at');
         $sortDir   = strtoupper($request->query('order', 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
 
-        $allowedSorts = ['first_name', 'last_name', 'email', 'status', 'created_at'];
+        $allowedSorts = ['full_name', 'email', 'status', 'created_at'];
         if (!in_array($sortField, $allowedSorts)) $sortField = 'created_at';
         $orderBy = "c.{$sortField}";
 
@@ -64,7 +64,7 @@ class ClientController extends Controller
         $this->requirePermission(MODULE_CLIENTS, ACTION_ADD);
         $this->validateClient($request->all());
 
-        $data = $request->only(['first_name', 'middle_name', 'last_name', 'email', 'status']);
+        $data = $request->only(['full_name', 'email', 'status']);
         $id   = Client::create($data);
 
         // Save addresses (up to 3)
@@ -91,7 +91,7 @@ class ClientController extends Controller
         $id  = (int)$request->param('client_id');
         $old = Client::findOrFail($id);
 
-        $data = $request->only(['first_name', 'middle_name', 'last_name', 'email', 'status']);
+        $data = $request->only(['full_name', 'email', 'status']);
         Client::update($id, array_filter($data, fn($v) => $v !== null));
 
         AuditService::log(AUDIT_UPDATE, MODULE_CLIENTS, $id, $old, Client::find($id), "Updated client #{$id}");
@@ -111,8 +111,7 @@ class ClientController extends Controller
     private function validateClient(array $data): void
     {
         $errors = [];
-        if (empty($data['first_name'])) $errors['first_name'][] = 'First name is required';
-        if (empty($data['last_name']))  $errors['last_name'][]  = 'Last name is required';
+        if (empty($data['full_name'])) $errors['full_name'][] = 'Full name is required';
         if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             $errors['email'][] = 'Invalid email format';
         }
