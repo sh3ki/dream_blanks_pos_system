@@ -93,6 +93,16 @@ class InvoiceController extends Controller
         return $this->view('invoices/print', ['invoice' => $invoice, 'title' => "Invoice #{$invoice['invoice_number']}"], 200);
     }
 
+    public function toggleSent(Request $request): Response
+    {
+        $this->requirePermission(MODULE_INVOICES, ACTION_EDIT);
+        $id      = (int)$request->param('invoice_id');
+        $invoice = Invoice::findOrFail($id);
+        $newStatus = $invoice['invoice_sent'] === INVOICE_SENT ? 'not_sent' : INVOICE_SENT;
+        Invoice::update($id, ['invoice_sent' => $newStatus]);
+        return $this->success(['invoice_sent' => $newStatus], 'Updated');
+    }
+
     public function sendEmail(Request $request): Response
     {
         $this->requirePermission(MODULE_INVOICES, ACTION_EDIT);
