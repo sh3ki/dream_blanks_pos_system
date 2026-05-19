@@ -2,9 +2,11 @@
 
 <div class="page-header">
   <h1>Roles &amp; Permissions</h1>
+  <?php if (can('roles', 'add')): ?>
   <button class="btn btn-primary" onclick="openAddRole()" style="display:flex;align-items:center;gap:6px">
     <?= icon('plus', 15) ?> Add Role
   </button>
+  <?php endif; ?>
 </div>
 
 <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">
@@ -27,8 +29,12 @@
           </div>
           <div class="d-flex align-center gap-4">
             <span class="badge <?= ($role['status'] ?? 'active') === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($role['status'] ?? 'active') ?></span>
+            <?php if (can('roles', 'edit')): ?>
             <button class="icon-btn" onclick="event.stopPropagation();editRole(<?= $role['id'] ?>,'<?= htmlspecialchars(addslashes($role['name'])) ?>','<?= htmlspecialchars(addslashes($role['description'] ?? '')) ?>','<?= $role['status'] ?>')" title="Edit"><?= icon('edit', 14) ?></button>
+            <?php endif; ?>
+            <?php if (can('roles', 'delete')): ?>
             <button class="icon-btn danger" onclick="event.stopPropagation();deleteRole(<?= $role['id'] ?>,'<?= htmlspecialchars(addslashes($role['name'])) ?>')" title="Delete"><?= icon('delete', 14) ?></button>
+            <?php endif; ?>
           </div>
         </li>
         <?php endforeach; ?>
@@ -124,6 +130,7 @@ function selectRole(id, name, desc, status) {
   document.getElementById('savePermBtn').style.display = '';
 
   const moduleLabels = {
+    dashboard: 'Dashboard',
     users: 'Users', roles: 'Roles', clients: 'Clients', products: 'Products',
     stock_products: 'Stock Products', inventory: 'Inventory', pos: 'POS',
     invoices: 'Invoices', payments: 'Payments', transactions: 'Transactions',
