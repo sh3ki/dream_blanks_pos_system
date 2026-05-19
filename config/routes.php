@@ -160,9 +160,10 @@ $router->get('/api/v1/dashboard/metrics', [\App\Controllers\DashboardController:
 $router->get('/api/v1/dashboard/charts',  [\App\Controllers\DashboardController::class, 'charts'],  $auth);
 
 // Notifications API
-$router->get('/api/v1/notifications',                            [\App\Controllers\NotificationController::class, 'index'],    $auth);
-$router->put('/api/v1/notifications/{notification_id}/read',     [\App\Controllers\NotificationController::class, 'markRead'], $auth);
-$router->delete('/api/v1/notifications/{notification_id}',       [\App\Controllers\NotificationController::class, 'destroy'],  $auth);
+$router->get('/api/v1/notifications',                            [\App\Controllers\NotificationController::class, 'index'],       $auth);
+$router->put('/api/v1/notifications/read-all',                   [\App\Controllers\NotificationController::class, 'markAllRead'], $auth);
+$router->put('/api/v1/notifications/{notification_id}/read',     [\App\Controllers\NotificationController::class, 'markRead'],    $auth);
+$router->delete('/api/v1/notifications/{notification_id}',       [\App\Controllers\NotificationController::class, 'destroy'],     $auth);
 
 // Audit Logs API
 $router->get('/api/v1/audit-logs',        [\App\Controllers\AuditLogController::class, 'index'],  $auth);
