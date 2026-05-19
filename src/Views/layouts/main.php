@@ -95,6 +95,9 @@ $currentPath = strtok($currentPath, '?');
       </a>
 
       <div class="nav-section-label">System</div>
+      <a href="<?= htmlspecialchars(app_url('/audit-logs')) ?>" class="nav-link <?= str_starts_with($currentPath,'/audit-logs') ? 'active':'' ?>">
+        <span class="nav-icon"><?= icon('audit') ?></span><span class="nav-label">Audit Logs</span>
+      </a>
       <a href="<?= htmlspecialchars(app_url('/users')) ?>" class="nav-link <?= str_starts_with($currentPath,'/users') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('users') ?></span><span class="nav-label">Users</span>
       </a>
