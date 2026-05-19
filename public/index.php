@@ -35,6 +35,7 @@ $_ENV['APP_BASE_PATH'] = rtrim($appUrlPath, '/');
 require_once CONFIG_PATH . '/constants.php';
 require_once SRC_PATH . '/Helpers/UrlHelper.php';
 require_once SRC_PATH . '/Helpers/IconHelper.php';
+require_once SRC_PATH . '/Helpers/PermissionHelper.php';
 
 // PSR-4 autoloader
 spl_autoload_register(function (string $class): void {
