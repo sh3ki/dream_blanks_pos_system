@@ -10,6 +10,7 @@ INSERT IGNORE INTO `roles` (`name`, `description`, `status`) VALUES
 
 -- Default Permissions (module, action)
 INSERT IGNORE INTO `permissions` (`module`, `action`, `description`) VALUES
+('dashboard', 'view', 'View dashboard'),
 ('users', 'view', 'View users'),
 ('users', 'add', 'Add users'),
 ('users', 'edit', 'Edit users'),
