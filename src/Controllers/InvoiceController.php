@@ -97,6 +97,67 @@ class InvoiceController extends Controller
         ], 'Payment recorded');
     }
 
+    public function updatePayment(Request $request): Response
+    {
+        $this->requirePermission(MODULE_PAYMENTS, ACTION_EDIT);
+        $paymentId = (int)$request->param('payment_id');
+        $payment   = Payment::find($paymentId);
+        if (!$payment) return $this->error('Payment not found', 404);
+
+        $amount = (float)$request->input('payment_amount', $payment['payment_amount']);
+        $mode   = $request->input('payment_mode', $payment['payment_mode']);
+
+        if ($amount <= 0) throw new \App\Exceptions\ValidationException(['payment_amount' => ['Payment amount must be greater than 0']]);
+        if (!in_array($mode, [PAYMENT_CASH, PAYMENT_BDO, PAYMENT_GCASH])) throw new \App\Exceptions\ValidationException(['payment_mode' => ['Invalid payment mode']]);
+
+        $old = $payment;
+        Payment::update($paymentId, [
+            'payment_date'     => $request->input('payment_date', $payment['payment_date']),
+            'payment_amount'   => $amount,
+            'payment_mode'     => $mode,
+            'reference_number' => $request->input('reference_number', $payment['reference_number']),
+            'notes'            => $request->input('notes', $payment['notes']),
+        ]);
+
+        Invoice::updatePaymentStatus((int)$payment['invoice_id']);
+        $updated = Invoice::find((int)$payment['invoice_id']);
+
+        AuditService::log(AUDIT_UPDATE, MODULE_PAYMENTS, $paymentId, $old, [
+            'payment_date'     => $request->input('payment_date', $payment['payment_date']),
+            'payment_amount'   => $amount,
+            'payment_mode'     => $mode,
+            'reference_number' => $request->input('reference_number', $payment['reference_number']),
+        ], "Payment #{$payment['payment_number']} updated");
+
+        return $this->success([
+            'new_payment_status' => $updated['payment_status'],
+            'total_paid'         => (float)$updated['total_paid'],
+            'balance_due'        => (float)$updated['total_amount'] - (float)$updated['total_paid'],
+        ], 'Payment updated');
+    }
+
+    public function deletePayment(Request $request): Response
+    {
+        $this->requirePermission(MODULE_PAYMENTS, ACTION_DELETE);
+        $paymentId = (int)$request->param('payment_id');
+        $payment   = Payment::find($paymentId);
+        if (!$payment) return $this->error('Payment not found', 404);
+
+        $invoiceId = (int)$payment['invoice_id'];
+        Payment::delete($paymentId);
+        Invoice::updatePaymentStatus($invoiceId);
+        $updated = Invoice::find($invoiceId);
+
+        AuditService::log(AUDIT_DELETE, MODULE_PAYMENTS, $paymentId, $payment, null,
+            "Payment #{$payment['payment_number']} deleted from Invoice #{$invoiceId}");
+
+        return $this->success([
+            'new_payment_status' => $updated['payment_status'],
+            'total_paid'         => (float)$updated['total_paid'],
+            'balance_due'        => (float)$updated['total_amount'] - (float)$updated['total_paid'],
+        ], 'Payment deleted');
+    }
+
     public function print(Request $request): Response
     {
         $this->requirePermission(MODULE_INVOICES, ACTION_VIEW);
