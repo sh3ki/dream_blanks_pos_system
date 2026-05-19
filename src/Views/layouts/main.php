@@ -199,6 +199,77 @@ $currentPath = strtok($currentPath, '?');
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
 
+<!-- Inactivity Warning Modal -->
+<div id="inactivityModal" class="modal-overlay" style="z-index:9999;display:none">
+  <div class="modal-content" style="max-width:400px;text-align:center">
+    <div class="modal-body" style="padding:40px 36px">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--color-warning-light);display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+        <?= icon('bell', 26) ?>
+      </div>
+      <h3 style="margin-bottom:8px;font-size:1.15rem">Still there?</h3>
+      <p style="color:var(--color-gray-500);font-size:.875rem;margin-bottom:28px;line-height:1.6">
+        You've been inactive for a while. Your session will automatically end in
+        <strong id="inactivityCountdown" style="color:var(--color-danger)">10</strong> second(s).
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn btn-primary" onclick="continueSession()">Continue Session</button>
+        <a href="<?= htmlspecialchars(app_url('/logout')) ?>" class="btn btn-secondary">Logout Now</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="<?= htmlspecialchars(asset_url('/assets/js/app.js')) ?>"></script>
+<script>
+(function () {
+  const INACTIVE_MS = 5 * 60 * 1000;  // 5 minutes
+  const COUNTDOWN_S = 10;
+  const LOGOUT_URL  = <?= json_encode(app_url('/logout')) ?>;
+
+  let idleTimer     = null;
+  let countdownInt  = null;
+  let remaining     = COUNTDOWN_S;
+  let warningActive = false;
+
+  function resetIdle() {
+    if (warningActive) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(showWarning, INACTIVE_MS);
+  }
+
+  function showWarning() {
+    warningActive = true;
+    remaining = COUNTDOWN_S;
+    const modal = document.getElementById('inactivityModal');
+    modal.style.display = '';
+    modal.classList.add('show');
+    document.getElementById('inactivityCountdown').textContent = remaining;
+    countdownInt = setInterval(function () {
+      remaining--;
+      const el = document.getElementById('inactivityCountdown');
+      if (el) el.textContent = remaining;
+      if (remaining <= 0) {
+        clearInterval(countdownInt);
+        window.location.href = LOGOUT_URL;
+      }
+    }, 1000);
+  }
+
+  window.continueSession = function () {
+    clearInterval(countdownInt);
+    warningActive = false;
+    const modal = document.getElementById('inactivityModal');
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+    resetIdle();
+  };
+
+  ['mousemove', 'keydown', 'mousedown', 'scroll', 'touchstart', 'click'].forEach(function (evt) {
+    document.addEventListener(evt, resetIdle, { passive: true });
+  });
+
+  resetIdle();
+})();
+</script>
 </body>
 </html>
