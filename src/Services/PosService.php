@@ -10,6 +10,7 @@ use App\Models\StockProduct;
 use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Core\Database;
+use App\Services\AuditService;
 use App\Exceptions\ValidationException;
 
 class PosService
@@ -209,6 +210,34 @@ class PosService
             ]);
 
             $db->commit();
+
+            // -------------------------------------------------------------------
+            // 8. Audit log: full invoice + items detail.
+            // -------------------------------------------------------------------
+            $auditItems = [];
+            foreach ($items as $item) {
+                $p = Product::find((int)$item['product_id']);
+                $auditItems[] = [
+                    'product_id'   => (int)$item['product_id'],
+                    'product_name' => $p['name'] ?? "Product #{$item['product_id']}",
+                    'quantity'     => (int)$item['quantity'],
+                    'unit_price'   => (float)$item['unit_price'],
+                    'line_total'   => round((float)$item['unit_price'] * (int)$item['quantity'], 2),
+                ];
+            }
+            AuditService::log(AUDIT_CREATE, MODULE_INVOICES, $invoiceId, null, [
+                'invoice_number'  => $invoiceNumber,
+                'items'           => $auditItems,
+                'subtotal'        => $data['subtotal'],
+                'discount_amount' => $data['discount_amount'] ?? 0,
+                'tax_amount'      => $data['tax_amount'] ?? 0,
+                'additional_fee'  => $data['additional_fee'] ?? 0,
+                'total_amount'    => $data['total_amount'],
+                'payment_mode'    => $data['payment_mode'] ?? null,
+                'payment_status'  => $data['payment_status'] ?? PAYMENT_STATUS_UNPAID,
+                'client_id'       => $data['client_id'] ?? null,
+                'notes'           => $data['notes'] ?? null,
+            ], "POS Sale: Invoice #{$invoiceNumber} — ₱" . number_format((float)$data['total_amount'], 2));
 
             return [
                 'invoice_id'     => $invoiceId,
