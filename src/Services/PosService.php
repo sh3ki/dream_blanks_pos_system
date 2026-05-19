@@ -166,10 +166,16 @@ class PosService
             // -------------------------------------------------------------------
             // 6. Record initial payment if provided.
             // -------------------------------------------------------------------
-            if (!empty($data['payment_mode']) && ($data['payment_status'] ?? '') !== PAYMENT_STATUS_UNPAID) {
-                $payAmount = (float)$data['total_amount'];
-                if (($data['payment_status'] ?? '') === PAYMENT_STATUS_PARTIALLY_PAID) {
-                    $payAmount = (float)($data['initial_payment'] ?? $data['total_amount']);
+            $payStatus = $data['payment_status'] ?? PAYMENT_STATUS_UNPAID;
+            if (!empty($data['payment_mode']) && $payStatus !== PAYMENT_STATUS_UNPAID) {
+                $cashReceived = (float)($data['cash_received'] ?? 0);
+                $totalAmt     = (float)$data['total_amount'];
+
+                // For partial payments use cash_received; otherwise record full amount
+                if ($payStatus === PAYMENT_STATUS_PARTIALLY_PAID && $cashReceived > 0 && $cashReceived < $totalAmt) {
+                    $payAmount = $cashReceived;
+                } else {
+                    $payAmount = $totalAmt;
                 }
 
                 $db->insert('payments', [
@@ -183,6 +189,7 @@ class PosService
                     'updated_at'     => date('Y-m-d H:i:s'),
                 ]);
 
+                // Update payment_status on invoice based on actual amount paid
                 Invoice::updatePaymentStatus($invoiceId);
             }
 
