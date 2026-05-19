@@ -17,7 +17,7 @@ class InvoiceController extends Controller
     {
         $this->requirePermission(MODULE_INVOICES, ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'status', 'date_from', 'date_to', 'sort', 'order']);
+        $filters = $request->only(['search', 'status', 'date_from', 'date_to', 'sort', 'order', 'method', 'invoice_sent']);
         $result  = Invoice::search($filters, $page, $perPage);
 
         if ($request->isApi()) {
