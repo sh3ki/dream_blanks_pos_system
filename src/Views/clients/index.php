@@ -14,7 +14,9 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
 ?>
 <div class="page-header">
   <h1>Clients</h1>
+  <?php if (can('clients', 'add')): ?>
   <button class="btn btn-primary" onclick="openClientModal()">+ Add Client</button>
+  <?php endif; ?>
 </div>
 
 <div class="card">
@@ -59,8 +61,12 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
           <td><span class="badge <?= ($c['status'] ?? '') === 'active' ? 'badge-success' : 'badge-danger' ?>"><?= ucfirst($c['status'] ?? 'active') ?></span></td>
           <td><?= !empty($c['created_at']) ? date('M d, Y', strtotime($c['created_at'])) : '-' ?></td>
           <td onclick="event.stopPropagation()">
+            <?php if (can('clients', 'edit')): ?>
             <button class="icon-btn" onclick="editClient(<?= $c['id'] ?>)" title="Edit"><?= icon('edit', 15) ?></button>
+            <?php endif; ?>
+            <?php if (can('clients', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteClient(<?= $c['id'] ?>, '<?= htmlspecialchars($c['full_name'] ?? '') ?>')" title="Delete"><?= icon('delete', 15) ?></button>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
