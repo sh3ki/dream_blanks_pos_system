@@ -50,6 +50,9 @@ if (!function_exists('icon')) {
             'color-swatch'   => '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 9 9"/><circle cx="12" cy="3" r="1" fill="currentColor"/><circle cx="12" cy="21" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="21" cy="12" r="1" fill="currentColor"/>',
             'ruler'          => '<path d="M2 20L20 2"/><path d="M6 16l4-4"/><path d="M10 12l4-4"/><path d="M14 8l2-2"/>',
             'tag'            => '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+            'wallet'         => '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 3H5a2 2 0 0 0-2 2v2"/><circle cx="16" cy="14" r="1" fill="currentColor"/>',
+            'building'       => '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 20,7 4,7"/>',
+            'smartphone'     => '<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>  ',
         ];
 
         $path = $icons[$name] ?? $icons['info'];
