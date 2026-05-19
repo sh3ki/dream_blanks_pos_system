@@ -6,7 +6,9 @@ $exportUrl = '/api/v1/reports/export?type=financial&date_from=' . urlencode($fro
 ?>
 <div class="page-header">
   <h1>Financial Report</h1>
+  <?php if (can('reports_financial', 'export')): ?>
   <a href="<?= $exportUrl ?>" class="btn btn-secondary">⬇ Export CSV</a>
+  <?php endif; ?>
 </div>
 
 <div class="card" style="margin-bottom:16px">
