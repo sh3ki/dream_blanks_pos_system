@@ -60,6 +60,7 @@ define('ROLE_SALES',      'Sales Staff');
 define('ROLE_INVENTORY',  'Inventory Staff');
 
 // Modules for permissions
+define('MODULE_DASHBOARD',      'dashboard');
 define('MODULE_USERS',          'users');
 define('MODULE_ROLES',          'roles');
 define('MODULE_CLIENTS',        'clients');
