@@ -120,24 +120,18 @@
         <?= icon('settings', 13) ?> Discount / Tax / Fee / Notes
       </button>
 
-      <!-- Payment: 2-column -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div>
-          <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Method</label>
-          <select id="paymentMode" class="form-select" style="height:36px;font-size:.82rem">
-            <option value="cash">💵 Cash</option>
-            <option value="bdo">🏦 BDO</option>
-            <option value="gcash">📱 GCash</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Status</label>
-          <select id="paymentStatus" class="form-select" style="height:36px;font-size:.82rem">
-            <option value="fully_paid">Fully Paid</option>
-            <option value="partially_paid">Partially Paid</option>
-            <option value="unpaid">Unpaid</option>
-          </select>
-        </div>
+      <!-- Payment: full-width method + cash received -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Method</label>
+        <select id="paymentMode" class="form-select" style="width:100%;height:36px;font-size:.82rem" onchange="onPaymentModeChange()">
+          <option value="cash">💵 Cash</option>
+          <option value="bdo">🏦 BDO</option>
+          <option value="gcash">📱 GCash</option>
+        </select>
+      </div>
+      <div id="cashReceivedRow" style="margin-bottom:10px">
+        <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Cash Received (₱)</label>
+        <input type="number" id="cashReceived" class="form-input" placeholder="0.00" min="0" step="0.01" oninput="calcPaymentStatus()" style="height:36px;font-size:.82rem">
       </div>
 
       <button class="btn btn-primary btn-block" id="checkoutBtn" onclick="openCheckoutConfirm()" style="height:44px;font-size:1rem">
@@ -202,6 +196,22 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeReceipt()">New Sale</button>
       <a id="printReceiptBtn" href="#" target="_blank" class="btn btn-primary">🖨 Print Receipt</a>
+    </div>
+  </div>
+</div>
+
+<!-- POS Invoice Preview Modal -->
+<div class="modal-overlay" id="posInvoiceModal">
+  <div class="modal-content" style="max-width:780px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <h2 class="modal-title">✅ Sale Complete — Invoice</h2>
+      <button class="modal-close" onclick="closePosInvoiceModal()"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body" id="posInvoiceBody" style="padding:24px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePosInvoiceModal()">New Sale</button>
+      <a id="posInvoicePrintBtn" href="#" target="_blank" class="btn btn-outline">🖨 Print</a>
+      <a id="posInvoiceDownloadBtn" href="#" target="_blank" class="btn btn-primary">↓ Download PDF</a>
     </div>
   </div>
 </div>
@@ -352,6 +362,25 @@ function recalculate() {
 
 function openAdjustmentsModal() { openModal('adjustmentsModal'); }
 
+function onPaymentModeChange() {
+  // Only show cash received for cash payments
+  const mode = document.getElementById('paymentMode').value;
+  document.getElementById('cashReceivedRow').style.display = mode === 'cash' ? '' : 'none';
+  calcPaymentStatus();
+}
+
+function calcPaymentStatus() {
+  const totalEl = document.getElementById('totalAmount');
+  const total = parseFloat(totalEl ? totalEl.textContent.replace(/[^0-9.]/g,'') : '0') || 0;
+  const cashEl = document.getElementById('cashReceived');
+  const cash   = parseFloat(cashEl ? cashEl.value : '0') || 0;
+  const mode   = document.getElementById('paymentMode').value;
+  if (mode !== 'cash') return 'fully_paid'; // non-cash assumed fully paid at POS
+  if (cash <= 0) return 'unpaid';
+  if (cash < total) return 'partially_paid';
+  return 'fully_paid';
+}
+
 function applyAdjustments() {
   recalculate();
   closeModal('adjustmentsModal');
@@ -366,7 +395,8 @@ function openCheckoutConfirm() {
   const total    = Math.max(0, subtotal - discount + tax + fee);
   const notes    = document.getElementById('orderNotes').value;
   const payMode  = document.getElementById('paymentMode').options[document.getElementById('paymentMode').selectedIndex].text;
-  const payStatus = document.getElementById('paymentStatus').options[document.getElementById('paymentStatus').selectedIndex].text;
+  const payStatus = calcPaymentStatus();
+  const payStatusLabel = payStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
   const clientText = document.getElementById('clientSelect').options[document.getElementById('clientSelect').selectedIndex].text;
 
   let rows = cart.map(i => `<tr><td style="padding:4px 8px">${i.name}</td><td style="padding:4px 8px;text-align:center">${i.quantity}</td><td style="padding:4px 8px;text-align:right">₱${(i.unit_price*i.quantity).toFixed(2)}</td></tr>`).join('');
@@ -386,7 +416,7 @@ function openCheckoutConfirm() {
     <div style="font-size:.82rem;color:var(--color-gray-500);margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
       <div><strong>Customer:</strong> ${clientText}</div>
       <div><strong>Payment:</strong> ${payMode}</div>
-      <div><strong>Status:</strong> ${payStatus}</div>
+      <div><strong>Status:</strong> ${payStatusLabel}</div>
       ${notes ? `<div style="grid-column:1/-1"><strong>Notes:</strong> ${notes}</div>` : ''}
     </div>`;
   openModal('checkoutConfirmModal');
@@ -408,7 +438,8 @@ async function checkout() {
     items:          cart.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price })),
     subtotal, discount_amount: discount, tax_amount: tax, additional_fee: fee, total_amount: total,
     payment_mode:   document.getElementById('paymentMode').value,
-    payment_status: document.getElementById('paymentStatus').value,
+    payment_status: calcPaymentStatus(),
+    cash_received:  parseFloat(document.getElementById('cashReceived').value) || 0,
     notes:          document.getElementById('orderNotes').value,
   };
 
@@ -420,18 +451,15 @@ async function checkout() {
     });
     const data = await res.json();
     if (data.success) {
-      document.getElementById('receiptBody').innerHTML = `
-        <p style="text-align:center;font-size:1.1rem;margin-bottom:12px">Invoice <strong>#${data.data.invoice_number}</strong></p>
-        <p style="text-align:center;font-size:1.6rem;font-weight:700;color:var(--color-success)">₱${parseFloat(data.data.total_amount).toFixed(2)}</p>
-        <p style="text-align:center;margin-top:8px;color:var(--color-gray-500)">Sale completed successfully!</p>`;
-      document.getElementById('printReceiptBtn').href = data.data.receipt_url;
-      openModal('receiptModal');
       cart = []; renderCart();
       document.getElementById('discountAmount').value = '0';
       document.getElementById('taxAmount').value = '0';
       document.getElementById('additionalFee').value = '0';
       document.getElementById('orderNotes').value = '';
+      document.getElementById('cashReceived').value = '';
       recalculate();
+      // Open invoice modal
+      openPosInvoiceModal(data.data.invoice_id || data.data.id);
     } else {
       showToast(data.message || 'Checkout failed', 'error');
     }
@@ -441,6 +469,102 @@ async function checkout() {
 
 function closeReceipt() { closeModal('receiptModal'); loadProducts(); }
 
+function closePosInvoiceModal() { closeModal('posInvoiceModal'); loadProducts(); }
+
+function posInvEsc(s) { const d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
+
+async function openPosInvoiceModal(invoiceId) {
+  document.getElementById('posInvoiceBody').innerHTML = '<div style="padding:40px;text-align:center"><span class="spinner"></span></div>';
+  openModal('posInvoiceModal');
+  const printUrl    = appPath('/api/v1/invoices/' + invoiceId + '/print');
+  const downloadUrl = appPath('/api/v1/invoices/' + invoiceId + '/print') + '?download=1';
+  document.getElementById('posInvoicePrintBtn').href    = printUrl;
+  document.getElementById('posInvoiceDownloadBtn').href = downloadUrl;
+  try {
+    const res  = await fetch(appPath('/api/v1/invoices/' + invoiceId));
+    const data = await res.json();
+    if (!data.success) { document.getElementById('posInvoiceBody').innerHTML = '<p class="text-danger">Failed to load invoice.</p>'; return; }
+    renderPosInvoice(data.data);
+  } catch (e) { document.getElementById('posInvoiceBody').innerHTML = '<p class="text-danger">Network error</p>'; }
+}
+
+function renderPosInvoice(inv) {
+  const methodLabel = {cash:'Cash', bdo:'Bank Transfer', gcash:'GCash'};
+  const statusCls   = {fully_paid:'badge-success', partially_paid:'badge-warning', unpaid:'badge-danger'};
+  const balance     = (parseFloat(inv.total_amount||0) - parseFloat(inv.total_paid||0));
+  let itemRows = '', totalQty = 0;
+  (inv.items||[]).forEach(it => {
+    const qty = parseInt(it.quantity||0), up = parseFloat(it.unit_price||0);
+    const disc = parseFloat(it.discount||0), net = up*qty - disc;
+    totalQty += qty;
+    itemRows += `<tr>
+      <td style="padding:8px 12px">${posInvEsc(it.product_name||'')}${it.variation_name?` <span style="color:#6b7280;font-size:.8rem">(${posInvEsc(it.variation_name)})</span>`:''}${it.sku?`<div style="font-size:.75rem;color:#9ca3af">${posInvEsc(it.sku)}</div>`:''}</td>
+      <td style="padding:8px 12px;text-align:center">${qty}</td>
+      <td style="padding:8px 12px;text-align:right">₱${up.toFixed(2)}${disc>0?`<div style="font-size:.75rem;color:#e74c3c">-₱${disc.toFixed(2)}</div>`:''}</td>
+      <td style="padding:8px 12px;text-align:right">₱${net.toFixed(2)}</td>
+    </tr>`;
+  });
+  const discount = parseFloat(inv.discount_amount||0), tax = parseFloat(inv.tax_amount||0), fee = parseFloat(inv.additional_fee||0);
+  const subtotal = parseFloat(inv.total_amount||0) + discount - tax - fee;
+  let payRows = '';
+  (inv.payments||[]).forEach((p,i) => {
+    payRows += `<tr>
+      <td style="padding:6px 10px">${i+1}</td>
+      <td style="padding:6px 10px">${p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+      <td style="padding:6px 10px">${posInvEsc(methodLabel[p.payment_mode]||p.payment_mode||'—')}</td>
+      <td style="padding:6px 10px;text-align:right">₱${parseFloat(p.payment_amount||0).toFixed(2)}</td>
+    </tr>`;
+  });
+  document.getElementById('posInvoiceBody').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div><div style="font-size:1.5rem;font-weight:900;letter-spacing:.5px">DREAM BLANKS</div><div style="font-size:.8rem;color:#6b7280">Customized Apparel &amp; Merchandise</div></div>
+      <div style="text-align:right;font-size:.8rem;color:#374151"><div style="font-weight:700">Dream Blanks</div><div>Philippines</div></div>
+    </div>
+    <div style="text-align:center;border-top:2px solid #111;border-bottom:2px solid #111;padding:8px 0;margin-bottom:16px">
+      <span style="font-size:1.25rem;font-weight:900;letter-spacing:2px">INVOICE</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280;margin-bottom:4px">BILL TO</div>
+        <div style="font-weight:700">${posInvEsc(inv.client_name||'Walk-in Customer')}</div>
+        ${inv.client_email?`<div style="font-size:.85rem">${posInvEsc(inv.client_email)}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div style="margin-bottom:4px"><span style="font-size:.7rem;color:#6b7280;font-weight:800">INVOICE #</span><br><strong>${posInvEsc(inv.invoice_number)}</strong></div>
+        <div><span style="font-size:.7rem;color:#6b7280;font-weight:800">DATE</span><br><strong>${inv.invoice_date ? new Date(inv.invoice_date+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—'}</strong></div>
+        <div style="margin-top:6px"><span class="badge ${statusCls[inv.payment_status]||'badge-secondary'}">${(inv.payment_status||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span></div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:.875rem">
+      <thead><tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb">
+        <th style="padding:8px 12px;text-align:left">Description</th><th style="padding:8px 12px;text-align:center">QTY</th>
+        <th style="padding:8px 12px;text-align:right">Unit Price</th><th style="padding:8px 12px;text-align:right">Total</th>
+      </tr></thead>
+      <tbody style="border-bottom:1px solid #e5e7eb">${itemRows}</tbody>
+      <tfoot><tr style="background:#f9fafb"><td style="padding:8px 12px;font-weight:700">Total QTY</td><td style="padding:8px 12px;text-align:center;font-weight:800">${totalQty}</td><td colspan="2"></td></tr></tfoot>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <table style="min-width:250px;font-size:.875rem">
+        <tr><td style="padding:4px 12px;color:#6b7280">Subtotal</td><td style="padding:4px 12px;text-align:right">₱${subtotal.toFixed(2)}</td></tr>
+        ${discount>0?`<tr><td style="padding:4px 12px;color:#6b7280">Discount</td><td style="padding:4px 12px;text-align:right;color:#e74c3c">-₱${discount.toFixed(2)}</td></tr>`:''}
+        ${tax>0?`<tr><td style="padding:4px 12px;color:#6b7280">Tax</td><td style="padding:4px 12px;text-align:right">₱${tax.toFixed(2)}</td></tr>`:''}
+        ${fee>0?`<tr><td style="padding:4px 12px;color:#6b7280">Additional Fee</td><td style="padding:4px 12px;text-align:right">₱${fee.toFixed(2)}</td></tr>`:''}
+        <tr style="border-top:2px solid #111;font-weight:900;font-size:1rem"><td style="padding:8px 12px">TOTAL</td><td style="padding:8px 12px;text-align:right">₱${parseFloat(inv.total_amount||0).toFixed(2)}</td></tr>
+        <tr style="font-weight:700;color:#166534"><td style="padding:4px 12px">TOTAL PAID</td><td style="padding:4px 12px;text-align:right">₱${parseFloat(inv.total_paid||0).toFixed(2)}</td></tr>
+        ${balance>0?`<tr style="font-weight:700;color:#dc2626"><td style="padding:4px 12px">BALANCE</td><td style="padding:4px 12px;text-align:right">₱${balance.toFixed(2)}</td></tr>`:''}
+      </table>
+    </div>
+    ${payRows?`<div style="margin-bottom:16px"><div style="font-weight:700;margin-bottom:8px;font-size:.875rem">Payment History</div>
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb"><th style="padding:6px 10px;text-align:left">#</th><th style="padding:6px 10px;text-align:left">Date</th><th style="padding:6px 10px;text-align:left">Mode</th><th style="padding:6px 10px;text-align:right">Amount</th></tr></thead>
+      <tbody>${payRows}</tbody></table></div>`:''}
+    <div style="border-top:1px solid #e5e7eb;padding-top:16px;display:flex;justify-content:space-between;font-size:.8rem;color:#374151">
+      <div>Sales Staff: <strong>${posInvEsc(inv.created_by_name||'—')}</strong></div>
+      <div>Authorized Signature: _______________</div>
+      <div style="font-style:italic;color:#6b7280">Thank you for your Business!</div>
+    </div>`;
+}
+
 function loadClients() {
   fetch('/api/v1/clients?per_page=200').then(r => r.json()).then(res => {
     if (res.success) {
@@ -448,7 +572,7 @@ function loadClients() {
       res.data.clients.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = c.first_name + ' ' + c.last_name;
+        opt.textContent = c.full_name;
         sel.appendChild(opt);
       });
     }
