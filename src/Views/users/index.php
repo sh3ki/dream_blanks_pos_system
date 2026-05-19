@@ -13,7 +13,9 @@ function userSortLink(string $col, string $label, string $currentSort, string $c
 ?>
 <div class="page-header">
   <h1>Users</h1>
+  <?php if (can('users', 'add')): ?>
   <button class="btn btn-primary" onclick="openAddUser()">+ Add User</button>
+  <?php endif; ?>
 </div>
 
 <div class="card">
@@ -66,8 +68,10 @@ function userSortLink(string $col, string $label, string $currentSort, string $c
           <td><span class="badge <?= $u['status'] === 'active' ? 'badge-success' : 'badge-danger' ?>"><?= ucfirst($u['status']) ?></span></td>
           <td style="font-size:.8rem;color:#808080"><?= $u['last_login'] ? date('M d, Y H:i', strtotime($u['last_login'])) : 'Never' ?></td>
           <td onclick="event.stopPropagation()">
+            <?php if (can('users', 'edit')): ?>
             <button class="icon-btn" onclick="editUser(<?= $u['id'] ?>)" title="Edit"><?= icon('edit', 15) ?></button>
-            <?php if ($u['id'] !== ($_SESSION['user']['id'] ?? 0)): ?>
+            <?php endif; ?>
+            <?php if (can('users', 'delete') && $u['id'] !== ($_SESSION['user']['id'] ?? 0)): ?>
               <button class="icon-btn danger" onclick="deleteUser(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username']) ?>')" title="Delete"><?= icon('delete', 15) ?></button>
             <?php endif; ?>
           </td>
