@@ -86,12 +86,33 @@ class UserController extends Controller
         ]);
     }
 
+    public function checkUsername(Request $request): Response
+    {
+        $username = trim($request->query('username', ''));
+        if ($username === '') {
+            return $this->success(['available' => false, 'message' => 'Username is required']);
+        }
+        $existing = User::findByUsername($username);
+        $available = !$existing || (int)$existing['id'] === $this->currentUserId();
+        return $this->success([
+            'available' => $available,
+            'message'   => $available ? 'Username is available' : 'Username is already taken',
+        ]);
+    }
+
     public function updateProfile(Request $request): Response
     {
         $id  = $this->currentUserId();
         $old = User::findOrFail($id);
 
-        $data = $request->only(['first_name', 'middle_name', 'last_name', 'email']);
+        $data = $request->only(['first_name', 'middle_name', 'last_name', 'email', 'username']);
+
+        if (!empty($data['username']) && $data['username'] !== $old['username']) {
+            $existing = User::findByUsername($data['username']);
+            if ($existing && (int)$existing['id'] !== $id) {
+                throw new ValidationException(['username' => ['Username is already taken']]);
+            }
+        }
 
         if (!empty($data['email']) && $data['email'] !== $old['email']) {
             $existing = User::findByEmail($data['email']);
@@ -118,6 +139,7 @@ class UserController extends Controller
         $_SESSION['user']['first_name']    = $updated['first_name'];
         $_SESSION['user']['last_name']     = $updated['last_name'];
         $_SESSION['user']['email']         = $updated['email'];
+        $_SESSION['user']['username']      = $updated['username'];
         $_SESSION['user']['profile_image'] = $updated['profile_image'] ?? null;
 
         AuditService::log(AUDIT_UPDATE, MODULE_USERS, $id, $old, $updated, "Updated own profile");
