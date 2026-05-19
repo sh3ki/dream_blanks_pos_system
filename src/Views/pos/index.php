@@ -207,23 +207,21 @@
   </div>
 </div>
 
-<!-- POS Invoice Preview Modal -->
-<div class="modal-overlay" id="posInvoiceModal">
-  <div class="modal-content" style="max-width:780px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header">
-      <h2 class="modal-title">✅ Sale Complete — Invoice</h2>
-      <button class="modal-close" onclick="closePosInvoiceModal()"><?= icon('close', 16) ?></button>
-    </div>
-    <div class="modal-body" id="posInvoiceBody" style="padding:24px"></div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closePosInvoiceModal()">New Sale</button>
-      <a id="posInvoicePrintBtn" href="#" target="_blank" class="btn btn-outline">🖨 Print</a>
-      <a id="posInvoiceDownloadBtn" href="#" target="_blank" class="btn btn-primary">↓ Download PDF</a>
-    </div>
-  </div>
-</div>
 
+
+<?php
+  $__bizName    = \App\Models\Setting::get('business_name', 'Dream Blanks');
+  $__bizPhone   = \App\Models\Setting::get('business_phone', '');
+  $__bizEmail   = \App\Models\Setting::get('business_email', '');
+  $__bizAddress = \App\Models\Setting::get('business_address', '');
+?>
 <script>
+const APP_BIZ = {
+  name:    <?= json_encode($__bizName) ?>,
+  phone:   <?= json_encode($__bizPhone) ?>,
+  email:   <?= json_encode($__bizEmail) ?>,
+  address: <?= json_encode($__bizAddress) ?>,
+};
 let cart = [];
 let products = [];
 const noImg = appPath('/assets/images/no-image.png');
@@ -491,8 +489,9 @@ async function checkout() {
       const changeEl = document.getElementById('changeDisplay');
       if (changeEl) { changeEl.textContent = '₱0.00'; changeEl.style.color = 'var(--color-gray-400)'; }
       recalculate();
-      // Open invoice modal
-      openPosInvoiceModal(data.data.invoice_id || data.data.id);
+      const invoiceId = data.data.invoice_id || data.data.id;
+      window.open(appPath('/api/v1/invoices/' + invoiceId + '/print'), '_blank');
+      loadProducts();
     } else {
       showToast(data.message || 'Checkout failed', 'error');
     }
@@ -502,101 +501,7 @@ async function checkout() {
 
 function closeReceipt() { closeModal('receiptModal'); loadProducts(); }
 
-function closePosInvoiceModal() { closeModal('posInvoiceModal'); loadProducts(); }
 
-function posInvEsc(s) { const d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
-
-async function openPosInvoiceModal(invoiceId) {
-  document.getElementById('posInvoiceBody').innerHTML = '<div style="padding:40px;text-align:center"><span class="spinner"></span></div>';
-  openModal('posInvoiceModal');
-  const printUrl    = appPath('/api/v1/invoices/' + invoiceId + '/print');
-  const downloadUrl = appPath('/api/v1/invoices/' + invoiceId + '/print') + '?download=1';
-  document.getElementById('posInvoicePrintBtn').href    = printUrl;
-  document.getElementById('posInvoiceDownloadBtn').href = downloadUrl;
-  try {
-    const res  = await fetch(appPath('/api/v1/invoices/' + invoiceId));
-    const data = await res.json();
-    if (!data.success) { document.getElementById('posInvoiceBody').innerHTML = '<p class="text-danger">Failed to load invoice.</p>'; return; }
-    renderPosInvoice(data.data);
-  } catch (e) { document.getElementById('posInvoiceBody').innerHTML = '<p class="text-danger">Network error</p>'; }
-}
-
-function renderPosInvoice(inv) {
-  const methodLabel = {cash:'Cash', bdo:'Bank Transfer', gcash:'GCash'};
-  const statusCls   = {fully_paid:'badge-success', partially_paid:'badge-warning', unpaid:'badge-danger'};
-  const balance     = (parseFloat(inv.total_amount||0) - parseFloat(inv.total_paid||0));
-  let itemRows = '', totalQty = 0;
-  (inv.items||[]).forEach(it => {
-    const qty = parseInt(it.quantity||0), up = parseFloat(it.unit_price||0);
-    const disc = parseFloat(it.discount||0), net = up*qty - disc;
-    totalQty += qty;
-    itemRows += `<tr>
-      <td style="padding:8px 12px">${posInvEsc(it.product_name||'')}${it.variation_name?` <span style="color:#6b7280;font-size:.8rem">(${posInvEsc(it.variation_name)})</span>`:''}${it.sku?`<div style="font-size:.75rem;color:#9ca3af">${posInvEsc(it.sku)}</div>`:''}</td>
-      <td style="padding:8px 12px;text-align:center">${qty}</td>
-      <td style="padding:8px 12px;text-align:right">₱${up.toFixed(2)}${disc>0?`<div style="font-size:.75rem;color:#e74c3c">-₱${disc.toFixed(2)}</div>`:''}</td>
-      <td style="padding:8px 12px;text-align:right">₱${net.toFixed(2)}</td>
-    </tr>`;
-  });
-  const discount = parseFloat(inv.discount_amount||0), tax = parseFloat(inv.tax_amount||0), fee = parseFloat(inv.additional_fee||0);
-  const subtotal = parseFloat(inv.total_amount||0) + discount - tax - fee;
-  let payRows = '';
-  (inv.payments||[]).forEach((p,i) => {
-    payRows += `<tr>
-      <td style="padding:6px 10px">${i+1}</td>
-      <td style="padding:6px 10px">${p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
-      <td style="padding:6px 10px">${posInvEsc(methodLabel[p.payment_mode]||p.payment_mode||'—')}</td>
-      <td style="padding:6px 10px;text-align:right">₱${parseFloat(p.payment_amount||0).toFixed(2)}</td>
-    </tr>`;
-  });
-  document.getElementById('posInvoiceBody').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
-      <div><div style="font-size:1.5rem;font-weight:900;letter-spacing:.5px">DREAM BLANKS</div><div style="font-size:.8rem;color:#6b7280">Customized Apparel &amp; Merchandise</div></div>
-      <div style="text-align:right;font-size:.8rem;color:#374151"><div style="font-weight:700">Dream Blanks</div><div>Philippines</div></div>
-    </div>
-    <div style="text-align:center;border-top:2px solid #111;border-bottom:2px solid #111;padding:8px 0;margin-bottom:16px">
-      <span style="font-size:1.25rem;font-weight:900;letter-spacing:2px">INVOICE</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
-      <div>
-        <div style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280;margin-bottom:4px">BILL TO</div>
-        <div style="font-weight:700">${posInvEsc(inv.client_name||'Walk-in Customer')}</div>
-        ${inv.client_email?`<div style="font-size:.85rem">${posInvEsc(inv.client_email)}</div>`:''}
-      </div>
-      <div style="text-align:right">
-        <div style="margin-bottom:4px"><span style="font-size:.7rem;color:#6b7280;font-weight:800">INVOICE #</span><br><strong>${posInvEsc(inv.invoice_number)}</strong></div>
-        <div><span style="font-size:.7rem;color:#6b7280;font-weight:800">DATE</span><br><strong>${inv.invoice_date ? new Date(inv.invoice_date+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—'}</strong></div>
-        <div style="margin-top:6px"><span class="badge ${statusCls[inv.payment_status]||'badge-secondary'}">${(inv.payment_status||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span></div>
-      </div>
-    </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:.875rem">
-      <thead><tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb">
-        <th style="padding:8px 12px;text-align:left">Description</th><th style="padding:8px 12px;text-align:center">QTY</th>
-        <th style="padding:8px 12px;text-align:right">Unit Price</th><th style="padding:8px 12px;text-align:right">Total</th>
-      </tr></thead>
-      <tbody style="border-bottom:1px solid #e5e7eb">${itemRows}</tbody>
-      <tfoot><tr style="background:#f9fafb"><td style="padding:8px 12px;font-weight:700">Total QTY</td><td style="padding:8px 12px;text-align:center;font-weight:800">${totalQty}</td><td colspan="2"></td></tr></tfoot>
-    </table>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-      <table style="min-width:250px;font-size:.875rem">
-        <tr><td style="padding:4px 12px;color:#6b7280">Subtotal</td><td style="padding:4px 12px;text-align:right">₱${subtotal.toFixed(2)}</td></tr>
-        ${discount>0?`<tr><td style="padding:4px 12px;color:#6b7280">Discount</td><td style="padding:4px 12px;text-align:right;color:#e74c3c">-₱${discount.toFixed(2)}</td></tr>`:''}
-        ${tax>0?`<tr><td style="padding:4px 12px;color:#6b7280">Tax</td><td style="padding:4px 12px;text-align:right">₱${tax.toFixed(2)}</td></tr>`:''}
-        ${fee>0?`<tr><td style="padding:4px 12px;color:#6b7280">Additional Fee</td><td style="padding:4px 12px;text-align:right">₱${fee.toFixed(2)}</td></tr>`:''}
-        <tr style="border-top:2px solid #111;font-weight:900;font-size:1rem"><td style="padding:8px 12px">TOTAL</td><td style="padding:8px 12px;text-align:right">₱${parseFloat(inv.total_amount||0).toFixed(2)}</td></tr>
-        <tr style="font-weight:700;color:#166534"><td style="padding:4px 12px">TOTAL PAID</td><td style="padding:4px 12px;text-align:right">₱${parseFloat(inv.total_paid||0).toFixed(2)}</td></tr>
-        ${balance>0?`<tr style="font-weight:700;color:#dc2626"><td style="padding:4px 12px">BALANCE</td><td style="padding:4px 12px;text-align:right">₱${balance.toFixed(2)}</td></tr>`:''}
-      </table>
-    </div>
-    ${payRows?`<div style="margin-bottom:16px"><div style="font-weight:700;margin-bottom:8px;font-size:.875rem">Payment History</div>
-    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
-      <thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb"><th style="padding:6px 10px;text-align:left">#</th><th style="padding:6px 10px;text-align:left">Date</th><th style="padding:6px 10px;text-align:left">Mode</th><th style="padding:6px 10px;text-align:right">Amount</th></tr></thead>
-      <tbody>${payRows}</tbody></table></div>`:''}
-    <div style="border-top:1px solid #e5e7eb;padding-top:16px;display:flex;justify-content:space-between;font-size:.8rem;color:#374151">
-      <div>Sales Staff: <strong>${posInvEsc(inv.created_by_name||'—')}</strong></div>
-      <div>Authorized Signature: _______________</div>
-      <div style="font-style:italic;color:#6b7280">Thank you for your Business!</div>
-    </div>`;
-}
 
 function loadClients() {
   fetch('/api/v1/clients?per_page=200').then(r => r.json()).then(res => {
