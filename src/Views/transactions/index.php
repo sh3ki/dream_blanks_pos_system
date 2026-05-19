@@ -13,7 +13,6 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
 ?>
 <div class="page-header">
   <h1>Transactions</h1>
-  <span style="font-size:.85rem;color:var(--color-gray-500);align-self:center">1 row per invoice — all purchased products shown per row</span>
 </div>
 
 <div class="card">
