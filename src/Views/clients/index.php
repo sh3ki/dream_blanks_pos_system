@@ -36,7 +36,7 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
     <table class="data-table">
       <thead>
         <tr style="cursor:pointer">
-          <th style="padding:0"><?= clientSortLink('first_name', 'Name', $sort, $order, $search ?? '', $status ?? '') ?></th>
+          <th style="padding:0"><?= clientSortLink('full_name', 'Name', $sort, $order, $search ?? '', $status ?? '') ?></th>
           <th style="padding:0"><?= clientSortLink('email', 'Email', $sort, $order, $search ?? '', $status ?? '') ?></th>
           <th>Primary Address</th>
           <th>Primary Contact</th>
@@ -47,9 +47,9 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
       </thead>
       <tbody>
         <?php foreach ($clients as $c): ?>
-        <?php $name = trim(($c['first_name'] ?? '') . ' ' . ($c['middle_name'] ?? '') . ' ' . ($c['last_name'] ?? '')); ?>
+        <?php $name = htmlspecialchars($c['full_name'] ?? ''); ?>
         <tr onclick="viewClient(<?= $c['id'] ?>)" style="cursor:pointer">
-          <td><strong><?= htmlspecialchars(preg_replace('/\s+/', ' ', $name)) ?></strong></td>
+          <td><strong><?= $name ?></strong></td>
           <td><?= htmlspecialchars($c['email'] ?? '-') ?></td>
           <td style="font-size:.82rem"><?php
             $addrParts = array_filter([$c['primary_street'] ?? '', $c['primary_city'] ?? '']);
@@ -60,7 +60,7 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
           <td><?= !empty($c['created_at']) ? date('M d, Y', strtotime($c['created_at'])) : '-' ?></td>
           <td onclick="event.stopPropagation()">
             <button class="icon-btn" onclick="editClient(<?= $c['id'] ?>)" title="Edit"><?= icon('edit', 15) ?></button>
-            <button class="icon-btn danger" onclick="deleteClient(<?= $c['id'] ?>, '<?= htmlspecialchars(preg_replace('/\s+/', ' ', $name)) ?>')" title="Delete"><?= icon('delete', 15) ?></button>
+            <button class="icon-btn danger" onclick="deleteClient(<?= $c['id'] ?>, '<?= htmlspecialchars($c['full_name'] ?? '') ?>')" title="Delete"><?= icon('delete', 15) ?></button>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -104,18 +104,10 @@ function clientSortLink(string $col, string $label, string $currentSort, string 
     </div>
     <div class="modal-body">
       <input type="hidden" id="clientId">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">First Name <span class="required">*</span></label>
-          <input type="text" id="cFirst" class="form-input" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Middle Name</label>
-          <input type="text" id="cMiddle" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Last Name <span class="required">*</span></label>
-          <input type="text" id="cLast" class="form-input" required>
+      <div class="form-row-2">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">Full Name <span class="required">*</span></label>
+          <input type="text" id="cFullName" class="form-input" required>
         </div>
       </div>
       <div class="form-row">
@@ -212,7 +204,7 @@ function viewClient(id) {
   fetch('/api/v1/clients/' + id).then(r => r.json()).then(res => {
     if (!res.success) { document.getElementById('viewClientBody').innerHTML = '<p class="text-danger">Failed to load</p>'; return; }
     const c = res.data;
-    const name = [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ');
+    const name = c.full_name || '';
     document.getElementById('viewClientTitle').textContent = name;
     document.getElementById('viewClientEditBtn').setAttribute('onclick', 'closeModal("viewClientModal");editClient(' + id + ')');
 
@@ -254,9 +246,7 @@ function openClientModal() {
 
 function resetClientForm() {
   document.getElementById('clientId').value = '';
-  document.getElementById('cFirst').value = '';
-  document.getElementById('cMiddle').value = '';
-  document.getElementById('cLast').value = '';
+  document.getElementById('cFullName').value = '';
   document.getElementById('cEmail').value = '';
   document.getElementById('cStatus').value = 'active';
   document.getElementById('addressesContainer').innerHTML = '';
@@ -411,9 +401,7 @@ async function saveClient() {
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...';
 
   const payload = {
-    first_name: document.getElementById('cFirst').value,
-    middle_name: document.getElementById('cMiddle').value,
-    last_name: document.getElementById('cLast').value,
+    full_name: document.getElementById('cFullName').value,
     email: document.getElementById('cEmail').value,
     status: document.getElementById('cStatus').value,
   };
@@ -447,9 +435,7 @@ function editClient(id) {
     if (!res.success) return;
     const c = res.data;
     document.getElementById('clientId').value = c.id;
-    document.getElementById('cFirst').value = c.first_name || '';
-    document.getElementById('cMiddle').value = c.middle_name || '';
-    document.getElementById('cLast').value = c.last_name || '';
+    document.getElementById('cFullName').value = c.full_name || '';
     document.getElementById('cEmail').value = c.email || '';
     document.getElementById('cStatus').value = c.status || 'active';
     document.getElementById('clientModalTitle').textContent = 'Edit Client';
