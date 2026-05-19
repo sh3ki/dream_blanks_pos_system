@@ -239,8 +239,10 @@ function viewClient(id) {
 function openClientModal() {
   resetClientForm();
   document.getElementById('clientModalTitle').textContent = 'Add Client';
-  document.getElementById('clientExtraSection').style.display = '';
-  document.getElementById('clientEditNote').style.display = 'none';
+  const extrasEl = document.getElementById('clientExtraSection');
+  const noteEl   = document.getElementById('clientEditNote');
+  if (extrasEl) extrasEl.style.display = '';
+  if (noteEl)   noteEl.style.display = 'none';
   openModal('clientModal');
 }
 
@@ -253,57 +255,56 @@ function resetClientForm() {
   document.getElementById('contactsContainer').innerHTML = '';
   addressCount = 0;
   contactCount = 0;
-  addAddress();
-  addContact();
 }
 
 function addressTemplate(data = {}) {
+  const t = data.address_type || 'billing';
   return `
     <div class="card address-item" style="padding:12px;margin-bottom:10px">
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Type</label>
           <select class="form-select" data-field="address_type">
-            <option value="billing">Billing</option>
-            <option value="shipping">Shipping</option>
-            <option value="home">Home</option>
-            <option value="work">Work</option>
-            <option value="other">Other</option>
+            <option value="billing"${t==='billing'?' selected':''}>Billing</option>
+            <option value="shipping"${t==='shipping'?' selected':''}>Shipping</option>
+            <option value="home"${t==='home'?' selected':''}>Home</option>
+            <option value="work"${t==='work'?' selected':''}>Work</option>
+            <option value="other"${t==='other'?' selected':''}>Other</option>
           </select>
         </div>
         <div class="form-group" style="flex:1">
           <label class="form-label">Street Address</label>
-          <input type="text" class="form-input" data-field="street_address" placeholder="Street, building, unit">
+          <input type="text" class="form-input" data-field="street_address" value="${data.street_address||''}" placeholder="Street, building, unit">
         </div>
         <div class="form-group" style="width:120px">
           <label class="form-label">Primary</label>
           <label style="display:flex;align-items:center;gap:6px">
-            <input type="checkbox" data-field="is_primary"> Yes
+            <input type="checkbox" data-field="is_primary"${data.is_primary?' checked':''}> Yes
           </label>
         </div>
       </div>
       <div class="form-row-3">
         <div class="form-group">
           <label class="form-label">Barangay</label>
-          <input type="text" class="form-input" data-field="barangay">
+          <input type="text" class="form-input" data-field="barangay" value="${data.barangay||''}">
         </div>
         <div class="form-group">
           <label class="form-label">City <span class="required">*</span></label>
-          <input type="text" class="form-input" data-field="city" required>
+          <input type="text" class="form-input" data-field="city" value="${data.city||''}" required>
         </div>
         <div class="form-group">
           <label class="form-label">Province</label>
-          <input type="text" class="form-input" data-field="province">
+          <input type="text" class="form-input" data-field="province" value="${data.province||''}">
         </div>
       </div>
       <div class="form-row-3">
         <div class="form-group">
           <label class="form-label">Postal Code</label>
-          <input type="text" class="form-input" data-field="postal_code">
+          <input type="text" class="form-input" data-field="postal_code" value="${data.postal_code||''}">
         </div>
         <div class="form-group">
           <label class="form-label">Country</label>
-          <input type="text" class="form-input" data-field="country" value="Philippines">
+          <input type="text" class="form-input" data-field="country" value="${data.country||'Philippines'}">
         </div>
         <div class="form-group" style="display:flex;align-items:end;justify-content:flex-end">
           <button class="btn btn-danger btn-sm" onclick="removeAddress(this)" type="button">Remove</button>
@@ -313,34 +314,35 @@ function addressTemplate(data = {}) {
   `;
 }
 
-function contactTemplate() {
+function contactTemplate(data = {}) {
+  const t = data.contact_type || 'mobile';
   return `
     <div class="card contact-item" style="padding:12px;margin-bottom:10px">
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Type</label>
           <select class="form-select" data-field="contact_type">
-            <option value="mobile">Mobile</option>
-            <option value="landline">Landline</option>
-            <option value="work">Work</option>
-            <option value="home">Home</option>
-            <option value="other">Other</option>
+            <option value="mobile"${t==='mobile'?' selected':''}>Mobile</option>
+            <option value="landline"${t==='landline'?' selected':''}>Landline</option>
+            <option value="work"${t==='work'?' selected':''}>Work</option>
+            <option value="home"${t==='home'?' selected':''}>Home</option>
+            <option value="other"${t==='other'?' selected':''}>Other</option>
           </select>
         </div>
         <div class="form-group" style="flex:1">
           <label class="form-label">Contact Number <span class="required">*</span></label>
-          <input type="text" class="form-input" data-field="contact_number" required>
+          <input type="text" class="form-input" data-field="contact_number" value="${data.contact_number||''}" required>
         </div>
         <div class="form-group" style="width:120px">
           <label class="form-label">Primary</label>
           <label style="display:flex;align-items:center;gap:6px">
-            <input type="checkbox" data-field="is_primary"> Yes
+            <input type="checkbox" data-field="is_primary"${data.is_primary?' checked':''}> Yes
           </label>
         </div>
         <div class="form-group" style="width:120px">
           <label class="form-label">Verified</label>
           <label style="display:flex;align-items:center;gap:6px">
-            <input type="checkbox" data-field="is_verified"> Yes
+            <input type="checkbox" data-field="is_verified"${data.is_verified?' checked':''}> Yes
           </label>
         </div>
         <div class="form-group" style="display:flex;align-items:end;justify-content:flex-end">
@@ -434,13 +436,26 @@ function editClient(id) {
   fetch('/api/v1/clients/' + id).then(r => r.json()).then(res => {
     if (!res.success) return;
     const c = res.data;
+    resetClientForm();
     document.getElementById('clientId').value = c.id;
     document.getElementById('cFullName').value = c.full_name || '';
     document.getElementById('cEmail').value = c.email || '';
     document.getElementById('cStatus').value = c.status || 'active';
     document.getElementById('clientModalTitle').textContent = 'Edit Client';
-    document.getElementById('clientExtraSection').style.display = 'none';
-    document.getElementById('clientEditNote').style.display = '';
+    const extrasEl = document.getElementById('clientExtraSection');
+    const noteEl   = document.getElementById('clientEditNote');
+    if (extrasEl) extrasEl.style.display = '';
+    if (noteEl)   noteEl.style.display = 'none';
+    const addrCont = document.getElementById('addressesContainer');
+    (c.addresses || []).forEach(a => {
+      addrCont.insertAdjacentHTML('beforeend', addressTemplate(a));
+      addressCount++;
+    });
+    const ctCont = document.getElementById('contactsContainer');
+    (c.contacts || []).forEach(ct => {
+      ctCont.insertAdjacentHTML('beforeend', contactTemplate(ct));
+      contactCount++;
+    });
     openModal('clientModal');
   });
 }
