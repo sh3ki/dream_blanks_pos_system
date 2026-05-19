@@ -97,7 +97,7 @@ class InventoryController extends Controller
 
     public function importRestockCsv(Request $request): Response
     {
-        $this->requirePermission(MODULE_INVENTORY, ACTION_ADD);
+        $this->requirePermission(MODULE_INVENTORY, ACTION_IMPORT);
         $rows         = $request->input('items', []);
         $supplierName = $request->input('supplier_name', '');
         $notes        = $request->input('notes', '');
@@ -116,7 +116,11 @@ class InventoryController extends Controller
             if ($code === '' || $qty <= 0) continue;
             $sp = $db->selectOne("SELECT id FROM stock_products WHERE code = ? AND deleted_at IS NULL LIMIT 1", [$code]);
             if ($sp) {
-                $resolvedItems[] = ['stock_product_id' => (int)$sp['id'], 'quantity_requested' => $qty];
+                $resolvedItems[] = [
+                    'stock_product_id'   => (int)$sp['id'],
+                    'quantity_requested' => $qty,
+                    'code'               => $code,
+                ];
             }
         }
 
@@ -148,7 +152,27 @@ class InventoryController extends Controller
             }
 
             $db->commit();
-            AuditService::log(AUDIT_CREATE, MODULE_INVENTORY, $restockId, null, null, "Created restock order #{$orderNumber} via CSV import");
+
+            // Build audit items with names
+            $auditItems = [];
+            foreach ($resolvedItems as $ri) {
+                $sp2 = StockProduct::find($ri['stock_product_id']);
+                $auditItems[] = [
+                    'code'               => $ri['code'],
+                    'name'               => $sp2['name'] ?? "SP#{$ri['stock_product_id']}",
+                    'quantity_requested' => $ri['quantity_requested'],
+                ];
+            }
+            AuditService::log(AUDIT_RESTOCK, MODULE_INVENTORY, $restockId, null, [
+                'source'           => 'csv_import',
+                'order_number'     => $orderNumber,
+                'supplier_name'    => $supplierName ?: null,
+                'delivery_status'  => DELIVERY_ORDERED,
+                'notes'            => $notes ?: null,
+                'items'            => $auditItems,
+                'total_items'      => count($auditItems),
+            ], "Restock order #{$orderNumber} created via CSV import with " . count($auditItems) . " item(s)");
+
             return $this->success(['restock_id' => $restockId, 'order_number' => $orderNumber], 'Restock order created from CSV', 201);
         } catch (\Throwable $e) {
             $db->rollback();
@@ -158,7 +182,7 @@ class InventoryController extends Controller
 
     public function createRestock(Request $request): Response
     {
-        $this->requirePermission(MODULE_INVENTORY, ACTION_ADD);
+        $this->requirePermission(MODULE_INVENTORY, ACTION_RESTOCK);
         $items = $request->input('items', []);
         if (empty($items)) {
             throw new ValidationException(['items' => ['At least one item is required']]);
@@ -195,7 +219,31 @@ class InventoryController extends Controller
             }
 
             $db->commit();
-            AuditService::log(AUDIT_CREATE, MODULE_INVENTORY, $restockId, null, null, "Created restock order #{$orderNumber}");
+
+            // Build audit items with names
+            $auditItems2 = [];
+            foreach ($items as $item2) {
+                $spId2 = (int)($item2['stock_product_id'] ?? 0);
+                if ($spId2 <= 0) continue;
+                $sp2 = StockProduct::find($spId2);
+                $auditItems2[] = [
+                    'stock_product_id'   => $spId2,
+                    'code'               => $sp2['code'] ?? '',
+                    'name'               => $sp2['name'] ?? "SP#{$spId2}",
+                    'quantity_requested' => (int)($item2['quantity_requested'] ?? 0),
+                ];
+            }
+            AuditService::log(AUDIT_RESTOCK, MODULE_INVENTORY, $restockId, null, [
+                'source'           => 'restock_order',
+                'order_number'     => $orderNumber,
+                'supplier_name'    => $request->input('supplier_name'),
+                'delivery_status'  => $request->input('delivery_status', DELIVERY_ORDERED),
+                'delivery_date'    => $request->input('delivery_date'),
+                'notes'            => $request->input('notes'),
+                'items'            => $auditItems2,
+                'total_items'      => count($auditItems2),
+            ], "Restock order #{$orderNumber} created with " . count($auditItems2) . " item(s)");
+
             return $this->success(['restock_id' => $restockId, 'order_number' => $orderNumber], 'Restock order created', 201);
         } catch (\Throwable $e) {
             $db->rollback();
@@ -306,7 +354,25 @@ class InventoryController extends Controller
             }
         }
 
-        AuditService::log(AUDIT_UPDATE, MODULE_INVENTORY, $id, $order, RestockOrder::find($id), "Updated restock #{$id} status: {$prevStatus} → {$newStatus}");
+        // Build audit items for update
+        $allItems    = RestockOrder::getItems($id);
+        $auditItemsU = array_map(fn($i) => [
+            'code'                => $i['sp_code'] ?? $i['code'] ?? '',
+            'name'                => $i['sp_name'] ?? $i['name'] ?? '',
+            'quantity_requested'  => (int)$i['quantity_requested'],
+            'quantity_received'   => (int)$i['quantity_received'],
+        ], $allItems);
+        AuditService::log(AUDIT_RESTOCK, MODULE_INVENTORY, $id, [
+            'delivery_status' => $prevStatus,
+        ], [
+            'order_number'    => $order['order_number'],
+            'delivery_status' => $newStatus,
+            'delivery_date'   => $request->input('delivery_date'),
+            'supplier_name'   => $order['supplier_name'],
+            'notes'           => $request->input('notes'),
+            'items'           => $auditItemsU,
+            'total_items'     => count($auditItemsU),
+        ], "Restock order #{$order['order_number']} status updated: {$prevStatus} → {$newStatus}");
         return $this->success(null, 'Restock updated');
     }
 }
