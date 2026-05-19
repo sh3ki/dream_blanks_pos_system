@@ -375,12 +375,16 @@ h6 { font-size: 0.875rem; font-weight: 600; }
   font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em;
   text-transform: uppercase; white-space: nowrap;
 }
-.badge-success { background: var(--color-success-light); color: var(--color-success); }
-.badge-danger  { background: var(--color-danger-light);  color: var(--color-danger); }
-.badge-warning { background: var(--color-warning-light); color: #856404; }
-.badge-info    { background: var(--color-info-light);    color: var(--color-info); }
-.badge-primary { background: var(--color-primary-light); color: var(--color-primary); }
-.badge-gray    { background: var(--color-gray-100); color: var(--color-gray-700); }
+.badge-success   { background: var(--color-success-light); color: var(--color-success); }
+.badge-danger    { background: var(--color-danger-light);  color: var(--color-danger); }
+.badge-warning   { background: var(--color-warning-light); color: #856404; }
+.badge-info      { background: var(--color-info-light);    color: var(--color-info); }
+.badge-primary   { background: var(--color-primary-light); color: var(--color-primary); }
+.badge-gray      { background: var(--color-gray-100); color: var(--color-gray-700); }
+.badge-secondary { background: #e2e8f0; color: #475569; }
+.badge-purple    { background: #f3e8ff; color: #7c3aed; }
+.badge-orange    { background: #fff7ed; color: #c2410c; }
+.badge-teal      { background: #ccfbf1; color: #0f766e; }
 
 /* ===== MODALS ===== */
 .modal-overlay {
@@ -415,7 +419,7 @@ h6 { font-size: 0.875rem; font-weight: 600; }
 
 /* ===== TOASTS ===== */
 .toast-container {
-  position: fixed; bottom: 24px; right: 24px;
+  position: fixed; top: 24px; right: 24px;
   z-index: 9999; display: flex; flex-direction: column; gap: 8px;
 }
 .toast {
