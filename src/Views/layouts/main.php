@@ -64,6 +64,9 @@ $currentPath = strtok($currentPath, '?');
       <a href="<?= htmlspecialchars(app_url('/invoices')) ?>" class="nav-link <?= str_starts_with($currentPath,'/invoices') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('invoice') ?></span><span class="nav-label">Invoices</span>
       </a>
+      <a href="<?= htmlspecialchars(app_url('/transactions')) ?>" class="nav-link <?= str_starts_with($currentPath,'/transactions') ? 'active':'' ?>">
+        <span class="nav-icon"><?= icon('transactions') ?></span><span class="nav-label">Transactions</span>
+      </a>
       <a href="<?= htmlspecialchars(app_url('/clients')) ?>" class="nav-link <?= str_starts_with($currentPath,'/clients') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('clients') ?></span><span class="nav-label">Clients</span>
       </a>
