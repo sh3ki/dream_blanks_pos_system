@@ -50,12 +50,15 @@ class AuthService
         $_SESSION['permissions'] = $permList;
         $_SESSION['csrf_token']  = bin2hex(random_bytes(32));
 
+        // Store user ID in a persistent cookie so auto-logout can be detected
+        setcookie('auth_uid', (string)$user['id'], 0, '/', '', false, true);
+
         AuditLog::log([
             'user_id'     => $user['id'],
             'action_type' => AUDIT_LOGIN,
             'module_name' => 'auth',
             'status'      => 'success',
-            'description' => "User logged in",
+            'description' => "User '{$user['username']}' logged in",
             'ip_address'  => $ip,
             'user_agent'  => $userAgent,
         ]);
@@ -70,10 +73,13 @@ class AuthService
             'action_type' => AUDIT_LOGOUT,
             'module_name' => 'auth',
             'status'      => 'success',
-            'description' => 'User logged out',
+            'description' => 'User logged out (manual)',
             'ip_address'  => $ip,
             'user_agent'  => $userAgent,
         ]);
+
+        // Clear auto-logout tracking cookie
+        setcookie('auth_uid', '', time() - 3600, '/', '', false, true);
 
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
