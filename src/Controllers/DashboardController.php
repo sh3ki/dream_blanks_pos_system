@@ -48,7 +48,12 @@ class DashboardController extends Controller
 
     public function charts(Request $request): Response
     {
-        $period = $request->query('period', 'week');
-        return $this->success($this->reportService->dashboardCharts($period));
+        $period   = $request->query('period', 'week');
+        $dateFrom = $request->query('date_from') ?: null;
+        $dateTo   = $request->query('date_to')   ?: null;
+        // Validate date format (YYYY-MM-DD) to prevent injection
+        if ($dateFrom && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) $dateFrom = null;
+        if ($dateTo   && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo))   $dateTo   = null;
+        return $this->success($this->reportService->dashboardCharts($period, $dateFrom, $dateTo));
     }
 }
