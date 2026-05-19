@@ -2,8 +2,12 @@
 <div class="page-header">
   <h1>Products</h1>
   <div class="d-flex gap-8">
+    <?php if (can('products', 'import')): ?>
     <button class="btn btn-secondary btn-sm" onclick="showImportModal()"><?= icon('upload', 15) ?> Import CSV</button>
+    <?php endif; ?>
+    <?php if (can('products', 'add')): ?>
     <button class="btn btn-primary" onclick="showProductModal()">+ Add Product</button>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -112,8 +116,12 @@
           <td><span class="badge <?= $sCls ?>"><?= $sLbl ?></span></td>
           <td><span class="badge <?= $p['status']==='active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($p['status']) ?></span></td>
           <td onclick="event.stopPropagation()">
+            <?php if (can('products', 'edit')): ?>
             <button class="icon-btn" onclick="editProduct(<?= $p['id'] ?>)" title="Edit"><?= icon('edit', 15) ?></button>
+            <?php endif; ?>
+            <?php if (can('products', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteProduct(<?= $p['id'] ?>, '<?= htmlspecialchars($p['name']) ?>')" title="Delete"><?= icon('delete', 15) ?></button>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
