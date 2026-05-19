@@ -26,10 +26,12 @@ INSERT IGNORE INTO `permissions` (`module`, `action`, `description`) VALUES
 ('products', 'add', 'Add products'),
 ('products', 'edit', 'Edit products'),
 ('products', 'delete', 'Delete products'),
+('products', 'import', 'Import products via CSV'),
 ('inventory', 'view', 'View inventory'),
-('inventory', 'add', 'Add restock orders'),
+('inventory', 'restock', 'Create restock orders'),
 ('inventory', 'edit', 'Edit restock orders'),
 ('inventory', 'delete', 'Delete inventory records'),
+('inventory', 'import', 'Import restock via CSV'),
 ('pos', 'view', 'Access POS'),
 ('pos', 'add', 'Create sales'),
 ('invoices', 'view', 'View invoices'),
@@ -40,12 +42,26 @@ INSERT IGNORE INTO `permissions` (`module`, `action`, `description`) VALUES
 ('payments', 'add', 'Add payments'),
 ('payments', 'edit', 'Edit payments'),
 ('payments', 'delete', 'Delete payments'),
-('reports', 'view', 'View reports'),
-('reports', 'add', 'Generate reports'),
+('reports_sales',     'view',   'View sales report'),
+('reports_sales',     'export', 'Export sales report as CSV'),
+('reports_inventory', 'view',   'View inventory report'),
+('reports_inventory', 'export', 'Export inventory report as CSV'),
+('reports_financial', 'view',   'View financial report'),
+('reports_financial', 'export', 'Export financial report as CSV'),
 ('settings', 'view', 'View settings'),
 ('settings', 'edit', 'Update settings'),
 ('audit_logs', 'view', 'View audit logs'),
-('notifications', 'view', 'View notifications');
+('audit_logs', 'export', 'Export audit logs as CSV'),
+('notifications', 'view', 'View notifications'),
+('transactions', 'view', 'View transactions'),
+('stock_products', 'adjust', 'Adjust stock quantity'),
+('stock_products', 'import', 'Import stock products via CSV'),
+('inventory', 'import', 'Import restock via CSV'),
+('invoices', 'download', 'Download invoice PDF'),
+('variations', 'view', 'View variations'),
+('variations', 'add', 'Add variations'),
+('variations', 'edit', 'Edit variations'),
+('variations', 'delete', 'Delete variations');
 
 -- Assign all permissions to Admin role
 INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
@@ -54,7 +70,7 @@ SELECT 1, id FROM `permissions`;
 -- Assign Manager permissions
 INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
 SELECT 2, id FROM `permissions`
-WHERE module IN ('clients','products','inventory','pos','invoices','payments','reports','notifications')
+WHERE module IN ('clients','products','inventory','pos','invoices','payments','reports_sales','reports_inventory','reports_financial','notifications')
    OR (module = 'users' AND action = 'view');
 
 -- Assign Sales Staff permissions
