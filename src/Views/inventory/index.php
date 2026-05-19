@@ -24,7 +24,10 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
 ?>
 <div class="page-header">
   <h1>Inventory</h1>
-  <button class="btn btn-primary" onclick="openRestock()">+ Create Restock</button>
+  <div class="d-flex gap-8">
+    <button class="btn btn-secondary btn-sm" onclick="openCsvImportModal()"><?= icon('upload', 15) ?> Import CSV</button>
+    <button class="btn btn-primary" onclick="openRestock()">+ Create Restock</button>
+  </div>
 </div>
 
 <!-- Stats cards -->
@@ -79,7 +82,7 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
   <div class="card-body" style="padding:16px">
     <div class="filter-bar" style="flex-wrap:wrap;gap:8px">
       <div class="search-bar" style="flex:1;min-width:200px;max-width:280px">
-        <?= icon('search', 16) ?> <input type="text" id="invSearchInput" placeholder="Search by name or code..." value="<?= htmlspecialchars($filters['search'] ?? '') ?>" oninput="debouncedInvSearch()" style="width:100%">
+        <?= icon('search', 16) ?> <input type="text" id="invSearchInput" placeholder="Search inventory..." value="<?= htmlspecialchars($filters['search'] ?? '') ?>" oninput="debouncedInvSearch()" style="width:100%">
       </div>
       <select id="invTypeFilter" class="form-select" style="width:130px;height:38px" onchange="applyInvFilters()">
         <option value="">All Types</option>
@@ -121,8 +124,7 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
         <tr style="cursor:pointer">
           <th style="width:38px"><input type="checkbox" id="invSelectAll" onchange="toggleInvSelectAll(this)" title="Select all"></th>
           <th style="width:52px">Image</th>
-          <th style="padding:0"><?= invSortLink('sp.code',        'Code',         $sort, $order, $filters) ?></th>
-          <th style="padding:0"><?= invSortLink('sp.name',        'Name',         $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= invSortLink('sp.name', 'Stock Product', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= invSortLink('t.name',         'Type',         $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= invSortLink('c.name',         'Color',        $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= invSortLink('s.name',         'Size',         $sort, $order, $filters) ?></th>
@@ -153,8 +155,10 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
               style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--color-gray-100)"
               onerror="this.src='<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>'">
           </td>
-          <td onclick="event.stopPropagation()"><code style="font-size:.8rem"><?= htmlspecialchars($sp['code']) ?></code></td>
-          <td><?= htmlspecialchars($sp['name']) ?></td>
+          <td onclick="event.stopPropagation()">
+            <div style="font-size:.75rem;color:var(--color-gray-500)"><?= htmlspecialchars($sp['code']) ?></div>
+            <div style="font-weight:700"><?= htmlspecialchars($sp['name']) ?></div>
+          </td>
           <td><?= htmlspecialchars($sp['type_code']  ?? $sp['type_name']  ?? '-') ?></td>
           <td><?= htmlspecialchars($sp['color_name'] ?? '-') ?></td>
           <td><?= htmlspecialchars($sp['size_code']  ?? $sp['size_name']  ?? '-') ?></td>
@@ -252,11 +256,16 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
             "reason"          => $h["reason"] ?? "-",
             "created_by_name" => $h["created_by_name"] ?? "-",
           ]), ENT_QUOTES) ?>)'>
-            <td style="white-space:nowrap;font-size:.82rem"><?= !empty($h['created_at']) ? date('M d, Y H:i', strtotime($h['created_at'])) : '-' ?></td>
+            <td style="white-space:nowrap;font-size:.82rem">
+              <?php if (!empty($h['created_at'])): ?>
+                <div style="font-size:.78rem;font-weight:600"><?= date('h:i A', strtotime($h['created_at'])) ?></div>
+                <div style="font-size:.75rem;color:var(--color-gray-500)"><?= date('M d, Y', strtotime($h['created_at'])) ?></div>
+              <?php else: ?>-<?php endif; ?>
+            </td>
             <td>
-              <code style="font-size:.78rem"><?= htmlspecialchars($h['sp_code'] ?? '-') ?></code>
+              <div style="font-size:.78rem;color:var(--color-gray-500)"><?= htmlspecialchars($h['sp_code'] ?? '-') ?></div>
               <?php if (!empty($h['sp_name'])): ?>
-                <br><span style="font-size:.8rem"><?= htmlspecialchars($h['sp_name']) ?></span>
+                <div style="font-weight:700;font-size:.85rem"><?= htmlspecialchars($h['sp_name']) ?></div>
               <?php endif; ?>
             </td>
             <td><?= htmlspecialchars($h['type_code']  ?? $h['type_name']  ?? '-') ?></td>
@@ -310,7 +319,7 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
             <th style="padding:0"><?= roSortLinkInv('ro.order_number',   'Order #',         $rSort, $rOrder, $restock_filters) ?></th>
             <th style="padding:0"><?= roSortLinkInv('ro.order_date',     'Date',            $rSort, $rOrder, $restock_filters) ?></th>
             <th style="padding:0"><?= roSortLinkInv('ro.supplier_name',  'Supplier',        $rSort, $rOrder, $restock_filters) ?></th>
-            <th>Items</th>
+            <th style="padding:0"><?= roSortLinkInv('items_count',        'Items',           $rSort, $rOrder, $restock_filters) ?></th>
             <th style="padding:0"><?= roSortLinkInv('ro.delivery_status','Delivery Status', $rSort, $rOrder, $restock_filters) ?></th>
             <th>Created By</th>
           </tr>
@@ -363,6 +372,40 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
     <div class="modal-body" id="viewSpBody"><div style="text-align:center;padding:48px"><span class="spinner"></span></div></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('viewSpModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Import CSV Modal ===== -->
+<div class="modal-overlay" id="csvImportModal">
+  <div class="modal-content" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title">Import Restock via CSV</h2>
+      <button class="modal-close" onclick="closeModal('csvImportModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--color-gray-500);margin:0 0 12px">CSV format: <code>stock_product_code,quantity</code> (one per row). First row may be a header.</p>
+      <div class="form-group">
+        <label class="form-label">CSV File <span class="required">*</span></label>
+        <input type="file" id="csvFileInput" class="form-input" accept=".csv,text/csv">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Supplier Name</label>
+          <input type="text" id="csvSupplier" class="form-input" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <input type="text" id="csvNotes" class="form-input" placeholder="Optional">
+        </div>
+      </div>
+      <div id="csvPreview" style="display:none;margin-top:12px;padding:10px;background:var(--color-gray-50);border-radius:6px;font-size:.82rem">
+        <strong>Preview:</strong> <span id="csvPreviewText"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('csvImportModal')">Cancel</button>
+      <button class="btn btn-primary" id="csvImportBtn" onclick="submitCsvImport()">Import</button>
     </div>
   </div>
 </div>
@@ -568,18 +611,23 @@ async function viewSp(id) {
     }
 
     document.getElementById('viewSpBody').innerHTML = `
-      ${s.image_path ? `<div style="text-align:center;margin-bottom:16px"><img src="${(window.APP_BASE_PATH||'')+s.image_path}" alt="${esc(s.name)}" style="max-height:160px;border-radius:10px;border:1px solid var(--color-gray-100);object-fit:contain"></div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Code</div><code>${esc(s.code)}</code></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Name</div><strong>${esc(s.name)}</strong></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Status</div><span class="badge ${s.status === 'active' ? 'badge-success' : 'badge-gray'}">${esc(s.status)}</span></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Type</div>${esc(s.type_name  || '-')}</div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Color</div>${esc(s.color_name || '-')}</div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Size</div>${esc(s.size_name  || '-')}</div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Current Qty</div><span class="badge ${cls}">${qty}</span></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Low Stock Alert</div>${alrt}</div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:20px;align-items:start">
+        <img src="${s.image_path ? appPath(s.image_path) : appPath('/assets/images/no-image.png')}" onerror="this.src='${appPath('/assets/images/no-image.png')}'"
+          style="width:140px;height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--color-gray-100)">
+        <div>
+          <div style="font-size:.78rem;color:var(--color-gray-500);margin-bottom:2px">${esc(s.code)}</div>
+          <h3 style="margin:0 0 4px">${esc(s.name)}</h3>
+          ${s.description ? `<p style="margin:8px 0 0;font-size:.875rem;color:var(--color-gray-600)">${esc(s.description)}</p>` : ''}
+        </div>
       </div>
-      ${s.description ? `<p style="margin:12px 0 0;font-size:.875rem;color:var(--color-gray-600)">${esc(s.description)}</p>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px">
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Type</div><div>${esc(s.type_name || '-')}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Color</div><div>${esc(s.color_name || '-')}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Size</div><div>${esc(s.size_name || '-')}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Current Qty</div><div><span class="badge ${cls}">${qty}</span></div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Low Stock Alert</div><div>${alrt}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Status</div><div><span class="badge ${s.status === 'active' ? 'badge-success' : 'badge-gray'}">${esc(s.status)}</span></div></div>
+      </div>
       ${usedHtml}`;
   } catch (e) { document.getElementById('viewSpBody').innerHTML = '<p class="text-danger">Network error</p>'; }
 }
@@ -931,6 +979,75 @@ async function viewRestockOrder(id) {
         <tbody>${items}</tbody>
       </table></div>`;
   } catch (e) { document.getElementById('vrmoBody').innerHTML = '<p class="text-danger">Network error</p>'; }
+}
+
+// ===== CSV IMPORT =====
+function openCsvImportModal() {
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('csvSupplier').value = '';
+  document.getElementById('csvNotes').value = '';
+  document.getElementById('csvPreview').style.display = 'none';
+  document.getElementById('csvFileInput').addEventListener('change', previewCsv, {once: true});
+  openModal('csvImportModal');
+}
+
+function previewCsv() {
+  const file = document.getElementById('csvFileInput').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCsvRows(e.target.result);
+    document.getElementById('csvPreviewText').textContent = rows.length + ' item(s) found';
+    document.getElementById('csvPreview').style.display = '';
+    // Re-attach listener for re-selection
+    document.getElementById('csvFileInput').addEventListener('change', previewCsv, {once: true});
+  };
+  reader.readAsText(file);
+}
+
+function parseCsvRows(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rows = [];
+  for (const line of lines) {
+    const parts = line.split(',');
+    const code = (parts[0] || '').trim().replace(/^"|"$/g, '');
+    const qty  = parseInt((parts[1] || '0').trim().replace(/^"|"$/g, ''));
+    if (code && !isNaN(qty) && qty > 0 && isNaN(parseFloat(code))) {
+      rows.push({code, qty});
+    }
+  }
+  return rows;
+}
+
+async function submitCsvImport() {
+  const file = document.getElementById('csvFileInput').files[0];
+  if (!file) { showToast('Please select a CSV file', 'warning'); return; }
+  const btn = document.getElementById('csvImportBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const text = await file.text();
+    const rows = parseCsvRows(text);
+    if (rows.length === 0) { showToast('No valid rows found in CSV', 'error'); btn.disabled = false; btn.innerHTML = 'Import'; return; }
+
+    const res  = await fetch('/api/v1/inventory/restock/import-csv', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRF-Token': csrfToken},
+      body: JSON.stringify({
+        items: rows,
+        supplier_name: document.getElementById('csvSupplier').value,
+        notes: document.getElementById('csvNotes').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Restock order created: ' + (data.data?.order_number || ''), 'success');
+      closeModal('csvImportModal');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.message || 'Import failed', 'error');
+    }
+  } catch (e) { showToast('Network error', 'error'); }
+  btn.disabled = false; btn.innerHTML = 'Import';
 }
 </script>
 <?php
