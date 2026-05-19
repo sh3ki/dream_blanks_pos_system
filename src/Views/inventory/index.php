@@ -25,8 +25,12 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
 <div class="page-header">
   <h1>Inventory</h1>
   <div class="d-flex gap-8">
+    <?php if (can('inventory', 'import')): ?>
     <button class="btn btn-secondary btn-sm" onclick="openCsvImportModal()"><?= icon('upload', 15) ?> Import CSV</button>
+    <?php endif; ?>
+    <?php if (can('inventory', 'restock')): ?>
     <button class="btn btn-primary" onclick="openRestock()">+ Create Restock</button>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -72,11 +76,13 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
 <div id="tab-inventory" style="display:<?= $activeTab === 'inventory' ? 'block' : 'none' ?>">
 
 <!-- Floating Restock Selected bar -->
+<?php if (can('inventory', 'restock')): ?>
 <div id="invRestockBar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--color-primary);color:#fff;padding:12px 24px;border-radius:30px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:1000;align-items:center;gap:12px">
   <span id="invRestockBarCount">0 selected</span>
   <button class="btn btn-sm" style="background:#fff;color:var(--color-primary);font-weight:600" onclick="openRestockFromSelection()">Restock Selected</button>
   <button style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem" onclick="clearInvSelection()">✕</button>
 </div>
+<?php endif; ?>
 
 <div class="card">
   <div class="card-body" style="padding:16px">
@@ -166,7 +172,9 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
           <td><span class="badge <?= $sCls ?>"><?= $sLbl ?></span></td>
           <td><span class="badge <?= $sp['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($sp['status']) ?></span></td>
           <td onclick="event.stopPropagation()">
+            <?php if (can('inventory', 'restock')): ?>
             <button class="icon-btn" onclick="openRestock([<?= $sp['id'] ?>])" title="Create Restock"><?= icon('restock', 15) ?></button>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -337,6 +345,7 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
             <td><?= htmlspecialchars($ro['supplier_name'] ?? '-') ?></td>
             <td><span class="badge badge-gray"><?= (int)($ro['items_count'] ?? 0) ?></span></td>
             <td onclick="event.stopPropagation()">
+              <?php if (can('inventory', 'edit')): ?>
               <select class="restock-status-select" data-id="<?= (int)$ro['id'] ?>" data-prev="<?= htmlspecialchars($ds) ?>"
                 onchange="updateRestockDeliveryStatus(<?= (int)$ro['id'] ?>, this.value, this)"
                 style="border:none;border-radius:20px;padding:3px 12px;font-size:.78rem;font-weight:600;cursor:pointer;outline:none;background-color:<?= $dsBg ?>;color:<?= $dsFg ?>">
@@ -345,6 +354,9 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
                 <option value="incomplete"  <?= $ds === 'incomplete'  ? 'selected' : '' ?>>Incomplete</option>
                 <option value="problematic" <?= $ds === 'problematic' ? 'selected' : '' ?>>Problematic</option>
               </select>
+              <?php else: ?>
+              <span class="badge" style="background:<?= $dsBg ?>;color:<?= $dsFg ?>"><?= ucfirst($ds) ?></span>
+              <?php endif; ?>
             </td>
             <td style="font-size:.85rem"><?= htmlspecialchars($ro['created_by_name'] ?? '-') ?></td>
           </tr>
