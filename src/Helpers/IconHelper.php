@@ -53,6 +53,10 @@ if (!function_exists('icon')) {
             'wallet'         => '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 3H5a2 2 0 0 0-2 2v2"/><circle cx="16" cy="14" r="1" fill="currentColor"/>',
             'building'       => '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 20,7 4,7"/>',
             'smartphone'     => '<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>  ',
+            'transactions'   => '<path d="M4 2h16v20l-3-2-2 2-2-2-2 2-2-2-3 2V2z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/>',
+            'history'        => '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+            'payment'        => '<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
+            'restock'        => '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
         ];
 
         $path = $icons[$name] ?? $icons['info'];
