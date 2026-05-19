@@ -14,7 +14,22 @@ class Permission extends Model
         foreach ($rows as $row) {
             $grouped[$row['module']][] = $row;
         }
-        return $grouped;
+
+        // Return in a logical page order
+        $order  = ['users','roles','clients','products','stock_products','inventory','variations','pos','invoices','payments','transactions','reports_sales','reports_inventory','reports_financial','settings','audit_logs','notifications'];
+        $sorted = [];
+        foreach ($order as $mod) {
+            if (isset($grouped[$mod])) {
+                $sorted[$mod] = $grouped[$mod];
+            }
+        }
+        // Append any modules not in the order list
+        foreach ($grouped as $mod => $perms) {
+            if (!isset($sorted[$mod])) {
+                $sorted[$mod] = $perms;
+            }
+        }
+        return $sorted;
     }
 
     public static function findByModuleAction(string $module, string $action): ?array
