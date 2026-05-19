@@ -32,12 +32,14 @@ $f = $filters ?? [];
 
 <div class="page-header">
   <h1>Audit Logs</h1>
+  <?php if (can('audit_logs', 'export')): ?>
   <div class="d-flex gap-8">
     <a href="<?= htmlspecialchars(app_url('/api/v1/audit-logs/export?' . http_build_query(array_filter($f)))) ?>"
        class="btn btn-secondary btn-sm" target="_blank" style="display:flex;align-items:center;gap:6px">
       <?= icon('download', 14) ?> Export CSV
     </a>
   </div>
+  <?php endif; ?>
 </div>
 
 <div class="card">
