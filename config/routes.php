@@ -119,10 +119,11 @@ $router->post('/api/v1/stock-products/{stock_product_id}/adjust',   [\App\Contro
 $router->get('/api/v1/stock-products/{stock_product_id}/movements', [\App\Controllers\StockProductController::class, 'movements'],       $auth);
 
 // Inventory API
-$router->get('/api/v1/inventory',                         [\App\Controllers\InventoryController::class, 'index'],         $auth);
-$router->post('/api/v1/inventory/restock',                [\App\Controllers\InventoryController::class, 'createRestock'], $auth);
-$router->get('/api/v1/inventory/restock/{restock_id}',    [\App\Controllers\InventoryController::class, 'getRestock'],    $auth);
-$router->put('/api/v1/inventory/restock/{restock_id}',    [\App\Controllers\InventoryController::class, 'updateRestock'], $auth);
+$router->get('/api/v1/inventory',                                [\App\Controllers\InventoryController::class, 'index'],         $auth);
+$router->post('/api/v1/inventory/restock',                       [\App\Controllers\InventoryController::class, 'createRestock'], $auth);
+$router->post('/api/v1/inventory/restock/import-csv',            [\App\Controllers\InventoryController::class, 'importRestockCsv'], $auth);
+$router->get('/api/v1/inventory/restock/{restock_id}',           [\App\Controllers\InventoryController::class, 'getRestock'],    $auth);
+$router->put('/api/v1/inventory/restock/{restock_id}',           [\App\Controllers\InventoryController::class, 'updateRestock'], $auth);
 
 // POS API
 $router->get('/api/v1/pos/products', [\App\Controllers\PosController::class, 'products'], $auth);
@@ -132,6 +133,7 @@ $router->post('/api/v1/pos/checkout',[\App\Controllers\PosController::class, 'ch
 $router->get('/api/v1/invoices',                              [\App\Controllers\InvoiceController::class, 'index'],     $auth);
 $router->get('/api/v1/invoices/{invoice_id}',                 [\App\Controllers\InvoiceController::class, 'show'],      $auth);
 $router->post('/api/v1/invoices/{invoice_id}/payments',       [\App\Controllers\InvoiceController::class, 'addPayment'],$auth);
+$router->put('/api/v1/invoices/{invoice_id}/toggle-sent',      [\App\Controllers\InvoiceController::class, 'toggleSent'], $auth);
 $router->get('/api/v1/invoices/{invoice_id}/print',           [\App\Controllers\InvoiceController::class, 'print'],     $auth);
 $router->post('/api/v1/invoices/{invoice_id}/send-email',     [\App\Controllers\InvoiceController::class, 'sendEmail'], $auth);
 
