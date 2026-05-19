@@ -18,7 +18,7 @@ class ReportController extends Controller
 
     public function sales(Request $request): Response
     {
-        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $this->requirePermission(MODULE_REPORTS_SALES, ACTION_VIEW);
         $from   = $request->query('date_from', date('Y-m-01'));
         $to     = $request->query('date_to', date('Y-m-d'));
         $format = $request->query('format', 'json');
@@ -38,7 +38,7 @@ class ReportController extends Controller
 
     public function inventory(Request $request): Response
     {
-        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $this->requirePermission(MODULE_REPORTS_INVENTORY, ACTION_VIEW);
         $data = $this->reportService->inventoryReport();
 
         if ($request->isApi()) return $this->success($data);
@@ -47,7 +47,7 @@ class ReportController extends Controller
 
     public function financial(Request $request): Response
     {
-        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
+        $this->requirePermission(MODULE_REPORTS_FINANCIAL, ACTION_VIEW);
         $from = $request->query('date_from', date('Y-m-01'));
         $to   = $request->query('date_to', date('Y-m-d'));
         $data = $this->reportService->financialReport($from, $to);
@@ -58,8 +58,9 @@ class ReportController extends Controller
 
     public function export(Request $request): Response
     {
-        $this->requirePermission(MODULE_REPORTS, ACTION_VIEW);
         $type   = $request->query('type', 'sales');
+        $moduleMap = ['sales' => MODULE_REPORTS_SALES, 'inventory' => MODULE_REPORTS_INVENTORY, 'financial' => MODULE_REPORTS_FINANCIAL];
+        $this->requirePermission($moduleMap[$type] ?? MODULE_REPORTS_SALES, 'export');
         $from   = $request->query('date_from', date('Y-m-01'));
         $to     = $request->query('date_to', date('Y-m-d'));
 
@@ -83,7 +84,7 @@ class ReportController extends Controller
                 return $this->error('Invalid report type');
         }
 
-        AuditService::log(AUDIT_VIEW, MODULE_REPORTS, null, null, null, "Exported {$type} report");
+        AuditService::log(AUDIT_VIEW, $moduleMap[$type] ?? MODULE_REPORTS_SALES, null, null, null, "Exported {$type} report");
         return $this->exportCsv($fname . '_' . date('Ymd'), $rows);
     }
 
