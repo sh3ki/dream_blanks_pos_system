@@ -18,6 +18,7 @@ class DashboardController extends Controller
 
     public function index(Request $request): Response
     {
+        $this->requirePermission(MODULE_DASHBOARD, ACTION_VIEW);
         $metrics = $this->reportService->dashboardMetrics();
         $charts  = $this->reportService->dashboardCharts('week');
         $userId  = $this->currentUserId();
