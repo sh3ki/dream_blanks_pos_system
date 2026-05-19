@@ -82,7 +82,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
   <div class="card-body" style="padding:16px">
     <div class="filter-bar" style="flex-wrap:wrap;gap:8px">
       <div class="search-bar" style="flex:1;min-width:200px;max-width:280px">
-        <?= icon('search', 16) ?> <input type="text" id="searchInput" placeholder="Search by name or code..." value="<?= htmlspecialchars($filters['search'] ?? '') ?>" oninput="debouncedLoad()" style="width:100%">
+        <?= icon('search', 16) ?> <input type="text" id="searchInput" placeholder="Search stock products..." value="<?= htmlspecialchars($filters['search'] ?? '') ?>" oninput="debouncedLoad()" style="width:100%">
       </div>
       <select id="typeFilter" class="form-select" style="width:130px;height:38px" onchange="loadSp()">
         <option value="">All Types</option>
@@ -124,8 +124,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
         <tr style="cursor:pointer">
           <th style="width:38px"><input type="checkbox" id="spSelectAll" onchange="toggleSpSelectAll(this)" title="Select all"></th>
           <th style="width:52px">Image</th>
-          <th style="padding:0"><?= spSortLink('sp.code',        'Code',    $sort, $order, $filters) ?></th>
-          <th style="padding:0"><?= spSortLink('sp.name',        'Name',    $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= spSortLink('sp.name', 'Stock Product', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= spSortLink('t.name',         'Type',    $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= spSortLink('c.name',         'Color',   $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= spSortLink('s.name',         'Size',    $sort, $order, $filters) ?></th>
@@ -150,8 +149,10 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
               style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--color-gray-100)"
               onerror="this.src='<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>'">
           </td>
-          <td onclick="event.stopPropagation()"><code style="font-size:.8rem"><?= htmlspecialchars($sp['code']) ?></code></td>
-          <td><?= htmlspecialchars($sp['name']) ?></td>
+          <td onclick="event.stopPropagation()">
+            <div style="font-size:.75rem;color:var(--color-gray-500)"><?= htmlspecialchars($sp['code']) ?></div>
+            <div style="font-weight:700"><?= htmlspecialchars($sp['name']) ?></div>
+          </td>
           <td><?= htmlspecialchars($sp['type_code']  ?? $sp['type_name']  ?? '-') ?></td>
           <td><?= htmlspecialchars($sp['color_name'] ?? '-') ?></td>
           <td><?= htmlspecialchars($sp['size_code']  ?? $sp['size_name']  ?? '-') ?></td>
@@ -259,11 +260,16 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
             "reason"          => $h["reason"] ?? "-",
             "created_by_name" => $h["created_by_name"] ?? "-",
           ]), ENT_QUOTES) ?>)'>
-            <td style="white-space:nowrap;font-size:.82rem"><?= !empty($h['created_at']) ? date('M d, Y H:i', strtotime($h['created_at'])) : '-' ?></td>
+            <td style="white-space:nowrap;font-size:.82rem">
+              <?php if (!empty($h['created_at'])): ?>
+                <div style="font-size:.78rem;font-weight:600"><?= date('h:i A', strtotime($h['created_at'])) ?></div>
+                <div style="font-size:.75rem;color:var(--color-gray-500)"><?= date('M d, Y', strtotime($h['created_at'])) ?></div>
+              <?php else: ?>-<?php endif; ?>
+            </td>
             <td>
-              <code style="font-size:.78rem"><?= htmlspecialchars($h['sp_code'] ?? '-') ?></code>
+              <div style="font-size:.78rem;color:var(--color-gray-500)"><?= htmlspecialchars($h['sp_code'] ?? '-') ?></div>
               <?php if (!empty($h['sp_name'])): ?>
-                <br><span style="font-size:.8rem"><?= htmlspecialchars($h['sp_name']) ?></span>
+                <div style="font-weight:700;font-size:.85rem"><?= htmlspecialchars($h['sp_name']) ?></div>
               <?php endif; ?>
             </td>
             <td><?= htmlspecialchars($h['type_code']  ?? $h['type_name']  ?? '-') ?></td>
@@ -317,7 +323,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
             <th style="padding:0"><?= roSortLinkSp('ro.order_number',   'Order #',         $rSort, $rOrder, $restock_filters) ?></th>
             <th style="padding:0"><?= roSortLinkSp('ro.order_date',     'Date',            $rSort, $rOrder, $restock_filters) ?></th>
             <th style="padding:0"><?= roSortLinkSp('ro.supplier_name',  'Supplier',        $rSort, $rOrder, $restock_filters) ?></th>
-            <th>Items</th>
+            <th style="padding:0"><?= roSortLinkSp('items_count',        'Items',           $rSort, $rOrder, $restock_filters) ?></th>
             <th style="padding:0"><?= roSortLinkSp('ro.delivery_status','Delivery Status', $rSort, $rOrder, $restock_filters) ?></th>
             <th>Created By</th>
           </tr>
@@ -868,18 +874,23 @@ async function viewSp(id) {
     }
 
     document.getElementById('viewSpBody').innerHTML = `
-      ${s.image_path ? `<div style="text-align:center;margin-bottom:16px"><img src="${(window.APP_BASE_PATH||'')+s.image_path}" alt="${s.name}" style="max-height:160px;border-radius:10px;border:1px solid var(--color-gray-100);object-fit:contain"></div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Code</div><code>${s.code}</code></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Name</div><strong>${s.name}</strong></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Status</div><span class="badge ${s.status === 'active' ? 'badge-success' : 'badge-gray'}">${s.status}</span></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Type</div>${s.type_name  || '-'}</div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Color</div>${s.color_name || '-'}</div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Size</div>${s.size_name  || '-'}</div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Current Qty</div><span class="badge ${cls}">${qty}</span></div>
-        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Low Stock Alert</div>${alrt}</div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:20px;align-items:start">
+        <img src="${s.image_path ? appPath(s.image_path) : appPath('/assets/images/no-image.png')}" onerror="this.src='${appPath('/assets/images/no-image.png')}'"
+          style="width:140px;height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--color-gray-100)">
+        <div>
+          <div style="font-size:.78rem;color:var(--color-gray-500);margin-bottom:2px">${s.code}</div>
+          <h3 style="margin:0 0 4px">${s.name}</h3>
+          ${s.description ? `<p style="margin:8px 0 0;font-size:.875rem;color:var(--color-gray-600)">${s.description}</p>` : ''}
+        </div>
       </div>
-      ${s.description ? `<p style="margin:12px 0 0;font-size:.875rem;color:var(--color-gray-600)">${s.description}</p>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px">
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Type</div><div>${s.type_name || '-'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Color</div><div>${s.color_name || '-'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Size</div><div>${s.size_name || '-'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Current Qty</div><div><span class="badge ${cls}">${qty}</span></div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Low Stock Alert</div><div>${alrt}</div></div>
+        <div><div style="font-size:.75rem;color:var(--color-gray-400);text-transform:uppercase;font-weight:600">Status</div><div><span class="badge ${s.status === 'active' ? 'badge-success' : 'badge-gray'}">${s.status}</span></div></div>
+      </div>
       ${usedHtml}`;
   } catch (e) { document.getElementById('viewSpBody').innerHTML = '<p class="text-danger">Network error</p>'; }
 }
