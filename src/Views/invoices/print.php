@@ -10,7 +10,8 @@
     body { background: #f0f0f0; font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; font-size: 14px; }
     .invoice-page { background: white; max-width: 740px; margin: 0 auto; padding: 44px 48px; }
     @media print {
-      body { background: white; }
+      @page { margin: 0; }
+      body { background: white; margin: 0; }
       .no-print { display: none !important; }
       .invoice-page { padding: 24px; }
     }
@@ -85,16 +86,10 @@
         <div style="font-size:.8rem;color:#374151"><?= htmlspecialchars($invoice['client_phone']) ?></div>
       <?php endif; ?>
     </div>
+    
     <div style="text-align:right">
       <div style="margin-bottom:6px">
-        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">INVOICE #</span><br>
-        <strong style="font-size:.95rem"><?= htmlspecialchars($invoice['invoice_number']) ?></strong>
-      </div>
-      <div style="margin-bottom:6px">
-        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">DATE</span><br>
-        <strong><?= date('F d, Y', strtotime($invoice['invoice_date'])) ?></strong>
-      </div>
-      <div>
+        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">PAYMENT STATUS: </span>
         <?php
           $psCls = match($invoice['payment_status']) {
             'fully_paid'     => 'badge-success',
@@ -104,10 +99,18 @@
         ?>
         <span class="badge <?= $psCls ?>"><?= str_replace('_', ' ', $invoice['payment_status']) ?></span>
       </div>
+      <div style="margin-bottom:6px">
+        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">INVOICE #: </span>
+        <strong style="font-size:.95rem"><?= htmlspecialchars($invoice['invoice_number']) ?></strong>
+      </div>
+      <div style="margin-bottom:6px">
+        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">DATE: </span>
+        <strong><?= date('F d, Y', strtotime($invoice['invoice_date'])) ?></strong>
+      </div>
     </div>
   </div>
 
-  <div style="border-top:1px solid #e5e7eb;margin-bottom:18px"></div>
+  <div style="border-top:2px solid #000000;margin-bottom:18px"></div>
 
   <!-- ITEMS TABLE -->
   <?php
@@ -152,7 +155,7 @@
     <tfoot>
       <tr style="background:#f9fafb">
         <td style="font-weight:700">Total QTY</td>
-        <td style="text-align:center;font-weight:800;font-size:.95rem"><?= $totalQty ?></td>
+        <td style="text-align:center;font-weight:500;font-size:.95rem"><?= $totalQty ?></td>
         <td colspan="2"></td>
       </tr>
     </tfoot>
@@ -238,18 +241,14 @@
   </div>
   <?php endif; ?>
 
-  <?php if (!empty($invoice['notes'])): ?>
-  <div style="background:#f9fafb;padding:12px 16px;border-radius:6px;margin-bottom:24px;font-size:.875rem">
-    <strong>Notes:</strong> <?= nl2br(htmlspecialchars($invoice['notes'])) ?>
-  </div>
-  <?php endif; ?>
-
   <!-- FOOTER -->
-  <div style="border-top:1px solid #e5e7eb;padding-top:16px;display:flex;justify-content:space-between;font-size:.8rem;color:#374151;margin-top:8px">
+  <div style="border-top:2px solid #000000;padding-top:16px;display:flex;justify-content:space-between;font-size:.8rem;color:#374151;margin-top:8px">
     <div>Sales Staff: <strong><?= htmlspecialchars($invoice['created_by_name'] ?? '—') ?></strong></div>
     <div style="text-align:center">Authorized Signature: _______________</div>
-    <div style="font-style:italic;color:#6b7280">Thank you for your Business!</div>
   </div>
+  
+  <div style="padding-top:32px;font-style:italic;color:#6b7280;text-align:center">Thank you for your Business!</div>
+  
 
 </div><!-- /.invoice-page -->
 
