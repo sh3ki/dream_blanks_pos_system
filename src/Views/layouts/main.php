@@ -48,7 +48,7 @@ $currentPath = strtok($currentPath, '?');
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <span class="brand-icon"><?= icon('store', 20) ?></span>
+      <span class="brand-icon"><?= icon('pos-display', 20) ?></span>
       <span>Dream Blanks</span>
     </div>
     <nav class="nav-menu">
