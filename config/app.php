@@ -9,7 +9,7 @@ return [
     'charset'  => 'UTF-8',
 
     'session' => [
-        'lifetime' => (int)($_ENV['SESSION_LIFETIME'] ?? 120),
+        'lifetime' => (int)($_ENV['SESSION_LIFETIME'] ?? 1440),
         'name'     => 'dream_blanks_session',
     ],
 
