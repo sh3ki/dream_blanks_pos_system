@@ -21,8 +21,14 @@ class SettingsController extends Controller
     public function update(Request $request): Response
     {
         $this->requirePermission(MODULE_SETTINGS, ACTION_EDIT);
-        $allowed = ['business_name', 'currency_symbol', 'date_format', 'time_format',
-                    'low_stock_alert_default', 'invoice_prefix', 'timezone'];
+        $allowed = [
+            'business_name', 'business_address', 'business_email', 'business_phone',
+            'currency_symbol', 'currency_code',
+            'date_format', 'time_format', 'timezone',
+            'low_stock_alert_default',
+            'invoice_prefix', 'invoice_next_number', 'invoice_reset_frequency',
+            'tax_rate', 'receipt_footer',
+        ];
 
         $old = Setting::allAsArray();
         foreach ($allowed as $key) {
