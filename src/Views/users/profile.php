@@ -54,9 +54,12 @@
         <input type="email" id="pEmail" class="form-input" value="<?= htmlspecialchars($user['email'] ?? '') ?>">
       </div>
       <div class="form-group">
-        <label class="form-label">Username</label>
-        <input type="text" class="form-input" value="<?= htmlspecialchars($user['username'] ?? '') ?>" disabled>
-        <span class="form-hint">Username cannot be changed.</span>
+        <label class="form-label">Username <span class="required">*</span></label>
+        <div style="position:relative">
+          <input type="text" id="pUsername" class="form-input" value="<?= htmlspecialchars($user['username'] ?? '') ?>" autocomplete="off" oninput="onUsernameInput()">
+          <span id="usernameStatus" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.8rem;font-weight:600"></span>
+        </div>
+        <span id="usernameHint" class="form-hint" style="display:none"></span>
       </div>
       <div class="form-group">
         <label class="form-label">Role(s)</label>
@@ -99,6 +102,9 @@
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 let _pendingProfileImageFile = null;
 let _originalProfileImageSrc = '';
+let _usernameCheckTimer = null;
+let _usernameAvailable = true; // current username is valid by default
+const _originalUsername = <?= json_encode($user['username'] ?? '') ?>;
 document.addEventListener('DOMContentLoaded', () => { _originalProfileImageSrc = document.getElementById('profileImgPreview').src; });
 
 function handleProfileImageChange(event) {
@@ -140,6 +146,49 @@ async function uploadProfileImage() {
   btn.disabled = false; btn.innerHTML = 'Save Photo';
 }
 
+function onUsernameInput() {
+  clearTimeout(_usernameCheckTimer);
+  const val = document.getElementById('pUsername').value.trim();
+  const statusEl = document.getElementById('usernameStatus');
+  const hintEl   = document.getElementById('usernameHint');
+
+  if (val === _originalUsername || val === '') {
+    statusEl.textContent = '';
+    hintEl.style.display = 'none';
+    _usernameAvailable = true;
+    return;
+  }
+
+  statusEl.textContent = '...';
+  statusEl.style.color = 'var(--color-gray-400)';
+  hintEl.style.display = 'none';
+  _usernameAvailable = false;
+
+  _usernameCheckTimer = setTimeout(() => checkUsernameAvailability(val), 450);
+}
+
+async function checkUsernameAvailability(username) {
+  const statusEl = document.getElementById('usernameStatus');
+  const hintEl   = document.getElementById('usernameHint');
+  try {
+    const res  = await fetch('/api/v1/profile/check-username?username=' + encodeURIComponent(username), {
+      headers: { 'X-CSRF-Token': csrf },
+    });
+    const data = await res.json();
+    const available = data.data?.available ?? false;
+    _usernameAvailable = available;
+    statusEl.textContent = available ? '✓' : '✗';
+    statusEl.style.color  = available ? 'var(--color-success)' : 'var(--color-danger)';
+    hintEl.textContent    = data.data?.message || '';
+    hintEl.style.color    = available ? 'var(--color-success)' : 'var(--color-danger)';
+    hintEl.style.display  = '';
+  } catch (e) {
+    statusEl.textContent = '';
+    hintEl.style.display = 'none';
+    _usernameAvailable = false;
+  }
+}
+
 async function saveProfile() {
   const btn = document.getElementById('saveProfileBtn');
   btn.disabled = true;
@@ -148,9 +197,16 @@ async function saveProfile() {
     middle_name: document.getElementById('pMiddleName').value.trim(),
     last_name:   document.getElementById('pLastName').value.trim(),
     email:       document.getElementById('pEmail').value.trim(),
+    username:    document.getElementById('pUsername').value.trim(),
   };
-  if (!payload.first_name || !payload.last_name || !payload.email) {
-    showToast('First name, last name, and email are required', 'error');
+  if (!payload.first_name || !payload.last_name || !payload.email || !payload.username) {
+    showToast('First name, last name, email, and username are required', 'error');
+    btn.disabled = false;
+    return;
+  }
+  if (!_usernameAvailable) {
+    showToast('Username is already taken — please choose another', 'error');
+    document.getElementById('pUsername').focus();
     btn.disabled = false;
     return;
   }
@@ -161,8 +217,13 @@ async function saveProfile() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (data.success) showToast('Profile updated successfully', 'success');
-    else showToast(data.message || 'Error saving profile', 'error');
+    if (data.success) {
+      showToast('Profile updated successfully', 'success');
+      // Reset username baseline so changed name doesn't re-trigger check
+      _originalUsername !== payload.username && location.reload();
+    } else {
+      showToast(data.message || 'Error saving profile', 'error');
+    }
   } catch (e) { showToast('Network error', 'error'); }
   btn.disabled = false;
 }
