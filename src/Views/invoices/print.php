@@ -100,12 +100,14 @@
         <span class="badge <?= $psCls ?>"><?= str_replace('_', ' ', $invoice['payment_status']) ?></span>
       </div>
       <div style="margin-bottom:6px">
-        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">INVOICE #: </span>
-        <strong style="font-size:.95rem"><?= htmlspecialchars($invoice['invoice_number']) ?></strong>
+        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">DATE: </span>
+        <strong >
+          <span><?= date('h:i A', strtotime($invoice['invoice_date'])) ?> <?= date('F d, Y', strtotime($invoice['invoice_date'])) ?></span>
+        </strong>
       </div>
       <div style="margin-bottom:6px">
-        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">DATE: </span>
-        <strong><?= date('F d, Y', strtotime($invoice['invoice_date'])) ?></strong>
+        <span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#6b7280">INVOICE #: </span>
+        <strong style="font-size:.95rem"><?= htmlspecialchars($invoice['invoice_number']) ?></strong>
       </div>
     </div>
   </div>
@@ -222,6 +224,7 @@
           <th style="text-align:left">#</th>
           <th style="text-align:left">Date</th>
           <th style="text-align:left">Mode</th>
+          <th style="text-align:left">Reference</th>
           <th style="text-align:right">Amount</th>
         </tr>
       </thead>
@@ -231,8 +234,12 @@
         ?>
         <tr>
           <td><?= $i + 1 ?></td>
-          <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
+          <td>
+            <div style="font-size:.78rem;font-weight:600"><?= date('h:i A', strtotime($pay['payment_date'])) ?></div>
+            <div style="font-size:.75rem;color:#6b7280"><?= date('M d, Y', strtotime($pay['payment_date'])) ?></div>
+          </td>
           <td><?= htmlspecialchars($modeLabel) ?></td>
+          <td style="font-size:.78rem"><?= !empty($pay['reference_number']) ? htmlspecialchars($pay['reference_number']) : '—' ?></td>
           <td style="text-align:right">&#8369;<?= number_format((float)$pay['payment_amount'], 2) ?></td>
         </tr>
         <?php endforeach; ?>
