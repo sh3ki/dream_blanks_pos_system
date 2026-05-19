@@ -43,10 +43,21 @@ class AuditLog extends Model
             $params[] = $filters['date_to'];
         }
 
+        if (!empty($filters['search'])) {
+            $like     = '%' . $filters['search'] . '%';
+            $where   .= " AND (al.description LIKE ? OR al.ip_address LIKE ? OR CONCAT(u.first_name,' ',u.last_name) LIKE ?)";
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+        }
+
         $db    = static::db();
-        $total = (int)($db->selectOne("SELECT COUNT(*) as cnt FROM audit_logs al WHERE {$where}", $params)['cnt'] ?? 0);
+        $total = (int)($db->selectOne(
+            "SELECT COUNT(*) as cnt FROM audit_logs al LEFT JOIN users u ON u.id = al.user_id WHERE {$where}",
+            $params
+        )['cnt'] ?? 0);
         $offset = ($page - 1) * $perPage;
-        $sql   = "SELECT al.*, CONCAT(u.first_name,' ',u.last_name) as user_name
+        $sql   = "SELECT al.*, CONCAT(u.first_name,' ',u.last_name) as user_name, u.profile_image as user_profile_image
                   FROM audit_logs al
                   LEFT JOIN users u ON u.id = al.user_id
                   WHERE {$where}
