@@ -95,6 +95,67 @@ class InventoryController extends Controller
         return $this->success(['restock' => $order]);
     }
 
+    public function importRestockCsv(Request $request): Response
+    {
+        $this->requirePermission(MODULE_INVENTORY, ACTION_ADD);
+        $rows         = $request->input('items', []);
+        $supplierName = $request->input('supplier_name', '');
+        $notes        = $request->input('notes', '');
+
+        if (empty($rows)) {
+            throw new ValidationException(['items' => ['No items provided']]);
+        }
+
+        $db = Database::getInstance();
+
+        // Resolve stock_product_id from code for each row
+        $resolvedItems = [];
+        foreach ($rows as $row) {
+            $code = trim($row['code'] ?? '');
+            $qty  = (int)($row['qty'] ?? 0);
+            if ($code === '' || $qty <= 0) continue;
+            $sp = $db->selectOne("SELECT id FROM stock_products WHERE code = ? AND deleted_at IS NULL LIMIT 1", [$code]);
+            if ($sp) {
+                $resolvedItems[] = ['stock_product_id' => (int)$sp['id'], 'quantity_requested' => $qty];
+            }
+        }
+
+        if (empty($resolvedItems)) {
+            return $this->error('No matching stock products found for the provided codes', 422);
+        }
+
+        $db->beginTransaction();
+        try {
+            $orderNumber = RestockOrder::generateOrderNumber();
+            $restockId   = RestockOrder::create([
+                'order_number'    => $orderNumber,
+                'order_date'      => date('Y-m-d'),
+                'supplier_name'   => $supplierName ?: null,
+                'delivery_status' => DELIVERY_ORDERED,
+                'notes'           => $notes ?: null,
+                'created_by'      => $this->currentUserId(),
+            ]);
+
+            foreach ($resolvedItems as $item) {
+                $db->insert('restock_items', [
+                    'restock_id'         => $restockId,
+                    'stock_product_id'   => $item['stock_product_id'],
+                    'quantity_requested' => $item['quantity_requested'],
+                    'quantity_received'  => 0,
+                    'created_at'         => date('Y-m-d H:i:s'),
+                    'updated_at'         => date('Y-m-d H:i:s'),
+                ]);
+            }
+
+            $db->commit();
+            AuditService::log(AUDIT_CREATE, MODULE_INVENTORY, $restockId, null, null, "Created restock order #{$orderNumber} via CSV import");
+            return $this->success(['restock_id' => $restockId, 'order_number' => $orderNumber], 'Restock order created from CSV', 201);
+        } catch (\Throwable $e) {
+            $db->rollback();
+            throw $e;
+        }
+    }
+
     public function createRestock(Request $request): Response
     {
         $this->requirePermission(MODULE_INVENTORY, ACTION_ADD);
