@@ -6,7 +6,9 @@ $exportUrl = '/api/v1/reports/export?type=inventory';
 ?>
 <div class="page-header">
   <h1>Inventory Report</h1>
+  <?php if (can('reports_inventory', 'export')): ?>
   <a href="<?= $exportUrl ?>" class="btn btn-secondary">⬇ Export CSV</a>
+  <?php endif; ?>
 </div>
 
 <div class="stats-grid">
