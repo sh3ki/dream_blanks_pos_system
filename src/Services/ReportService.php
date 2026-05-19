@@ -110,7 +110,7 @@ class ReportService
         );
 
         $receivables = $this->db->select(
-            "SELECT i.invoice_number, CONCAT(c.first_name,' ',c.last_name) as client_name,
+            "SELECT i.invoice_number, c.full_name as client_name,
                     i.total_amount, i.total_paid, (i.total_amount - i.total_paid) as balance_due,
                     i.invoice_date, i.payment_status
              FROM invoices i
