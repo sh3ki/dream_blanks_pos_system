@@ -46,6 +46,9 @@ $router->get('/inventory',        [\App\Controllers\InventoryController::class, 
 // Invoices
 $router->get('/invoices',     [\App\Controllers\InvoiceController::class, 'index'], $auth);
 
+// Transactions
+$router->get('/transactions', [\App\Controllers\TransactionController::class, 'index'], $auth);
+
 // Reports
 $router->get('/reports/sales',     [\App\Controllers\ReportController::class, 'sales'],     $auth);
 $router->get('/reports/inventory', [\App\Controllers\ReportController::class, 'inventory'], $auth);
