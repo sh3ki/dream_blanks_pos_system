@@ -26,6 +26,9 @@ if (!function_exists('icon')) {
             'bell'           => '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
             'logout'         => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>',
             'menu'           => '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
+            'monitor'        => '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+            'pos-display'    => '<rect x="4" y="3" width="16" height="12" rx="2" ry="2"/><line x1="7" y1="7" x2="13" y2="7"/><line x1="7" y1="11" x2="10" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/><path d="M10 15v4"/><path d="M7 21h10"/><rect x="3" y="17" width="18" height="4" rx="1"/>',
+            'pos-terminal'   => '<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><rect x="7" y="5" width="10" height="4" rx="1"/><line x1="8" y1="13" x2="10" y2="13"/><line x1="14" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="10" y2="17"/><line x1="14" y1="17" x2="16" y2="17"/><line x1="12" y1="13" x2="12" y2="17"/>',
             // Actions
             'edit'           => '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
             'delete'         => '<polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
