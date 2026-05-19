@@ -49,7 +49,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
           <th style="padding:0"><?= txSortLink('c.full_name',      'Client',    $sort, $order, $filters) ?></th>
           <th>Products</th>
           <th style="padding:0"><?= txSortLink('i.total_amount',   'Total',     $sort, $order, $filters) ?></th>
-          <th>Payment</th>
+          <th style="padding:0"><?= txSortLink('i.primary_payment_mode',  'Method',    $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= txSortLink('i.payment_status', 'Status',    $sort, $order, $filters) ?></th>
           <th>Actions</th>
         </tr>
