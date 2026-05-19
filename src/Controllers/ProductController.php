@@ -287,7 +287,7 @@ class ProductController extends Controller
 
     public function bulkImport(Request $request): Response
     {
-        $this->requirePermission(MODULE_PRODUCTS, ACTION_ADD);
+        $this->requirePermission(MODULE_PRODUCTS, ACTION_IMPORT);
         $file = $request->file('file');
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
             return $this->error('No file uploaded');
