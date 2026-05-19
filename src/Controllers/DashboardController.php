@@ -19,21 +19,25 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $this->requirePermission(MODULE_DASHBOARD, ACTION_VIEW);
-        $metrics = $this->reportService->dashboardMetrics();
-        $charts  = $this->reportService->dashboardCharts('week');
-        $userId  = $this->currentUserId();
-        $unread  = $userId ? Notification::unreadCount($userId) : 0;
+        $metrics        = $this->reportService->dashboardMetrics();
+        $charts         = $this->reportService->dashboardCharts('week');
+        $recentInvoices = $this->reportService->recentInvoices(10);
+        $lowStockItems  = $this->reportService->lowStockAlerts(8);
+        $userId         = $this->currentUserId();
+        $unread         = $userId ? Notification::unreadCount($userId) : 0;
 
         if ($request->isApi()) {
             return $this->success(['metrics' => $metrics, 'charts' => $charts]);
         }
 
         return $this->view('dashboard/index', [
-            'metrics'        => $metrics,
-            'charts'         => $charts,
-            'unread_notifications' => $unread,
-            'title'          => 'Dashboard',
-            'pageTitle' => 'Dashboard',
+            'metrics'               => $metrics,
+            'charts'                => $charts,
+            'recentInvoices'        => $recentInvoices,
+            'lowStockItems'         => $lowStockItems,
+            'unread_notifications'  => $unread,
+            'title'                 => 'Dashboard',
+            'pageTitle'             => 'Dashboard',
         ]);
     }
 
