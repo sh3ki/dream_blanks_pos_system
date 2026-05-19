@@ -2,6 +2,10 @@
 <?php
 $sort  = $filters['sort']  ?? 'i.invoice_date';
 $order = strtoupper($filters['order'] ?? 'DESC');
+$canDownload  = can('invoices',  'download');
+$canPayView   = can('payments',  'view');
+$canPayEdit   = can('payments',  'edit');
+$canPayDelete = can('payments',  'delete');
 function txSortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
     $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
     $params    = array_filter(array_merge($filters, ['sort' => $col, 'order' => $nextOrder]), fn($v) => $v !== '');
@@ -93,8 +97,12 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
           <td><?= $methodBadge ?></td>
           <td><span class="badge <?= $statusCls ?>"><?= str_replace('_', ' ', ucfirst($tx['payment_status'])) ?></span></td>
           <td onclick="event.stopPropagation()" style="white-space:nowrap">
+            <?php if ($canDownload): ?>
             <a href="<?= app_url('/api/v1/invoices/' . $tx['id'] . '/print') ?>?download=1" target="_blank" class="icon-btn" title="Download PDF"><?= icon('download', 15) ?></a>
+            <?php endif; ?>
+            <?php if ($canPayView): ?>
             <button class="icon-btn" onclick="viewTxPayHistory(<?= $tx['id'] ?>, '<?= htmlspecialchars($tx['invoice_number']) ?>')" title="Payment History"><?= icon('history', 15) ?></button>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -114,7 +122,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
 
 <!-- TX Payment History Modal -->
 <div class="modal-overlay" id="txPayHistModal">
-  <div class="modal-content" style="max-width:600px">
+  <div class="modal-content" style="max-width:680px">
     <div class="modal-header">
       <h2 class="modal-title">Payment History &mdash; <span id="txPayHistInvNum"></span></h2>
       <button class="modal-close" onclick="document.getElementById('txPayHistModal').classList.remove('show')"><?= icon('close', 16) ?></button>
@@ -126,6 +134,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
           <tr>
             <th>#</th><th>Date</th><th>Mode</th><th>Reference</th>
             <th style="text-align:right">Amount</th><th>Recorded By</th>
+            <?php if ($canPayEdit || $canPayDelete): ?><th>Actions</th><?php endif; ?>
           </tr>
         </thead>
         <tbody id="txPayHistBody"></tbody>
@@ -134,7 +143,65 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
     </div>
   </div>
 </div>
+
+<!-- Edit Payment Modal -->
+<div class="modal-overlay" id="txEditPayModal">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Payment</h2>
+      <button class="modal-close" onclick="closeModal('txEditPayModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="txEditPayId">
+      <div class="form-group">
+        <label class="form-label">Payment Date</label>
+        <input type="date" id="txEditPayDate" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (₱) <span class="required">*</span></label>
+        <input type="number" id="txEditPayAmount" class="form-input" min="0.01" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Mode</label>
+        <select id="txEditPayMode" class="form-select">
+          <option value="cash">💵 Cash</option>
+          <option value="bdo">🏦 BDO</option>
+          <option value="gcash">📱 GCash</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reference Number</label>
+        <input type="text" id="txEditPayRef" class="form-input">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('txEditPayModal')">Cancel</button>
+      <button class="btn btn-primary" id="txSaveEditPayBtn" onclick="txSaveEditPayment()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Payment Confirm Modal -->
+<div class="modal-overlay" id="txDeletePayModal">
+  <div class="modal-content" style="max-width:380px">
+    <div class="modal-header">
+      <h2 class="modal-title">Delete Payment</h2>
+      <button class="modal-close" onclick="closeModal('txDeletePayModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p id="txDeletePayMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('txDeletePayModal')">Cancel</button>
+      <button class="btn btn-danger" id="txConfirmDeletePayBtn">Delete</button>
+    </div>
+  </div>
+</div>
 <script>
+const TX_PAY_CAN_EDIT   = <?= $canPayEdit   ? 'true' : 'false' ?>;
+const TX_PAY_CAN_DELETE = <?= $canPayDelete ? 'true' : 'false' ?>;
+const txCsrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
 async function viewTxPayHistory(invoiceId, invoiceNum) {
   document.getElementById('txPayHistInvNum').textContent    = invoiceNum;
   document.getElementById('txPayHistLoading').style.display = '';
@@ -147,7 +214,6 @@ async function viewTxPayHistory(invoiceId, invoiceNum) {
     const payments = data.data?.payments ?? [];
     document.getElementById('txPayHistLoading').style.display = 'none';
     if (!payments.length) { document.getElementById('txPayHistEmpty').style.display = ''; return; }
-    const modeLabel = { cash: 'Cash', bdo: 'Bank Transfer', gcash: 'GCash' };
     const modeBadge  = {
       cash:  '<span class="badge" style="background:#dcfce7;color:#166534">Cash</span>',
       bdo:   '<span class="badge" style="background:#fef9c3;color:#854d0e">Bank Transfer</span>',
@@ -157,9 +223,12 @@ async function viewTxPayHistory(invoiceId, invoiceNum) {
       const d = new Date(p.payment_date.replace(' ', 'T'));
       const time = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
       const date = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-      const badge = modeBadge[p.payment_mode] ?? `<span class="badge badge-secondary">${modeLabel[p.payment_mode] ?? p.payment_mode ?? '&mdash;'}</span>`;
-      return `
-      <tr>
+      const badge = modeBadge[p.payment_mode] ?? `<span class="badge badge-secondary">${p.payment_mode ?? '&mdash;'}</span>`;
+      const actionsCol = (TX_PAY_CAN_EDIT || TX_PAY_CAN_DELETE) ? `<td style="white-space:nowrap">
+        ${TX_PAY_CAN_EDIT   ? `<button class="icon-btn" onclick="txOpenEditPayment(${p.id},'${p.payment_date.slice(0,10)}',${p.payment_amount},'${p.payment_mode}','${p.reference_number??''}')" title="Edit">${<?= json_encode(icon('edit', 14)) ?>}</button>` : ''}
+        ${TX_PAY_CAN_DELETE ? `<button class="icon-btn danger" onclick="txOpenDeletePayment(${p.id},${i+1})" title="Delete">${<?= json_encode(icon('delete', 14)) ?>}</button>` : ''}
+      </td>` : '';
+      return `<tr>
         <td>${i + 1}</td>
         <td style="white-space:nowrap">
           <div style="font-size:.78rem;font-weight:600">${time}</div>
@@ -169,6 +238,7 @@ async function viewTxPayHistory(invoiceId, invoiceNum) {
         <td style="font-size:.82rem">${p.reference_number || '<span style="color:var(--color-gray-400)">&mdash;</span>'}</td>
         <td style="text-align:right;font-weight:600">&#8369;${parseFloat(p.payment_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
         <td style="font-size:.82rem">${p.recorded_by_name ?? '&mdash;'}</td>
+        ${actionsCol}
       </tr>`;
     }).join('');
     document.getElementById('txPayHistTable').style.display = '';
@@ -177,6 +247,47 @@ async function viewTxPayHistory(invoiceId, invoiceNum) {
     document.getElementById('txPayHistEmpty').textContent = 'Failed to load payment history.';
     document.getElementById('txPayHistEmpty').style.display = '';
   }
+}
+
+function txOpenEditPayment(id, date, amount, mode, ref) {
+  document.getElementById('txEditPayId').value     = id;
+  document.getElementById('txEditPayDate').value   = date;
+  document.getElementById('txEditPayAmount').value = amount;
+  document.getElementById('txEditPayMode').value   = mode;
+  document.getElementById('txEditPayRef').value    = ref;
+  openModal('txEditPayModal');
+}
+
+async function txSaveEditPayment() {
+  const btn = document.getElementById('txSaveEditPayBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const id = document.getElementById('txEditPayId').value;
+  try {
+    const res  = await fetch('/api/v1/payments/' + id, {
+      method: 'PUT', headers: {'Content-Type':'application/json','X-CSRF-Token':txCsrf},
+      body: JSON.stringify({
+        payment_date:     document.getElementById('txEditPayDate').value,
+        payment_amount:   parseFloat(document.getElementById('txEditPayAmount').value),
+        payment_mode:     document.getElementById('txEditPayMode').value,
+        reference_number: document.getElementById('txEditPayRef').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) { showToast('Payment updated', 'success'); closeModal('txEditPayModal'); setTimeout(() => location.reload(), 600); }
+    else showToast(data.message || 'Error', 'error');
+  } catch (e) { showToast('Network error', 'error'); }
+  btn.disabled = false; btn.innerHTML = 'Save Changes';
+}
+
+function txOpenDeletePayment(id, num) {
+  document.getElementById('txDeletePayMsg').textContent = `Delete payment #${num}? This cannot be undone.`;
+  document.getElementById('txConfirmDeletePayBtn').onclick = async () => {
+    const res  = await fetch('/api/v1/payments/' + id, { method:'DELETE', headers:{'X-CSRF-Token':txCsrf} });
+    const data = await res.json();
+    if (data.success) { showToast('Payment deleted', 'success'); closeModal('txDeletePayModal'); setTimeout(() => location.reload(), 600); }
+    else showToast(data.message || 'Error', 'error');
+  };
+  openModal('txDeletePayModal');
 }
 </script>
 
