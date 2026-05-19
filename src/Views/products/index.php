@@ -68,14 +68,13 @@
       <thead>
         <tr style="cursor:pointer">
           <th style="width:52px">Image</th>
-          <th style="padding:0"><?= sortLink('p.sku', 'SKU', $sort, $order, $filters) ?></th>
-          <th style="padding:0"><?= sortLink('p.name', 'Name', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= sortLink('p.name', 'Product', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('c.name', 'Category', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('t.name', 'Type', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('cl.name', 'Color', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('s.name', 'Size', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('p.selling_price', 'Price', $sort, $order, $filters) ?></th>
-          <th>Stock</th>
+          <th style="padding:0"><?= sortLink('p.computed_stock', 'QTY', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('stock_status', 'Stock Status', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= sortLink('p.status', 'Status', $sort, $order, $filters) ?></th>
           <th>Actions</th>
@@ -92,8 +91,10 @@
               onerror="this.src='<?= htmlspecialchars(asset_url('/assets/images/no-image.png')) ?>'"
             >
           </td>
-          <td onclick="event.stopPropagation()"><code style="font-size:.8rem"><?= htmlspecialchars($p['sku']) ?></code></td>
-          <td><?= htmlspecialchars($p['name']) ?></td>
+          <td onclick="event.stopPropagation()">
+            <div style="font-size:.75rem;color:var(--color-gray-500)"><?= htmlspecialchars($p['sku']) ?></div>
+            <div style="font-weight:700"><?= htmlspecialchars($p['name']) ?></div>
+          </td>
           <td><?= htmlspecialchars($p['category_code'] ?? $p['category_name'] ?? '-') ?></td>
           <td><?= htmlspecialchars($p['type_code'] ?? $p['type_name'] ?? '-') ?></td>
           <td><?= htmlspecialchars($p['color_name'] ?? '-') ?></td>
@@ -117,7 +118,7 @@
         </tr>
         <?php endforeach; ?>
         <?php if (empty($products)): ?>
-          <tr><td colspan="12" class="text-center text-muted" style="padding:48px">No products found</td></tr>
+          <tr><td colspan="11" class="text-center text-muted" style="padding:48px">No products found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
