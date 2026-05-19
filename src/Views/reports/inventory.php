@@ -43,7 +43,7 @@ $jsRestock     = json_encode([
 .rpt-val-row:last-child{border-bottom:none}
 @media(max-width:1200px){.rpt-kpi-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:800px){.rpt-kpi-grid{grid-template-columns:repeat(2,1fr)}.rpt-row.c12,.rpt-row.c11{grid-template-columns:1fr}}
-@media print{.btn{display:none!important}.rpt-card{box-shadow:none;border:1px solid #ddd}}
+@media print{@page{margin:0}body{padding:12mm!important}.btn{display:none!important}.rpt-card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid;page-break-inside:avoid}.rpt-row{break-inside:avoid;page-break-inside:avoid}.rpt-kpi-card{break-inside:avoid;page-break-inside:avoid}.rpt-kpi-grid{break-inside:avoid;page-break-inside:avoid}}
 </style>
 
 <div class="page-header" style="margin-bottom:14px">
@@ -53,12 +53,14 @@ $jsRestock     = json_encode([
   </div>
   <div style="display:flex;gap:6px">
     <?php if(can('reports_inventory','export')): ?>
-    <a href="<?php echo $exportUrl; ?>" class="btn btn-secondary">&#8595; Export CSV</a>
+    <button type="button" class="btn btn-secondary" onclick="exportPDF(this,'inventory-report-<?php echo date('Y-m-d'); ?>.pdf')">&#128196; Export PDF</button>
     <?php endif; ?>
+    <?php if(can('reports_inventory','view')): ?>
     <button type="button" class="btn btn-secondary" onclick="window.print()">&#128438; Print</button>
+    <?php endif; ?>
   </div>
 </div>
-
+<div id="rpt-content">
 <div class="rpt-sl">Stock Overview</div>
 <div class="rpt-kpi-grid">
   <div class="rpt-kpi-card" style="--rpt-accent:#0056B3">
@@ -133,7 +135,9 @@ $jsRestock     = json_encode([
     </table>
   </div>
 </div>
+</div><!-- /rpt-content -->
 
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
@@ -211,6 +215,11 @@ const restockData=<?php echo $jsRestock; ?>;
     }}
   });
 })();
+function exportPDF(btn,filename){
+  const el=document.getElementById('rpt-content');
+  const orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML='\u231B Generating…';
+  html2pdf().set({margin:[10,8],filename:filename,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}}).from(el).save().then(()=>{btn.disabled=false;btn.innerHTML=orig;});}
 </script>
 <?php
 $content = ob_get_clean();
