@@ -55,7 +55,9 @@
     </div>
 
     <div style="display:flex;justify-content:flex-end">
+      <?php if (can('settings', 'edit')): ?>
       <button class="btn btn-primary" id="saveSettingsBtn" onclick="saveSettings()">Save Settings</button>
+      <?php endif; ?>
     </div>
   </div>
 </div>
