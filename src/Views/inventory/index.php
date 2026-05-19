@@ -166,7 +166,7 @@ function roSortLinkInv(string $col, string $label, string $cs, string $co, array
           <td><span class="badge <?= $sCls ?>"><?= $sLbl ?></span></td>
           <td><span class="badge <?= $sp['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($sp['status']) ?></span></td>
           <td onclick="event.stopPropagation()">
-            <button class="icon-btn" onclick="openRestock([<?= $sp['id'] ?>])" title="Create Restock">🔄</button>
+            <button class="icon-btn" onclick="openRestock([<?= $sp['id'] ?>])" title="Create Restock"><?= icon('restock', 15) ?></button>
           </td>
         </tr>
         <?php endforeach; ?>
