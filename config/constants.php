@@ -26,12 +26,14 @@ define('DELIVERY_INCOMPLETE',  'incomplete');
 define('DELIVERY_PROBLEMATIC', 'problematic');
 
 // Audit action types
-define('AUDIT_CREATE', 'create');
-define('AUDIT_UPDATE', 'update');
-define('AUDIT_DELETE', 'delete');
-define('AUDIT_LOGIN',  'login');
-define('AUDIT_LOGOUT', 'logout');
-define('AUDIT_VIEW',   'view');
+define('AUDIT_CREATE',  'create');
+define('AUDIT_UPDATE',  'update');
+define('AUDIT_DELETE',  'delete');
+define('AUDIT_LOGIN',   'login');
+define('AUDIT_LOGOUT',  'logout');
+define('AUDIT_VIEW',    'view');
+define('AUDIT_PAYMENT', 'payment');
+define('AUDIT_RESTOCK', 'restock');
 
 // User statuses
 define('STATUS_ACTIVE',   'active');
@@ -67,16 +69,22 @@ define('MODULE_INVENTORY',      'inventory');
 define('MODULE_POS',            'pos');
 define('MODULE_INVOICES',       'invoices');
 define('MODULE_PAYMENTS',       'payments');
-define('MODULE_REPORTS',        'reports');
-define('MODULE_SETTINGS',       'settings');
+define('MODULE_REPORTS_SALES',      'reports_sales');
+define('MODULE_REPORTS_INVENTORY',  'reports_inventory');
+define('MODULE_REPORTS_FINANCIAL',  'reports_financial');
+define('MODULE_SETTINGS',           'settings');
 define('MODULE_AUDIT_LOGS',     'audit_logs');
 define('MODULE_NOTIFICATIONS',  'notifications');
 
 // Permission actions
-define('ACTION_VIEW',   'view');
-define('ACTION_ADD',    'add');
-define('ACTION_EDIT',   'edit');
-define('ACTION_DELETE', 'delete');
+define('ACTION_VIEW',    'view');
+define('ACTION_ADD',     'add');
+define('ACTION_EDIT',    'edit');
+define('ACTION_DELETE',  'delete');
+define('ACTION_IMPORT',  'import');
+define('ACTION_EXPORT',  'export');
+define('ACTION_ADJUST',  'adjust');
+define('ACTION_RESTOCK', 'restock');
 
 // Paths
 if (!defined('ROOT_PATH')) {
