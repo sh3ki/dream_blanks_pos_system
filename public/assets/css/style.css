@@ -109,7 +109,7 @@ h6 { font-size: 0.875rem; font-weight: 600; }
   white-space: nowrap;
   overflow: hidden;
 }
-.sidebar.collapsed .nav-section-label { opacity: 0; }
+.sidebar.collapsed .nav-section-label { display: none; }
 
 .nav-link {
   display: flex;
