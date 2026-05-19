@@ -25,8 +25,12 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
 <div class="page-header">
   <h1>Stock Products</h1>
   <div class="d-flex gap-8">
+    <?php if (can('stock_products', 'import')): ?>
     <button class="btn btn-secondary btn-sm" onclick="showSpImportModal()"><?= icon('upload', 15) ?> Import CSV</button>
+    <?php endif; ?>
+    <?php if (can('stock_products', 'add')): ?>
     <button class="btn btn-primary" onclick="showSpModal()">+ Add Stock Product</button>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -72,11 +76,13 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
 <div id="tab-stock-products" style="display:<?= $activeTab === 'stock-products' ? 'block' : 'none' ?>">
 
 <!-- Floating multi-select adjust bar -->
+<?php if (can('stock_products', 'adjust')): ?>
 <div id="spAdjustSelectionBar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--color-primary);color:#fff;padding:12px 24px;border-radius:30px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:1000;align-items:center;gap:12px">
   <span id="spAdjustSelectionCount">0 selected</span>
   <button class="btn btn-sm" style="background:#fff;color:var(--color-primary);font-weight:600" onclick="openBulkAdjust()">Adjust Selected</button>
   <button style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem" onclick="clearSpSelection()">✕</button>
 </div>
+<?php endif; ?>
 
 <div class="card">
   <div class="card-body" style="padding:16px">
@@ -168,9 +174,15 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
           <td><span class="badge <?= $sCls ?>"><?= $sLbl ?></span></td>
           <td><span class="badge <?= $sp['status'] === 'active' ? 'badge-success' : 'badge-gray' ?>"><?= ucfirst($sp['status']) ?></span></td>
           <td onclick="event.stopPropagation()">
+            <?php if (can('stock_products', 'adjust')): ?>
             <button class="icon-btn" onclick="adjustSp(<?= $sp['id'] ?>, '<?= htmlspecialchars($sp['name'], ENT_QUOTES) ?>', <?= $qty ?>)" title="Adjust Stock">±</button>
+            <?php endif; ?>
+            <?php if (can('stock_products', 'edit')): ?>
             <button class="icon-btn" onclick="editSp(<?= $sp['id'] ?>)" title="Edit"><?= icon('edit', 15) ?></button>
+            <?php endif; ?>
+            <?php if (can('stock_products', 'delete')): ?>
             <button class="icon-btn danger" onclick="deleteSp(<?= $sp['id'] ?>, '<?= htmlspecialchars($sp['name'], ENT_QUOTES) ?>')" title="Delete"><?= icon('delete', 15) ?></button>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
