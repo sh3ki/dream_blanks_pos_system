@@ -53,60 +53,94 @@ $currentPath = strtok($currentPath, '?');
     </div>
     <nav class="nav-menu">
       <div class="nav-section-label">Main</div>
+      <?php if (can('dashboard', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/dashboard')) ?>" class="nav-link <?= str_starts_with($currentPath,'/dashboard') || $currentPath==='/' ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('dashboard') ?></span><span class="nav-label">Dashboard</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('pos', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/pos')) ?>" class="nav-link <?= str_starts_with($currentPath,'/pos') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('pos') ?></span><span class="nav-label">Point of Sale</span>
       </a>
+      <?php endif; ?>
 
       <div class="nav-section-label">Management</div>
+      <?php if (can('invoices', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/invoices')) ?>" class="nav-link <?= str_starts_with($currentPath,'/invoices') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('invoice') ?></span><span class="nav-label">Invoices</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('transactions', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/transactions')) ?>" class="nav-link <?= str_starts_with($currentPath,'/transactions') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('transactions') ?></span><span class="nav-label">Transactions</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('clients', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/clients')) ?>" class="nav-link <?= str_starts_with($currentPath,'/clients') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('clients') ?></span><span class="nav-label">Clients</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('products', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/products')) ?>" class="nav-link <?= str_starts_with($currentPath,'/products') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('products') ?></span><span class="nav-label">Products</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('stock_products', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/stock-products')) ?>" class="nav-link <?= str_starts_with($currentPath,'/stock-products') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('package') ?></span><span class="nav-label">Stock Products</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('inventory', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/inventory')) ?>" class="nav-link <?= str_starts_with($currentPath,'/inventory') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('inventory') ?></span><span class="nav-label">Inventory</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('variations', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/variations')) ?>" class="nav-link <?= str_starts_with($currentPath,'/variations') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('variations') ?></span><span class="nav-label">Variations</span>
       </a>
+      <?php endif; ?>
 
+      <?php if (can('reports_sales','view') || can('reports_inventory','view') || can('reports_financial','view')): ?>
       <div class="nav-section-label">Reports</div>
+      <?php if (can('reports_sales', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/reports/sales')) ?>" class="nav-link <?= str_starts_with($currentPath,'/reports/sales') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('chart-bar') ?></span><span class="nav-label">Sales Report</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('reports_inventory', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/reports/inventory')) ?>" class="nav-link <?= str_starts_with($currentPath,'/reports/inventory') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('clipboard') ?></span><span class="nav-label">Inventory Report</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('reports_financial', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/reports/financial')) ?>" class="nav-link <?= str_starts_with($currentPath,'/reports/financial') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('money') ?></span><span class="nav-label">Financial Report</span>
       </a>
+      <?php endif; ?>
+      <?php endif; ?>
 
       <div class="nav-section-label">System</div>
+      <?php if (can('audit_logs', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/audit-logs')) ?>" class="nav-link <?= str_starts_with($currentPath,'/audit-logs') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('audit') ?></span><span class="nav-label">Audit Logs</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('users', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/users')) ?>" class="nav-link <?= str_starts_with($currentPath,'/users') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('users') ?></span><span class="nav-label">Users</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('roles', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/roles')) ?>" class="nav-link <?= str_starts_with($currentPath,'/roles') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('roles') ?></span><span class="nav-label">Roles</span>
       </a>
+      <?php endif; ?>
+      <?php if (can('settings', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/settings')) ?>" class="nav-link <?= str_starts_with($currentPath,'/settings') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('settings') ?></span><span class="nav-label">Settings</span>
       </a>
+      <?php endif; ?>
     </nav>
   </aside>
 
