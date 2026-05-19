@@ -30,6 +30,20 @@ class Invoice extends Model
     {
         $invoice = static::db()->selectOne(
             "SELECT i.*, c.full_name as client_name,
+                    c.email as client_email,
+                    (SELECT cc.contact_number FROM client_contacts cc
+                     WHERE cc.client_id = i.client_id AND cc.is_primary = 1
+                     LIMIT 1) as client_phone,
+                    (SELECT CONCAT_WS(', ',
+                         ca.street_address,
+                         NULLIF(ca.barangay,''),
+                         ca.city,
+                         NULLIF(ca.province,''),
+                         NULLIF(ca.postal_code,''))
+                     FROM client_addresses ca
+                     WHERE ca.client_id = i.client_id AND ca.is_primary = 1
+                       AND ca.deleted_at IS NULL
+                     LIMIT 1) as client_address,
                     CONCAT(u.first_name,' ',u.last_name) as created_by_name
              FROM invoices i
              LEFT JOIN clients c ON c.id = i.client_id
