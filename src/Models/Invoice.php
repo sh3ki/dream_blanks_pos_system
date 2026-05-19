@@ -108,7 +108,17 @@ class Invoice extends Model
             $params[] = $filters['date_to'];
         }
 
-        $allowedSort = ['i.invoice_number','i.invoice_date','i.total_amount','i.payment_status','i.created_at','c.full_name','i.total_paid','i.balance'];
+        if (!empty($filters['method'])) {
+            $where   .= " AND i.primary_payment_mode = ?";
+            $params[] = $filters['method'];
+        }
+
+        if (!empty($filters['invoice_sent'])) {
+            $where   .= " AND i.invoice_sent = ?";
+            $params[] = $filters['invoice_sent'];
+        }
+
+        $allowedSort = ['i.invoice_number','i.invoice_date','i.total_amount','i.payment_status','i.created_at','c.full_name','i.total_paid','i.balance','i.primary_payment_mode','i.invoice_sent'];
         $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.created_at';
         $order = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 
@@ -120,7 +130,7 @@ class Invoice extends Model
 
         $offset = ($page - 1) * $perPage;
         $sortExpr = $sort === 'i.balance' ? '(i.total_amount - i.total_paid)' : $sort;
-        $sql    = "SELECT i.*, c.full_name as client_name,
+        $sql    = "SELECT i.*, c.full_name as client_name, c.email as client_email,
                           (i.total_amount - i.total_paid) as balance
                    FROM invoices i
                    LEFT JOIN clients c ON c.id = i.client_id
@@ -156,5 +166,70 @@ class Invoice extends Model
         }
 
         static::update($invoiceId, ['total_paid' => $totalPaid, 'payment_status' => $status]);
+    }
+
+    public static function searchItems(array $filters, int $page, int $perPage): array
+    {
+        // Match filter operates on joined rows; GROUP BY i.id collapses to 1 row per invoice.
+        // Products list uses a correlated subquery so ALL products appear regardless of search term.
+        $where  = "i.deleted_at IS NULL";
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $term    = "%{$filters['search']}%";
+            $where  .= " AND (i.invoice_number LIKE ? OR p.name LIKE ? OR p.sku LIKE ? OR c.full_name LIKE ?)";
+            $params  = array_merge($params, [$term, $term, $term, $term]);
+        }
+
+        if (!empty($filters['date_from'])) {
+            $where   .= " AND DATE(i.invoice_date) >= ?";
+            $params[] = $filters['date_from'];
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where   .= " AND DATE(i.invoice_date) <= ?";
+            $params[] = $filters['date_to'];
+        }
+
+        $allowedSort = ['i.invoice_number', 'i.invoice_date', 'c.full_name', 'i.total_amount', 'i.payment_status'];
+        $sort  = in_array($filters['sort'] ?? '', $allowedSort) ? $filters['sort'] : 'i.invoice_date';
+        $order = strtoupper($filters['order'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+
+        $db    = static::db();
+        $total = (int)($db->selectOne(
+            "SELECT COUNT(DISTINCT i.id) as cnt
+             FROM invoices i
+             LEFT JOIN clients c ON c.id = i.client_id
+             LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
+             LEFT JOIN products p ON p.id = ii.product_id
+             WHERE {$where}",
+            $params
+        )['cnt'] ?? 0);
+
+        $offset = ($page - 1) * $perPage;
+        $sql = "SELECT i.id, i.invoice_number, i.invoice_date, i.payment_status,
+                       i.primary_payment_mode as payment_mode, i.total_amount,
+                       c.full_name as client_name, c.email as client_email,
+                       (SELECT GROUP_CONCAT(CONCAT(p2.name, ' ×', ii2.quantity)
+                                ORDER BY p2.name SEPARATOR ', ')
+                        FROM invoice_items ii2
+                        INNER JOIN products p2 ON p2.id = ii2.product_id
+                        WHERE ii2.invoice_id = i.id) as products_list,
+                       (SELECT COUNT(*) FROM invoice_items WHERE invoice_id = i.id) as item_count,
+                       (SELECT COALESCE(SUM(quantity),0) FROM invoice_items WHERE invoice_id = i.id) as total_qty
+                FROM invoices i
+                LEFT JOIN clients c ON c.id = i.client_id
+                LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
+                LEFT JOIN products p ON p.id = ii.product_id
+                WHERE {$where}
+                GROUP BY i.id
+                ORDER BY {$sort} {$order}, i.id DESC
+                LIMIT {$perPage} OFFSET {$offset}";
+        $items = $db->select($sql, $params);
+
+        return [
+            'data'       => $items,
+            'pagination' => ['current_page' => $page, 'per_page' => $perPage, 'total' => $total, 'last_page' => (int)ceil($total / $perPage)],
+        ];
     }
 }
