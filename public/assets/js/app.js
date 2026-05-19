@@ -89,10 +89,13 @@ function openNotifications() {
     modal.id = 'notificationsModal';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-      <div class="modal-content" style="max-width:520px">
+      <div class="modal-content" style="max-width:700px">
         <div class="modal-header">
           <h2 class="modal-title">Notifications</h2>
-          <button class="modal-close" onclick="closeNotifications()">✕</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="markAllNotificationsRead()" id="markAllReadBtn">Mark all as read</button>
+            <button class="modal-close" onclick="closeNotifications()">✕</button>
+          </div>
         </div>
         <div class="modal-body">
           <div id="notificationsList" class="stack"></div>
@@ -178,6 +181,20 @@ async function deleteNotification(id) {
     if (data.success) loadNotifications();
   } catch (e) {
     showToast('Failed to delete notification', 'error');
+  }
+}
+
+async function markAllNotificationsRead() {
+  try {
+    const res = await fetch('/api/v1/notifications/read-all', {
+      method: 'PUT',
+      headers: { 'X-CSRF-Token': getCsrfToken() },
+    });
+    const data = await res.json();
+    if (data.success) loadNotifications();
+    else showToast('Failed to mark all as read', 'error');
+  } catch (e) {
+    showToast('Failed to mark all as read', 'error');
   }
 }
 
