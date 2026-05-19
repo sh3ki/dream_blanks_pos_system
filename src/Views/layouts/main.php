@@ -151,6 +151,11 @@ $currentPath = strtok($currentPath, '?');
       <span class="page-title"><?= htmlspecialchars($pageTitle ?? ($title ?? '')) ?></span>
     </div>
     <div class="topbar-right">
+      <?php
+        if (!isset($unread_notifications) && !empty($_SESSION['user']['id'])) {
+            $unread_notifications = \App\Models\Notification::unreadCount((int)$_SESSION['user']['id']);
+        }
+      ?>
       <button class="notification-btn" onclick="openNotifications()" title="Notifications">
         <?= icon('bell', 20) ?>
         <?php if (!empty($unread_notifications) && $unread_notifications > 0): ?>
