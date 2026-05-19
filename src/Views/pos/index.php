@@ -388,9 +388,6 @@ function setPaymentMode(mode) {
 }
 
 function onPaymentModeChange() {
-  // Only show cash received for cash payments
-  const mode = document.getElementById('paymentMode').value;
-  document.getElementById('cashReceivedRow').style.display = mode === 'cash' ? '' : 'none';
   calcPaymentStatus();
 }
 
@@ -409,7 +406,6 @@ function calcPaymentStatus() {
     changeEl.style.color = change > 0 ? 'var(--color-success)' : 'var(--color-gray-400)';
   }
 
-  if (mode !== 'cash') return 'fully_paid';
   if (cash <= 0) return 'unpaid';
   if (cash < total) return 'partially_paid';
   return 'fully_paid';
@@ -428,7 +424,8 @@ function openCheckoutConfirm() {
   const fee      = parseFloat(document.getElementById('additionalFee').value) || 0;
   const total    = Math.max(0, subtotal - discount + tax + fee);
   const notes    = document.getElementById('orderNotes').value;
-  const payMode  = document.getElementById('paymentMode').options[document.getElementById('paymentMode').selectedIndex].text;
+  const payModeVal = document.getElementById('paymentMode').value;
+  const payMode    = {cash:'Cash', bdo:'BDO', gcash:'GCash'}[payModeVal] || payModeVal;
   const payStatus = calcPaymentStatus();
   const payStatusLabel = payStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
   const clientText = document.getElementById('clientSelect').options[document.getElementById('clientSelect').selectedIndex].text;
