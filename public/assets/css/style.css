@@ -134,6 +134,47 @@ h6 { font-size: 0.875rem; font-weight: 600; }
 .nav-link .nav-label { transition: var(--transition); }
 .sidebar.collapsed .nav-label { display: none; }
 
+/* Collapsed sidebar — icon tooltips */
+.sidebar.collapsed { overflow: visible; }
+.sidebar.collapsed .nav-menu { overflow: visible; }
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  position: relative;
+  overflow: visible;
+}
+.sidebar.collapsed .nav-label {
+  display: block;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  background: var(--color-dark-gray);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 1200;
+  box-shadow: var(--shadow);
+}
+.sidebar.collapsed .nav-label::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: var(--color-dark-gray);
+}
+.sidebar.collapsed .nav-link:hover .nav-label {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
 /* ===== TOPBAR ===== */
 .topbar {
   height: var(--header-height);
