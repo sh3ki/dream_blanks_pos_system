@@ -212,8 +212,8 @@ $currentPath = strtok($currentPath, '?');
         <strong id="inactivityCountdown" style="color:var(--color-danger)">10</strong> second(s).
       </p>
       <div style="display:flex;gap:12px;justify-content:center">
-        <button class="btn btn-primary" onclick="continueSession()">Continue Session</button>
         <a href="<?= htmlspecialchars(app_url('/logout')) ?>" class="btn btn-secondary">Logout Now</a>
+        <button class="btn btn-primary" onclick="continueSession()">Continue Session</button>
       </div>
     </div>
   </div>
