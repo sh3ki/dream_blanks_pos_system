@@ -447,8 +447,30 @@ function openCheckoutConfirm() {
       <div><strong>Payment:</strong> ${payMode}</div>
       <div><strong>Status:</strong> ${payStatusLabel}</div>
       ${notes ? `<div style="grid-column:1/-1"><strong>Notes:</strong> ${notes}</div>` : ''}
+    </div>
+    <div style="margin-top:14px;border-top:1px solid var(--color-gray-100);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Reference Number <span style="font-weight:400;color:var(--color-gray-400)">(optional)</span></label>
+        <input type="text" id="posRefNumber" class="form-input" placeholder="e.g. GCash ref, check #" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Payment Photo <span style="font-weight:400;color:var(--color-gray-400)">(optional)</span></label>
+        <input type="file" id="posPayPhoto" class="form-input" accept="image/jpeg,image/png,image/gif,image/webp" style="padding:5px;width:100%" onchange="previewPosPayPhoto(event)">
+        <div id="posPayPhotoPreviewWrap" style="display:none;margin-top:8px">
+          <img id="posPayPhotoPreview" src="" alt="Preview"
+            style="width:72px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--color-gray-100);display:block">
+        </div>
+      </div>
     </div>`;
   openModal('checkoutConfirmModal');
+}
+
+function previewPosPayPhoto(event) {
+  const file = event.target.files?.[0];
+  const wrap = document.getElementById('posPayPhotoPreviewWrap');
+  const img  = document.getElementById('posPayPhotoPreview');
+  if (file) { img.src = URL.createObjectURL(file); wrap.style.display = ''; }
+  else      { img.src = ''; wrap.style.display = 'none'; }
 }
 
 async function checkout() {
@@ -462,14 +484,35 @@ async function checkout() {
   const fee      = parseFloat(document.getElementById('additionalFee').value) || 0;
   const total    = Math.max(0, subtotal - discount + tax + fee);
 
+  // Upload payment photo if provided
+  let paymentPhotoPath = null;
+  const posPhotoInput = document.getElementById('posPayPhoto');
+  if (posPhotoInput && posPhotoInput.files[0]) {
+    try {
+      const fd = new FormData();
+      fd.append('payment_photo', posPhotoInput.files[0]);
+      const upRes  = await fetch('/api/v1/upload/payment-photo', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: fd,
+      });
+      const upData = await upRes.json();
+      if (upData.success) paymentPhotoPath = upData.data.path;
+    } catch (e) { /* photo upload failure is non-fatal */ }
+  }
+
+  const posRefNumber = (document.getElementById('posRefNumber')?.value || '').trim() || null;
+
   const payload = {
-    client_id:      document.getElementById('clientSelect').value || null,
-    items:          cart.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price })),
+    client_id:           document.getElementById('clientSelect').value || null,
+    items:               cart.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price })),
     subtotal, discount_amount: discount, tax_amount: tax, additional_fee: fee, total_amount: total,
-    payment_mode:   document.getElementById('paymentMode').value,
-    payment_status: calcPaymentStatus(),
-    cash_received:  parseFloat(document.getElementById('cashReceived').value) || 0,
-    notes:          document.getElementById('orderNotes').value,
+    payment_mode:        document.getElementById('paymentMode').value,
+    payment_status:      calcPaymentStatus(),
+    cash_received:       parseFloat(document.getElementById('cashReceived').value) || 0,
+    notes:               document.getElementById('orderNotes').value,
+    reference_number:    posRefNumber,
+    payment_photo_path:  paymentPhotoPath,
   };
 
   try {
