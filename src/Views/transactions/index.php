@@ -26,9 +26,27 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
         <?= icon('search', 16) ?> <input type="text" placeholder="Product, SKU, invoice #, client..." name="search"
           value="<?= htmlspecialchars($filters['search'] ?? '') ?>" onchange="this.form.submit()" form="txFilterForm" style="width:100%">
       </div>
-      <form id="txFilterForm" method="GET" class="d-flex gap-8">
+      <form id="txFilterForm" method="GET" class="d-flex gap-8" style="flex-wrap:wrap">
         <?php if (!empty($filters['sort'])):  ?><input type="hidden" name="sort"  value="<?= htmlspecialchars($filters['sort'])  ?>"><?php endif; ?>
         <?php if (!empty($filters['order'])): ?><input type="hidden" name="order" value="<?= htmlspecialchars($filters['order']) ?>"><?php endif; ?>
+        <select name="method" class="form-select" style="width:135px;height:38px" onchange="this.form.submit()">
+          <option value="">All Methods</option>
+          <option value="cash"  <?= ($filters['method'] ?? '') === 'cash'  ? 'selected' : '' ?>>Cash</option>
+          <option value="bdo"   <?= ($filters['method'] ?? '') === 'bdo'   ? 'selected' : '' ?>>BDO</option>
+          <option value="gcash" <?= ($filters['method'] ?? '') === 'gcash' ? 'selected' : '' ?>>GCash</option>
+        </select>
+        <select name="status" class="form-select" style="width:150px;height:38px" onchange="this.form.submit()">
+          <option value="">All Status</option>
+          <option value="fully_paid"     <?= ($filters['status'] ?? '') === 'fully_paid'     ? 'selected' : '' ?>>Fully Paid</option>
+          <option value="partially_paid" <?= ($filters['status'] ?? '') === 'partially_paid' ? 'selected' : '' ?>>Partially Paid</option>
+          <option value="unpaid"         <?= ($filters['status'] ?? '') === 'unpaid'         ? 'selected' : '' ?>>Unpaid</option>
+        </select>
+        <select name="processed_by" class="form-select" style="width:160px;height:38px" onchange="this.form.submit()">
+          <option value="">All Staff</option>
+          <?php foreach ($staffList as $staff): ?>
+            <option value="<?= (int)$staff['id'] ?>" <?= ((string)($filters['processed_by'] ?? '')) === (string)$staff['id'] ? 'selected' : '' ?>><?= htmlspecialchars($staff['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
         <input type="date" name="date_from" class="form-input" style="height:38px;width:140px"
           value="<?= htmlspecialchars($filters['date_from'] ?? '') ?>" onchange="this.form.submit()">
         <input type="date" name="date_to" class="form-input" style="height:38px;width:140px"
@@ -51,6 +69,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
           <th style="padding:0"><?= txSortLink('i.total_amount',   'Total',     $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= txSortLink('i.primary_payment_mode',  'Method',    $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= txSortLink('i.payment_status', 'Status',    $sort, $order, $filters) ?></th>
+          <th>Processed By</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -96,6 +115,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
           <td><strong>₱<?= number_format((float)$tx['total_amount'], 2) ?></strong></td>
           <td><?= $methodBadge ?></td>
           <td><span class="badge <?= $statusCls ?>"><?= str_replace('_', ' ', ucfirst($tx['payment_status'])) ?></span></td>
+          <td style="font-size:.82rem"><?= htmlspecialchars($tx['processed_by_name'] ?? '—') ?></td>
           <td onclick="event.stopPropagation()" style="white-space:nowrap">
             <?php if ($canDownload): ?>
             <a href="<?= app_url('/api/v1/invoices/' . $tx['id'] . '/print') ?>?download=1" target="_blank" class="icon-btn" title="Download PDF"><?= icon('download', 15) ?></a>
@@ -107,7 +127,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
         </tr>
         <?php endforeach; ?>
         <?php if (empty($transactions)): ?>
-          <tr><td colspan="8" class="text-center text-muted" style="padding:48px">No transactions found</td></tr>
+          <tr><td colspan="9" class="text-center text-muted" style="padding:48px">No transactions found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
@@ -133,6 +153,7 @@ function txSortLink(string $col, string $label, string $currentSort, string $cur
         <thead>
           <tr>
             <th>#</th><th>Date</th><th>Mode</th><th>Reference</th>
+            <th>Photo</th>
             <th style="text-align:right">Amount</th><th>Recorded By</th>
             <?php if ($canPayEdit || $canPayDelete): ?><th>Actions</th><?php endif; ?>
           </tr>
@@ -228,6 +249,10 @@ async function viewTxPayHistory(invoiceId, invoiceNum) {
         ${TX_PAY_CAN_EDIT   ? `<button class="icon-btn" onclick="txOpenEditPayment(${p.id},'${p.payment_date.slice(0,10)}',${p.payment_amount},'${p.payment_mode}','${p.reference_number??''}')" title="Edit">${<?= json_encode(icon('edit', 14)) ?>}</button>` : ''}
         ${TX_PAY_CAN_DELETE ? `<button class="icon-btn danger" onclick="txOpenDeletePayment(${p.id},${i+1})" title="Delete">${<?= json_encode(icon('delete', 14)) ?>}</button>` : ''}
       </td>` : '';
+      const photoPath = p.payment_photo_path ? appPath(p.payment_photo_path) : '';
+      const photoCol = photoPath
+        ? `<td><img src="${photoPath}" alt="Receipt" style="width:48px;height:64px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="txViewFullPhoto('${photoPath}')"></td>`
+        : `<td style="color:var(--color-gray-400);font-size:.8rem">&mdash;</td>`;
       return `<tr>
         <td>${i + 1}</td>
         <td style="white-space:nowrap">
@@ -236,6 +261,7 @@ async function viewTxPayHistory(invoiceId, invoiceNum) {
         </td>
         <td>${badge}</td>
         <td style="font-size:.82rem">${p.reference_number || '<span style="color:var(--color-gray-400)">&mdash;</span>'}</td>
+        ${photoCol}
         <td style="text-align:right;font-weight:600">&#8369;${parseFloat(p.payment_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
         <td style="font-size:.82rem">${p.recorded_by_name ?? '&mdash;'}</td>
         ${actionsCol}
@@ -289,7 +315,23 @@ function txOpenDeletePayment(id, num) {
   };
   openModal('txDeletePayModal');
 }
+
+function txViewFullPhoto(src) {
+  document.getElementById('txFullPhotoImg').src = src;
+  openModal('txFullPhotoModal');
+}
 </script>
+
+<!-- Full-size Photo Lightbox Modal (Transactions) -->
+<div class="modal-overlay" id="txFullPhotoModal" style="z-index:9999" onclick="if(event.target===this)closeModal('txFullPhotoModal')">
+  <div style="position:relative;display:inline-block;max-width:90vw;max-height:90vh">
+    <button onclick="closeModal('txFullPhotoModal')" title="Close" style="position:absolute;top:-38px;right:0;background:rgba(255,255,255,.95);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:10;line-height:1">&times;</button>
+    <img id="txFullPhotoImg" src="" alt="Payment Receipt" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;display:block">
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="closeModal('txFullPhotoModal')" style="background:rgba(255,255,255,.95);border:none;border-radius:6px;padding:6px 22px;font-size:.85rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">Close</button>
+    </div>
+  </div>
+</div>
 
 <?php
 $content = ob_get_clean();
