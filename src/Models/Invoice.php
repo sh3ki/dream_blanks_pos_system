@@ -133,7 +133,8 @@ class Invoice extends Model
         $offset = ($page - 1) * $perPage;
         $sortExpr = $sort === 'i.balance' ? '(i.total_amount - i.total_paid)' : $sort;
         $sql    = "SELECT i.*, c.full_name as client_name, c.email as client_email,
-                          (i.total_amount - i.total_paid) as balance
+                          (i.total_amount - i.total_paid) as balance,
+                          (SELECT COUNT(*) FROM project_lineups pl WHERE pl.invoice_id = i.id AND pl.deleted_at IS NULL) as has_lineup
                    FROM invoices i
                    LEFT JOIN clients c ON c.id = i.client_id
                    WHERE {$where}
