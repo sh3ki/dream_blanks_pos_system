@@ -1,12 +1,14 @@
-<?php ob_start(); ?>
+﻿<?php ob_start(); ?>
 <?php
 $sort  = $filters['sort']  ?? 'i.created_at';
 $order = strtoupper($filters['order'] ?? 'DESC');
 $canDownload    = can('invoices',  'download');
+$canInvDelete   = can('invoices',  'delete');
 $canPayView     = can('payments',  'view');
 $canPayAdd      = can('payments',  'add');
 $canPayEdit     = can('payments',  'edit');
 $canPayDelete   = can('payments',  'delete');
+$canPayConfirm  = can('payments',  'confirm');
 function invSortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
     $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
     $params    = array_filter(array_merge($filters, ['sort' => $col, 'order' => $nextOrder]), fn($v) => $v !== '');
@@ -122,6 +124,9 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
             <?php if ($canPayAdd && $inv['payment_status'] !== 'fully_paid'): ?>
               <button class="icon-btn" onclick="addPayment(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number']) ?>', <?= $balance ?>)" title="Add Payment"><?= icon('payment', 15) ?></button>
             <?php endif; ?>
+            <?php if ($canInvDelete): ?>
+              <button class="icon-btn danger" onclick="deleteInvoice(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number'], ENT_QUOTES) ?>')" title="Delete Invoice"><?= icon('delete', 15) ?></button>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -141,7 +146,7 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
 
 <!-- Payment History Modal -->
 <div class="modal-overlay" id="payHistModal">
-  <div class="modal-content" style="max-width:680px">
+  <div class="modal-content" style="max-width:860px">
     <div class="modal-header">
       <h2 class="modal-title">Payment History — <span id="payHistInvNum"></span></h2>
       <button class="modal-close" onclick="document.getElementById('payHistModal').classList.remove('show')"><?= icon('close', 16) ?></button>
@@ -155,9 +160,10 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
             <th>Date</th>
             <th>Mode</th>
             <th>Reference</th>
+            <th>Photo</th>
             <th style="text-align:right">Amount</th>
             <th>Recorded By</th>
-            <?php if ($canPayEdit || $canPayDelete): ?><th>Actions</th><?php endif; ?>
+            <?php if ($canPayConfirm || $canPayEdit || $canPayDelete): ?><th>Actions</th><?php endif; ?>
           </tr>
         </thead>
         <tbody id="payHistBody"></tbody>
@@ -221,6 +227,23 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
   </div>
 </div>
 
+<!-- Delete Invoice Modal -->
+<div class="modal-overlay" id="deleteInvModal">
+  <div class="modal-content" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Delete Invoice</h2>
+      <button class="modal-close" onclick="closeModal('deleteInvModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p id="deleteInvMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('deleteInvModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteInvBtn">Delete Invoice</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Payment Modal -->
 <div class="modal-overlay" id="paymentModal">
   <div class="modal-content" style="max-width:400px">
@@ -247,8 +270,16 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Reference Number</label>
+        <label class="form-label">Reference Number <span style="color:var(--color-gray-400);font-size:.8em">(optional)</span></label>
         <input type="text" id="payRef" class="form-input" placeholder="e.g., CHK001 or transaction ID">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Photo / Receipt <span style="color:var(--color-gray-400);font-size:.8em">(optional)</span></label>
+        <input type="file" id="payPhoto" class="form-input" accept="image/jpeg,image/png,image/gif,image/webp" style="padding:6px" onchange="previewPayPhoto(event)">
+        <div id="payPhotoPreviewWrap" style="display:none;margin-top:8px">
+          <img id="payPhotoPreview" src="" alt="Preview"
+            style="width:72px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--color-gray-100);display:block">
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -271,8 +302,9 @@ const APP_BIZ = {
   email:   <?= json_encode($__bizEmail) ?>,
   address: <?= json_encode($__bizAddress) ?>,
 };
-const PAY_CAN_EDIT   = <?= $canPayEdit   ? 'true' : 'false' ?>;
-const PAY_CAN_DELETE = <?= $canPayDelete ? 'true' : 'false' ?>;
+const PAY_CAN_EDIT    = <?= $canPayEdit    ? 'true' : 'false' ?>;
+const PAY_CAN_DELETE  = <?= $canPayDelete  ? 'true' : 'false' ?>;
+const PAY_CAN_CONFIRM = <?= $canPayConfirm ? 'true' : 'false' ?>;
 let currentInvoiceId = null;
 let _payHistInvoiceId = null;
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -282,22 +314,34 @@ function addPayment(invoiceId, number, balance) {
   document.getElementById('payInvoiceNum').textContent = number;
   document.getElementById('payBalance').textContent = '₱' + balance.toFixed(2);
   document.getElementById('payAmount').value = balance.toFixed(2);
+  document.getElementById('payPhoto').value = '';
+  document.getElementById('payPhotoPreview').src = '';
+  document.getElementById('payPhotoPreviewWrap').style.display = 'none';
   document.getElementById('paymentModal').classList.add('show');
+}
+
+function previewPayPhoto(event) {
+  const file = event.target.files?.[0];
+  const wrap = document.getElementById('payPhotoPreviewWrap');
+  const img  = document.getElementById('payPhotoPreview');
+  if (file) { img.src = URL.createObjectURL(file); wrap.style.display = ''; }
+  else      { img.src = ''; wrap.style.display = 'none'; }
 }
 
 async function savePayment() {
   const btn = document.getElementById('savePayBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  const payload = {
-    payment_date: document.getElementById('payDate').value,
-    payment_amount: parseFloat(document.getElementById('payAmount').value),
-    payment_mode: document.getElementById('payMode').value,
-    reference_number: document.getElementById('payRef').value,
-  };
+  const fd = new FormData();
+  fd.append('payment_date',     document.getElementById('payDate').value);
+  fd.append('payment_amount',   parseFloat(document.getElementById('payAmount').value));
+  fd.append('payment_mode',     document.getElementById('payMode').value);
+  fd.append('reference_number', document.getElementById('payRef').value);
+  const photoFile = document.getElementById('payPhoto').files[0];
+  if (photoFile) fd.append('payment_photo', photoFile);
   try {
     const res  = await fetch('/api/v1/invoices/' + currentInvoiceId + '/payments', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-      body: JSON.stringify(payload),
+      method: 'POST', headers: { 'X-CSRF-Token': csrfToken },
+      body: fd,
     });
     const data = await res.json();
     if (data.success) { showToast('Payment recorded!', 'success'); setTimeout(() => location.reload(), 800); }
@@ -354,7 +398,12 @@ function renderPayHistRows(payments) {
     const time = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
     const date = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     const badge = modeBadge[p.payment_mode] ?? `<span class="badge badge-secondary">${p.payment_mode ?? '—'}</span>`;
-    const actionsCol = (PAY_CAN_EDIT || PAY_CAN_DELETE) ? `<td style="white-space:nowrap">
+    const photoPath = p.payment_photo_path ? appPath(p.payment_photo_path) : '';
+    const photoCol = photoPath
+      ? `<td><img src="${photoPath}" alt="Receipt" style="width:48px;height:64px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="viewFullPhoto('${photoPath}')"></td>`
+      : `<td style="color:var(--color-gray-400);font-size:.8rem">&mdash;</td>`;
+    const actionsCol = (PAY_CAN_CONFIRM || PAY_CAN_EDIT || PAY_CAN_DELETE) ? `<td style="white-space:nowrap">
+      ${PAY_CAN_CONFIRM ? `<button class="icon-btn" style="color:${p.is_confirmed ? '#16a34a' : '#dc2626'}" onclick="toggleConfirmPayment(${p.id}, ${p.is_confirmed})" title="${p.is_confirmed ? 'Confirmed' : 'Unconfirmed'}">${p.is_confirmed ? <?= json_encode(icon('check', 14)) ?> : <?= json_encode(icon('close', 14)) ?>}</button>` : ''}
       ${PAY_CAN_EDIT   ? `<button class="icon-btn" onclick="openEditPayment(${p.id},'${p.payment_date.slice(0,10)}',${p.payment_amount},'${p.payment_mode}','${p.reference_number??''}')" title="Edit">${<?= json_encode(icon('edit', 14)) ?>}</button>` : ''}
       ${PAY_CAN_DELETE ? `<button class="icon-btn danger" onclick="openDeletePayment(${p.id},${i+1})" title="Delete">${<?= json_encode(icon('delete', 14)) ?>}</button>` : ''}
     </td>` : '';
@@ -366,11 +415,26 @@ function renderPayHistRows(payments) {
       </td>
       <td>${badge}</td>
       <td style="font-size:.82rem">${p.reference_number || '<span style="color:var(--color-gray-400)">—</span>'}</td>
+      ${photoCol}
       <td style="text-align:right;font-weight:600">&#8369;${parseFloat(p.payment_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
       <td style="font-size:.82rem">${p.recorded_by_name ?? '—'}</td>
       ${actionsCol}
     </tr>`;
   }).join('');
+}
+
+async function toggleConfirmPayment(paymentId, currentConfirmed) {
+  try {
+    const res  = await fetch('/api/v1/payments/' + paymentId + '/confirm', {
+      method: 'PUT', headers: {'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body: '{}',
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Updated', 'success');
+      viewPayHistory(_payHistInvoiceId, document.getElementById('payHistInvNum').textContent);
+    } else showToast(data.message || 'Error', 'error');
+  } catch (e) { showToast('Network error', 'error'); }
 }
 
 function openEditPayment(id, date, amount, mode, ref) {
@@ -413,7 +477,49 @@ function openDeletePayment(id, num) {
   };
   openModal('deletePayModal');
 }
+
+function deleteInvoice(id, number) {
+  document.getElementById('deleteInvMsg').textContent =
+    `Delete invoice ${number}? All payments will be removed and stock will be restored. This cannot be undone.`;
+  const btn = document.getElementById('confirmDeleteInvBtn');
+  btn.disabled = false;
+  btn.textContent = 'Delete Invoice';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+    const res  = await fetch('/api/v1/invoices/' + id, {
+      method: 'DELETE', headers: {'X-CSRF-Token': csrfToken}
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Invoice deleted', 'success');
+      closeModal('deleteInvModal');
+      setTimeout(() => location.reload(), 700);
+    } else {
+      showToast(data.message || 'Error deleting invoice', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Delete Invoice';
+    }
+  };
+  openModal('deleteInvModal');
+}
+
+function viewFullPhoto(src) {
+  document.getElementById('fullPhotoImg').src = src;
+  openModal('fullPhotoModal');
+}
 </script>
+
+<!-- Full-size Photo Lightbox Modal -->
+<div class="modal-overlay" id="fullPhotoModal" style="z-index:9999" onclick="if(event.target===this)closeModal('fullPhotoModal')">
+  <div style="position:relative;display:inline-block;max-width:90vw;max-height:90vh">
+    <button onclick="closeModal('fullPhotoModal')" title="Close" style="position:absolute;top:-38px;right:0;background:rgba(255,255,255,.95);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:10;line-height:1">&times;</button>
+    <img id="fullPhotoImg" src="" alt="Payment Receipt" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;display:block">
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="closeModal('fullPhotoModal')" style="background:rgba(255,255,255,.95);border:none;border-radius:6px;padding:6px 22px;font-size:.85rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">Close</button>
+    </div>
+  </div>
+</div>
 <?php
 $content = ob_get_clean();
 $title   = 'Invoices | Dream Blanks POS';
