@@ -35,7 +35,35 @@ class AuthController extends Controller
             if ($request->isApi()) {
                 return $this->success($user, 'Login successful');
             }
-            return $this->redirect('/pos');
+
+            // Redirect to the first sidebar page the user has access to
+            $sidebarRoutes = [
+                ['dashboard',         'view', '/dashboard'],
+                ['pos',               'view', '/pos'],
+                ['invoices',          'view', '/invoices'],
+                ['transactions',      'view', '/transactions'],
+                ['project_lineup',    'view', '/project-lineup'],
+                ['clients',           'view', '/clients'],
+                ['products',          'view', '/products'],
+                ['stock_products',    'view', '/stock-products'],
+                ['inventory',         'view', '/inventory'],
+                ['variations',        'view', '/variations'],
+                ['reports_sales',     'view', '/reports/sales'],
+                ['reports_inventory', 'view', '/reports/inventory'],
+                ['reports_financial', 'view', '/reports/financial'],
+                ['audit_logs',        'view', '/audit-logs'],
+                ['users',             'view', '/users'],
+                ['roles',             'view', '/roles'],
+                ['settings',          'view', '/settings'],
+            ];
+            $redirectPath = '/dashboard';
+            foreach ($sidebarRoutes as [$module, $action, $path]) {
+                if (can($module, $action)) {
+                    $redirectPath = $path;
+                    break;
+                }
+            }
+            return $this->redirect($redirectPath);
 
         } catch (AuthException $e) {
             if ($request->isApi()) {
