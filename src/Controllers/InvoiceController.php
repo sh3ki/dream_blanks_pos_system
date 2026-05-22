@@ -6,10 +6,15 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\ProductStockRequirement;
+use App\Models\StockProduct;
+use App\Models\StockMovement;
 use App\Services\AuditService;
 use App\Services\NotificationService;
 use App\Services\EmailService;
+use App\Helpers\FileHelper;
 use App\Exceptions\ValidationException;
+use App\Core\Database;
 
 class InvoiceController extends Controller
 {
@@ -57,15 +62,20 @@ class InvoiceController extends Controller
         if (!in_array($mode, [PAYMENT_CASH, PAYMENT_BDO, PAYMENT_GCASH])) throw new ValidationException(['payment_mode' => ['Invalid payment mode']]);
 
         $paymentNumber = Payment::nextPaymentNumber($id);
+        $photoPath = null;
+        if (!empty($_FILES['payment_photo']) && $_FILES['payment_photo']['error'] === UPLOAD_ERR_OK) {
+            $photoPath = FileHelper::upload($_FILES['payment_photo'], 'payments');
+        }
         $paymentId = Payment::create([
-            'invoice_id'       => $id,
-            'payment_number'   => $paymentNumber,
-            'payment_date'     => $request->input('payment_date', date('Y-m-d')),
-            'payment_amount'   => $amount,
-            'payment_mode'     => $mode,
-            'reference_number' => $request->input('reference_number'),
-            'notes'            => $request->input('notes'),
-            'recorded_by'      => $this->currentUserId(),
+            'invoice_id'         => $id,
+            'payment_number'     => $paymentNumber,
+            'payment_date'       => $request->input('payment_date', date('Y-m-d')),
+            'payment_amount'     => $amount,
+            'payment_mode'       => $mode,
+            'reference_number'   => $request->input('reference_number'),
+            'payment_photo_path' => $photoPath,
+            'notes'              => $request->input('notes'),
+            'recorded_by'        => $this->currentUserId(),
         ]);
 
         Invoice::updatePaymentStatus($id);
@@ -136,6 +146,27 @@ class InvoiceController extends Controller
         ], 'Payment updated');
     }
 
+    public function confirmPayment(Request $request): Response
+    {
+        $this->requirePermission(MODULE_PAYMENTS, 'confirm');
+        $paymentId = (int)$request->param('payment_id');
+        $payment   = Payment::find($paymentId);
+        if (!$payment) return $this->error('Payment not found', 404);
+
+        $isConfirmed = (int)$payment['is_confirmed'];
+        $newConfirmed = $isConfirmed ? 0 : 1;
+        Payment::update($paymentId, [
+            'is_confirmed' => $newConfirmed,
+            'confirmed_by' => $newConfirmed ? $this->currentUserId() : null,
+            'confirmed_at' => $newConfirmed ? date('Y-m-d H:i:s') : null,
+        ]);
+
+        AuditService::log(AUDIT_UPDATE, MODULE_PAYMENTS, $paymentId, $payment, null,
+            "Payment #{$payment['payment_number']} " . ($newConfirmed ? 'confirmed' : 'unconfirmed'));
+
+        return $this->success(['is_confirmed' => $newConfirmed], $newConfirmed ? 'Payment confirmed' : 'Payment unconfirmed');
+    }
+
     public function deletePayment(Request $request): Response
     {
         $this->requirePermission(MODULE_PAYMENTS, ACTION_DELETE);
@@ -156,6 +187,89 @@ class InvoiceController extends Controller
             'total_paid'         => (float)$updated['total_paid'],
             'balance_due'        => (float)$updated['total_amount'] - (float)$updated['total_paid'],
         ], 'Payment deleted');
+    }
+
+    public function deleteInvoice(Request $request): Response
+    {
+        $this->requirePermission(MODULE_INVOICES, ACTION_DELETE);
+        $id      = (int)$request->param('invoice_id');
+        $invoice = Invoice::findWithDetails($id);
+        if (!$invoice) return $this->error('Invoice not found', 404);
+
+        $db = Database::getInstance();
+        $db->beginTransaction();
+
+        try {
+            // 1. Get all invoice items to calculate stock to restore
+            $items = Invoice::getItems($id);
+
+            // 2. Aggregate stock-product restorations (same logic as PosService but reversed)
+            $restorations = [];
+            $itemReasonMap = [];
+            foreach ($items as $item) {
+                $productId = (int)$item['product_id'];
+                $soldQty   = (int)$item['quantity'];
+                $requirements = ProductStockRequirement::forProduct($productId);
+
+                foreach ($requirements as $req) {
+                    $spId      = (int)$req['stock_product_id'];
+                    $perUnit   = (float)$req['qty_required_per_unit'];
+                    $waste     = (float)($req['waste_percent'] ?? 0);
+                    $effective = $perUnit * (1 + $waste / 100);
+                    $restoreQty = (int)ceil($soldQty * $effective);
+
+                    $restorations[$spId] = ($restorations[$spId] ?? 0) + $restoreQty;
+                    $itemReasonMap[$spId][] = [
+                        'product_id'   => $productId,
+                        'product_name' => $item['product_name'] ?? "Product #{$productId}",
+                        'qty'          => $restoreQty,
+                    ];
+                }
+            }
+
+            // 3. Restore stock quantities and log movements
+            foreach ($restorations as $spId => $totalRestore) {
+                $spBefore = StockProduct::find($spId);
+                if (!$spBefore) continue;
+                $qtyBefore = (int)($spBefore['current_qty'] ?? 0);
+                StockProduct::incrementQty($spId, $totalRestore);
+
+                $parts  = array_map(fn($r) => "{$r['product_name']} x{$r['qty']}", $itemReasonMap[$spId] ?? []);
+                $reason = "Invoice #{$invoice['invoice_number']} deleted (stock restored): " . implode(', ', $parts);
+
+                StockMovement::logForStockProduct(
+                    $spId,
+                    MOVEMENT_ADJUSTMENT,
+                    +$totalRestore,
+                    $reason,
+                    $id,
+                    $this->currentUserId(),
+                    ($itemReasonMap[$spId][0]['product_id'] ?? null),
+                    $qtyBefore,
+                    $qtyBefore + $totalRestore
+                );
+            }
+
+            // 4. Delete all payments for this invoice
+            $payments = Invoice::getPayments($id);
+            foreach ($payments as $pay) {
+                Payment::delete((int)$pay['id']);
+            }
+
+            // 5. Soft-delete the invoice
+            $db->update('invoices', ['deleted_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+
+            $db->commit();
+
+            AuditService::log(AUDIT_DELETE, MODULE_INVOICES, $id, $invoice, null,
+                "Invoice #{$invoice['invoice_number']} deleted; " . count($payments) . " payment(s) removed; stock restored for " . count($restorations) . " stock product(s)");
+
+            return $this->success(null, "Invoice #{$invoice['invoice_number']} deleted successfully");
+
+        } catch (\Throwable $e) {
+            $db->rollback();
+            throw $e;
+        }
     }
 
     public function print(Request $request): Response
