@@ -43,6 +43,7 @@ INSERT IGNORE INTO `permissions` (`module`, `action`, `description`) VALUES
 ('payments', 'add', 'Add payments'),
 ('payments', 'edit', 'Edit payments'),
 ('payments', 'delete', 'Delete payments'),
+('payments', 'confirm', 'Confirm/unconfirm payment receipt'),
 ('reports_sales',     'view',   'View sales report'),
 ('reports_sales',     'export', 'Export sales report as CSV'),
 ('reports_inventory', 'view',   'View inventory report'),
