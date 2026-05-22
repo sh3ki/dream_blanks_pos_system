@@ -35,7 +35,7 @@ class AuthController extends Controller
             if ($request->isApi()) {
                 return $this->success($user, 'Login successful');
             }
-            return $this->redirect('/dashboard');
+            return $this->redirect('/pos');
 
         } catch (AuthException $e) {
             if ($request->isApi()) {
