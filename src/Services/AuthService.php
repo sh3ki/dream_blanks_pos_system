@@ -46,9 +46,10 @@ class AuthService
             'roles'         => array_column($roles, 'name'),
         ];
 
-        $_SESSION['user']        = $sessionUser;
-        $_SESSION['permissions'] = $permList;
-        $_SESSION['csrf_token']  = bin2hex(random_bytes(32));
+        $_SESSION['user']          = $sessionUser;
+        $_SESSION['permissions']   = $permList;
+        $_SESSION['csrf_token']    = bin2hex(random_bytes(32));
+        $_SESSION['last_activity'] = time();
 
         // Store user ID in a persistent cookie so auto-logout can be detected
         setcookie('auth_uid', (string)$user['id'], 0, '/', '', false, true);
