@@ -121,12 +121,18 @@ class InvoiceController extends Controller
         if (!in_array($mode, [PAYMENT_CASH, PAYMENT_BDO, PAYMENT_GCASH])) throw new \App\Exceptions\ValidationException(['payment_mode' => ['Invalid payment mode']]);
 
         $old = $payment;
+        $photoPath = $payment['payment_photo_path'] ?? null;
+        if (!empty($_FILES['payment_photo']) && $_FILES['payment_photo']['error'] === UPLOAD_ERR_OK) {
+            $photoPath = FileHelper::upload($_FILES['payment_photo'], 'payments');
+        }
+
         Payment::update($paymentId, [
-            'payment_date'     => $request->input('payment_date', $payment['payment_date']),
-            'payment_amount'   => $amount,
-            'payment_mode'     => $mode,
-            'reference_number' => $request->input('reference_number', $payment['reference_number']),
-            'notes'            => $request->input('notes', $payment['notes']),
+            'payment_date'       => $request->input('payment_date', $payment['payment_date']),
+            'payment_amount'     => $amount,
+            'payment_mode'       => $mode,
+            'reference_number'   => $request->input('reference_number', $payment['reference_number']),
+            'notes'              => $request->input('notes', $payment['notes']),
+            'payment_photo_path' => $photoPath,
         ]);
 
         Invoice::updatePaymentStatus((int)$payment['invoice_id']);
