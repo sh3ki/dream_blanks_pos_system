@@ -61,4 +61,52 @@ class NotificationService
             $restockId
         );
     }
+
+    public static function lineupCreated(int $lineupId, string $invoiceNumber, string $brandName, string $clientName): void
+    {
+        static::notifyAdmins(
+            'lineup_created',
+            'New Project Lineup Created',
+            "Project lineup for {$brandName} (Invoice #{$invoiceNumber}) has been added for client {$clientName}.",
+            $lineupId
+        );
+    }
+
+    public static function lineupDeadlineReminders(): void
+    {
+        $db = Notification::db();
+
+        // Find non-completed lineups whose deadline is exactly tomorrow
+        $lineups = $db->select(
+            "SELECT pl.id, pl.brand_name, pl.deadline,
+                    COALESCE(pl.client_name, c.full_name, 'Walk-in') AS client_name,
+                    i.invoice_number
+             FROM project_lineups pl
+             LEFT JOIN invoices i ON i.id = pl.invoice_id
+             LEFT JOIN clients c ON c.id = i.client_id
+             WHERE pl.deleted_at IS NULL
+               AND pl.project_status != 'completed'
+               AND pl.deadline = DATE_ADD(CURDATE(), INTERVAL 1 DAY)"
+        );
+
+        foreach ($lineups as $lineup) {
+            // Only send once per lineup per day (deduplication)
+            $alreadySent = (int)($db->selectOne(
+                "SELECT COUNT(*) AS cnt FROM notifications
+                 WHERE notification_type = 'lineup_deadline'
+                   AND related_record_id = ?
+                   AND DATE(created_at) = CURDATE()",
+                [$lineup['id']]
+            )['cnt'] ?? 0);
+
+            if ($alreadySent > 0) continue;
+
+            static::notifyAdmins(
+                'lineup_deadline',
+                'Project Deadline Tomorrow',
+                "Deadline reminder: Project for {$lineup['brand_name']} (Invoice #{$lineup['invoice_number']}, Client: {$lineup['client_name']}) is due tomorrow ({$lineup['deadline']}).",
+                $lineup['id']
+            );
+        }
+    }
 }
