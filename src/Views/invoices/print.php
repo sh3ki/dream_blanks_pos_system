@@ -49,7 +49,7 @@
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
     <div>
       <div style="font-size:1.6rem;font-weight:900;letter-spacing:1px;color:#111">DREAM BLANKS</div>
-      <div style="font-size:.8rem;color:#6b7280;margin-top:2px">Customized Apparel &amp; Merchandise</div>
+      <div style="font-size:.8rem;color:#6b7280;margin-top:2px">Garments &amp; Printing Services</div>
     </div>
     <div style="text-align:right;font-size:.8rem;color:#374151;line-height:1.6">
       <div style="font-weight:700;font-size:.9rem"><?= htmlspecialchars(\App\Models\Setting::get('business_name', 'Dream Blanks')) ?></div>
