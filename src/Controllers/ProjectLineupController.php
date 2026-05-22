@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\ProjectLineup;
 use App\Models\Type;
 use App\Services\AuditService;
+use App\Services\NotificationService;
 use App\Exceptions\ValidationException;
 use App\Core\Database;
 
@@ -18,7 +19,7 @@ class ProjectLineupController extends Controller
     {
         $this->requirePermission('project_lineup', ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'date_from', 'date_to', 'client_id', 'category', 'type', 'project_status']);
+        $filters = $request->only(['search', 'date_from', 'date_to', 'client_id', 'category', 'type', 'project_status', 'sort', 'order']);
         $result  = ProjectLineup::search($filters, $page, $perPage);
 
         // Prefill data: when forwarding from invoice page
@@ -63,6 +64,7 @@ class ProjectLineupController extends Controller
 
         $id = ProjectLineup::create([
             'invoice_id'            => $invoiceId,
+            'client_name'           => $request->input('client_name', 'Walk-in') ?: 'Walk-in',
             'date'                  => $date,
             'brand_name'            => $request->input('brand_name'),
             'categories'            => $categories,
@@ -80,6 +82,15 @@ class ProjectLineupController extends Controller
         ]);
 
         AuditService::log(AUDIT_CREATE, 'project_lineup', $id, null, ProjectLineup::find($id), "Created project lineup #{$id}");
+
+        $inv = Database::getInstance()->selectOne("SELECT invoice_number FROM invoices WHERE id = ?", [$invoiceId]);
+        NotificationService::lineupCreated(
+            $id,
+            $inv['invoice_number'] ?? "#{$invoiceId}",
+            $request->input('brand_name') ?? 'N/A',
+            $request->input('client_name', 'Walk-in') ?: 'Walk-in'
+        );
+
         return $this->success(['id' => $id], 'Project lineup entry created', 201);
     }
 
