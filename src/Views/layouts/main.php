@@ -52,7 +52,9 @@ $currentPath = strtok($currentPath, '?');
       <span>Dream Blanks</span>
     </div>
     <nav class="nav-menu">
+      <?php if (can('dashboard', 'view') || can('pos', 'view')): ?>
       <div class="nav-section-label">Main</div>
+      <?php endif; ?>
       <?php if (can('dashboard', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/dashboard')) ?>" class="nav-link <?= str_starts_with($currentPath,'/dashboard') || $currentPath==='/' ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('dashboard') ?></span><span class="nav-label">Dashboard</span>
@@ -64,7 +66,9 @@ $currentPath = strtok($currentPath, '?');
       </a>
       <?php endif; ?>
 
+      <?php if (can('invoices','view') || can('transactions','view') || can('project_lineup','view') || can('clients','view') || can('products','view') || can('stock_products','view') || can('inventory','view') || can('variations','view')): ?>
       <div class="nav-section-label">Management</div>
+      <?php endif; ?>
       <?php if (can('invoices', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/invoices')) ?>" class="nav-link <?= str_starts_with($currentPath,'/invoices') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('invoice') ?></span><span class="nav-label">Invoices</span>
@@ -125,7 +129,9 @@ $currentPath = strtok($currentPath, '?');
       <?php endif; ?>
       <?php endif; ?>
 
+      <?php if (can('audit_logs','view') || can('users','view') || can('roles','view') || can('settings','view')): ?>
       <div class="nav-section-label">System</div>
+      <?php endif; ?>
       <?php if (can('audit_logs', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/audit-logs')) ?>" class="nav-link <?= str_starts_with($currentPath,'/audit-logs') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('audit') ?></span><span class="nav-label">Audit Logs</span>
