@@ -4,6 +4,7 @@ $sort  = $filters['sort']  ?? 'i.created_at';
 $order = strtoupper($filters['order'] ?? 'DESC');
 $canDownload    = can('invoices',  'download');
 $canInvDelete   = can('invoices',  'delete');
+$canInvForward  = can('invoices',  'forward');
 $canPayView     = can('payments',  'view');
 $canPayAdd      = can('payments',  'add');
 $canPayEdit     = can('payments',  'edit');
@@ -123,6 +124,9 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
             <?php endif; ?>
             <?php if ($canPayAdd && $inv['payment_status'] !== 'fully_paid'): ?>
               <button class="icon-btn" onclick="addPayment(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number']) ?>', <?= $balance ?>)" title="Add Payment"><?= icon('payment', 15) ?></button>
+            <?php endif; ?>
+            <?php if ($canInvForward && empty($inv['has_lineup'])): ?>
+              <a class="icon-btn" href="<?= htmlspecialchars(app_url('/project-lineup?prefill_invoice_id=' . $inv['id'])) ?>" title="Forward to Project Lineup" style="color:var(--color-primary)"><?= icon('forward', 15) ?></a>
             <?php endif; ?>
             <?php if ($canInvDelete): ?>
               <button class="icon-btn danger" onclick="deleteInvoice(<?= $inv['id'] ?>, '<?= htmlspecialchars($inv['invoice_number'], ENT_QUOTES) ?>')" title="Delete Invoice"><?= icon('delete', 15) ?></button>
