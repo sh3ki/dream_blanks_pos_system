@@ -76,6 +76,7 @@ define('MODULE_REPORTS_FINANCIAL',  'reports_financial');
 define('MODULE_SETTINGS',           'settings');
 define('MODULE_AUDIT_LOGS',     'audit_logs');
 define('MODULE_NOTIFICATIONS',  'notifications');
+define('MODULE_PROJECT_LINEUP', 'project_lineup');
 
 // Permission actions
 define('ACTION_VIEW',    'view');
