@@ -28,9 +28,27 @@ function plStatusBadgeClass(string $val): string {
         default                              => 'badge-secondary',
     };
 }
+
+function plSortLink(string $col, string $label, string $currentSort, string $currentOrder, array $filters): string {
+    $nextOrder = ($currentSort === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
+    $params    = array_filter(array_merge($filters, ['sort' => $col, 'order' => $nextOrder]), fn($v) => $v !== '');
+    $arrow     = $currentSort === $col
+        ? ($currentOrder === 'ASC' ? ' <span style="font-size:.8em">&#9650;</span>' : ' <span style="font-size:.8em">&#9660;</span>')
+        : ' <span style="font-size:.8em;opacity:.4">&#8645;</span>';
+    return '<a href="?' . http_build_query($params) . '" style="display:block;padding:12px 16px;color:inherit;text-decoration:none;white-space:nowrap">'
+        . htmlspecialchars($label) . $arrow . '</a>';
+}
+
+$sort  = $filters['sort']  ?? 'pl.id';
+$order = strtoupper($filters['order'] ?? 'ASC');
 ?>
 <div class="page-header">
   <h1>Project Lineup</h1>
+  <?php if ($canAdd): ?>
+  <button class="btn btn-primary" onclick="openAddLineup()" style="display:flex;align-items:center;gap:6px">
+    <?= icon('plus', 15) ?> Add Entry
+  </button>
+  <?php endif; ?>
 </div>
 
 <div class="card">
@@ -79,6 +97,8 @@ function plStatusBadgeClass(string $val): string {
           </option>
           <?php endforeach; ?>
         </select>
+        <?php if (!empty($filters['sort'])): ?><input type="hidden" name="sort" value="<?= htmlspecialchars($filters['sort']) ?>"><?php endif; ?>
+        <?php if (!empty($filters['order'])): ?><input type="hidden" name="order" value="<?= htmlspecialchars($filters['order']) ?>"><?php endif; ?>
       </form>
     </div>
   </div>
@@ -88,15 +108,15 @@ function plStatusBadgeClass(string $val): string {
       <thead>
         <tr>
           <th style="width:40px">#</th>
-          <th>Date</th>
-          <th>Invoice</th>
-          <th>Client</th>
-          <th>Brand Name</th>
+          <th style="padding:0"><?= plSortLink('pl.date', 'Date', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= plSortLink('i.invoice_number', 'Invoice', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= plSortLink('c.full_name', 'Client', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= plSortLink('pl.brand_name', 'Brand Name', $sort, $order, $filters) ?></th>
           <th>Category</th>
           <th>Type</th>
-          <th style="width:60px">Qty</th>
-          <th>Deadline</th>
-          <th style="min-width:140px">Project Status</th>
+          <th style="padding:0;width:60px"><?= plSortLink('pl.qty', 'Qty', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= plSortLink('pl.deadline', 'Deadline', $sort, $order, $filters) ?></th>
+          <th style="padding:0;min-width:140px"><?= plSortLink('pl.project_status', 'Project Status', $sort, $order, $filters) ?></th>
           <th style="min-width:130px">T-Shirt</th>
           <th style="min-width:130px">Tags</th>
           <th style="min-width:130px">Print</th>
@@ -107,11 +127,12 @@ function plStatusBadgeClass(string $val): string {
         </tr>
       </thead>
       <tbody>
-        <?php $rowNum = (($pagination['current_page'] - 1) * $pagination['per_page']) + 1; ?>
         <?php foreach ($lineups as $ln): ?>
         <tr>
-          <td><?= $rowNum++ ?></td>
-          <td style="white-space:nowrap"><?= date('M d, Y', strtotime($ln['date'])) ?></td>
+          <td><?= (int)$ln['queue_number'] ?></td>
+          <td style="white-space:nowrap">
+            <div style="font-size:.85rem;font-weight:600"><?= date('M d, Y', strtotime($ln['date'])) ?></div>
+          </td>
           <td><strong><?= htmlspecialchars($ln['invoice_number'] ?? '—') ?></strong></td>
           <td><?= htmlspecialchars($ln['client_name'] ?? 'Walk-in') ?></td>
           <td><?= htmlspecialchars($ln['brand_name'] ?? '') ?></td>
@@ -121,8 +142,8 @@ function plStatusBadgeClass(string $val): string {
           <td style="white-space:nowrap"><?= $ln['deadline'] ? date('M d, Y', strtotime($ln['deadline'])) : '<span class="text-muted">—</span>' ?></td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'project_status', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'project_status', this.value)">
               <?php foreach ($projectStatusOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['project_status'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -135,8 +156,8 @@ function plStatusBadgeClass(string $val): string {
           </td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'tshirt_status', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'tshirt_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['tshirt_status'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -149,8 +170,8 @@ function plStatusBadgeClass(string $val): string {
           </td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'tags_status', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'tags_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['tags_status'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -163,8 +184,8 @@ function plStatusBadgeClass(string $val): string {
           </td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'print_status', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'print_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['print_status'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -177,8 +198,8 @@ function plStatusBadgeClass(string $val): string {
           </td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'label_attached_status', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'label_attached_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['label_attached_status'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -191,8 +212,8 @@ function plStatusBadgeClass(string $val): string {
           </td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'qc_packing_status', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'qc_packing_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['qc_packing_status'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -205,8 +226,8 @@ function plStatusBadgeClass(string $val): string {
           </td>
           <td onclick="event.stopPropagation()">
             <?php if ($canEdit): ?>
-            <select class="form-select" style="padding:4px 6px;font-size:.78rem;height:30px"
-              onchange="updateLineupStatus(<?= $ln['id'] ?>, 'authorized_approval', this.value)">
+            <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
+              onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'authorized_approval', this.value)">
               <?php foreach ($approvalOptions as $v => $l): ?>
               <option value="<?= $v ?>" <?= $ln['authorized_approval'] === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -374,6 +395,22 @@ function plStatusBadgeClass(string $val): string {
 <script>
 var _lineupDeleteId = null;
 
+// Color map for status dropdowns
+function applyStatusColor(el) {
+  var colors = {
+    pending:       '#dc3545',
+    ongoing:       '#0d6efd',
+    completed:     '#198754',
+    approved:      '#198754',
+    for_releasing: '#6f42c1',
+    released:      '#6f42c1',
+  };
+  el.style.color       = colors[el.value] || '#dc3545';
+  el.style.fontWeight  = '600';
+  el.style.background  = '';
+  el.style.borderColor = '';
+}
+
 // Fields that are locked when forwarding from an invoice
 var _lineupForwardLocked = ['lineupDate','lineupBrandName','lineupCategories','lineupTypes','lineupQty'];
 
@@ -444,6 +481,9 @@ function editLineup(data) {
   document.getElementById('lineupQcStatus').value = data.qc_packing_status || 'pending';
   document.getElementById('lineupApproval').value = data.authorized_approval || 'pending';
 
+  // Always editable when opened via edit button
+  _setForwardLock(false);
+
   document.getElementById('lineupModal').classList.add('show');
 }
 
@@ -456,6 +496,7 @@ async function saveLineup() {
 
   const payload = {
     invoice_id:            invoiceId,
+    client_name:           document.getElementById('lineupClientName').value || 'Walk-in',
     date,
     brand_name:            document.getElementById('lineupBrandName').value,
     categories:            document.getElementById('lineupCategories').value,
@@ -472,7 +513,7 @@ async function saveLineup() {
   };
 
   const method = id ? 'PUT' : 'POST';
-  const url    = id ? appPath('/api/v1/project-lineup/' + id) : appPath('/api/v1/project-lineup');
+  const url    = id ? '/api/v1/project-lineup/' + id : '/api/v1/project-lineup';
 
   try {
     const res  = await fetch(url, {
@@ -495,13 +536,17 @@ async function saveLineup() {
 
 async function updateLineupStatus(id, field, value) {
   try {
-    const res  = await fetch(appPath('/api/v1/project-lineup/' + id + '/status'), {
+    const res  = await fetch('/api/v1/project-lineup/' + id + '/status', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
       body: JSON.stringify({ field, value }),
     });
     const json = await res.json();
-    if (!json.success) showToast(json.message || 'Failed to update status', 'error');
+    if (json.success) {
+      showToast('Status updated', 'success');
+    } else {
+      showToast(json.message || 'Failed to update status', 'error');
+    }
   } catch (e) {
     showToast('Network error', 'error');
   }
@@ -516,7 +561,7 @@ function deleteLineup(id, invoiceNum) {
 async function confirmDeleteLineup() {
   if (!_lineupDeleteId) return;
   try {
-    const res  = await fetch(appPath('/api/v1/project-lineup/' + _lineupDeleteId), {
+    const res  = await fetch('/api/v1/project-lineup/' + _lineupDeleteId, {
       method: 'DELETE',
       headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
     });
@@ -536,11 +581,16 @@ async function confirmDeleteLineup() {
 <?php if (!empty($prefill_data)): ?>
 // Auto-open add modal with prefill from invoice forward
 document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.pl-status-select').forEach(applyStatusColor);
   openAddLineup(<?= json_encode($prefill_data) ?>);
   // Remove prefill_invoice_id from URL without reload
   const url = new URL(window.location.href);
   url.searchParams.delete('prefill_invoice_id');
   history.replaceState(null, '', url.toString());
+});
+<?php else: ?>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.pl-status-select').forEach(applyStatusColor);
 });
 <?php endif; ?>
 </script>
