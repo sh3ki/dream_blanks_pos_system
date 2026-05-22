@@ -116,19 +116,23 @@
       <div class="summary-row" id="feeRow" style="display:none"><span>Extra Fee</span><span id="feeDisplay">+₱0.00</span></div>
       <div class="summary-row total"><span>TOTAL</span><span id="totalAmount">₱0.00</span></div>
 
-      <!-- Adjustments btn + Payment Method: inline -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;align-items:end">
-        <button class="btn btn-secondary btn-sm" onclick="openAdjustmentsModal()" style="height:36px;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          <?= icon('settings', 13) ?> Discount / Tax / Fee / Notes
+      <!-- Adjustments + Label Fields buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <button id="adjBtn" class="btn btn-secondary btn-sm" onclick="openAdjustmentsModal()" style="height:36px;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:center;gap:5px">
+          <?= icon('settings', 13) ?> <span>Discount / Tax / Fee</span>
         </button>
-        <div>
-          <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Method</label>
-          <input type="hidden" id="paymentMode" value="cash">
-          <div style="display:flex;gap:3px">
-            <button type="button" id="pmBtn_cash" onclick="setPaymentMode('cash')" class="btn btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px;background:var(--color-primary);color:#fff;border-color:var(--color-primary)"><?= icon('wallet', 12) ?> Cash</button>
-            <button type="button" id="pmBtn_bdo" onclick="setPaymentMode('bdo')" class="btn btn-secondary btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px"><?= icon('building', 12) ?> BDO</button>
-            <button type="button" id="pmBtn_gcash" onclick="setPaymentMode('gcash')" class="btn btn-secondary btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px"><?= icon('smartphone', 12) ?> GCash</button>
-          </div>
+        <button id="labelBtn" class="btn btn-secondary btn-sm" onclick="openLabelModal()" style="height:36px;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:center;gap:5px">
+          <?= icon('tag', 13) ?> <span>Label Fields</span>
+        </button>
+      </div>
+      <!-- Payment Method: full width -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Payment Method</label>
+        <input type="hidden" id="paymentMode" value="cash">
+        <div style="display:flex;gap:3px">
+          <button type="button" id="pmBtn_cash" onclick="setPaymentMode('cash')" class="btn btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px;background:var(--color-primary);color:#fff;border-color:var(--color-primary)"><?= icon('wallet', 12) ?> Cash</button>
+          <button type="button" id="pmBtn_bdo" onclick="setPaymentMode('bdo')" class="btn btn-secondary btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px"><?= icon('building', 12) ?> BDO</button>
+          <button type="button" id="pmBtn_gcash" onclick="setPaymentMode('gcash')" class="btn btn-secondary btn-sm" style="flex:1;height:36px;font-size:.72rem;display:flex;align-items:center;justify-content:center;gap:3px"><?= icon('smartphone', 12) ?> GCash</button>
         </div>
       </div>
 
@@ -137,7 +141,7 @@
         <label style="font-size:.72rem;color:var(--color-gray-500);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Cash Received</label>
         <div style="display:flex;align-items:center;gap:8px">
           <input type="number" id="cashReceived" class="form-input" placeholder="0.00" min="0" step="0.01" oninput="calcPaymentStatus()" style="height:36px;font-size:.82rem;width:50%">
-          <span style="font-size:.8rem;color:var(--color-gray-500);white-space:nowrap">Change: <strong id="changeDisplay" style="color:var(--color-success)">₱0.00</strong></span>
+          <span style="font-size:1rem;color:var(--color-gray-500);white-space:nowrap">Change: <strong id="changeDisplay" style="font-size:1.5rem;color:var(--color-success)"> ₱0.00</strong></span>
         </div>
       </div>
 
@@ -176,6 +180,45 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('adjustmentsModal')">Cancel</button>
       <button class="btn btn-primary" onclick="applyAdjustments()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Label Fields Modal -->
+<div class="modal-overlay" id="labelModal">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title"><?= icon('tag', 16) ?> Label Fields</h2>
+      <button class="modal-close" onclick="closeModal('labelModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Brand Name <span style="font-weight:400;color:var(--color-gray-400)">(optional)</span></label>
+        <input type="text" id="labelBrandName" class="form-input" placeholder="e.g. Dream Blanks" oninput="updateLabelBtn()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Etiketa <span style="font-weight:400;color:var(--color-gray-400)">(optional)</span></label>
+        <select id="labelEtiketaDropdown" class="form-select" onchange="addLabelChip('etiketa', this)">
+          <option value="">— Select —</option>
+          <option value="neck">Neck</option>
+          <option value="sleeve">Sleeve</option>
+          <option value="hem">Hem</option>
+        </select>
+        <div id="labelEtiketaChips" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:0"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags <span style="font-weight:400;color:var(--color-gray-400)">(optional)</span></label>
+        <select id="labelTagsDropdown" class="form-select" onchange="addLabelChip('tags', this)">
+          <option value="">— Select —</option>
+          <option value="sticker">Sticker</option>
+          <option value="hangtag">Hangtag</option>
+        </select>
+        <div id="labelTagsChips" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:0"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('labelModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="applyLabel()">Apply</button>
     </div>
   </div>
 </div>
@@ -411,7 +454,69 @@ function calcPaymentStatus() {
 
 function applyAdjustments() {
   recalculate();
+  updateAdjBtn();
   closeModal('adjustmentsModal');
+}
+
+function updateAdjBtn() {
+  const discount = parseFloat(document.getElementById('discountAmount')?.value) || 0;
+  const tax      = parseFloat(document.getElementById('taxAmount')?.value) || 0;
+  const fee      = parseFloat(document.getElementById('additionalFee')?.value) || 0;
+  const notes    = (document.getElementById('orderNotes')?.value || '').trim();
+  const hasData  = discount > 0 || tax > 0 || fee > 0 || notes !== '';
+  const btn = document.getElementById('adjBtn');
+  if (!btn) return;
+  const existing = btn.querySelector('.btn-check-badge');
+  if (hasData && !existing) {
+    btn.insertAdjacentHTML('beforeend', '<svg class="btn-check-badge" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>');
+  } else if (!hasData && existing) {
+    existing.remove();
+  }
+}
+
+function updateLabelBtn() {
+  const brand   = (document.getElementById('labelBrandName')?.value || '').trim();
+  const hasData = brand !== '' || labelSelections.etiketa.length > 0 || labelSelections.tags.length > 0;
+  const btn = document.getElementById('labelBtn');
+  if (!btn) return;
+  const existing = btn.querySelector('.btn-check-badge');
+  if (hasData && !existing) {
+    btn.insertAdjacentHTML('beforeend', '<svg class="btn-check-badge" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>');
+  } else if (!hasData && existing) {
+    existing.remove();
+  }
+}
+
+function openLabelModal() { openModal('labelModal'); }
+function applyLabel() { updateLabelBtn(); closeModal('labelModal'); }
+
+const labelSelections = { etiketa: [], tags: [] };
+
+function addLabelChip(field, select) {
+  const val = select.value;
+  if (!val || labelSelections[field].includes(val)) { select.value = ''; return; }
+  labelSelections[field].push(val);
+  renderLabelChips(field);
+  updateLabelBtn();
+  select.value = '';
+}
+
+function removeLabelChip(field, val) {
+  labelSelections[field] = labelSelections[field].filter(v => v !== val);
+  renderLabelChips(field);
+  updateLabelBtn();
+}
+
+function renderLabelChips(field) {
+  const cap = field.charAt(0).toUpperCase() + field.slice(1);
+  const container = document.getElementById('label' + cap + 'Chips');
+  if (!container) return;
+  container.innerHTML = labelSelections[field].map(v =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--color-primary);color:#fff;border-radius:999px;padding:3px 10px 3px 12px;font-size:.78rem;font-weight:600">
+      ${v.charAt(0).toUpperCase() + v.slice(1)}
+      <button type="button" onclick="removeLabelChip('${field}','${v}')" style="background:rgba(255,255,255,.25);border:none;color:#fff;cursor:pointer;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:.85rem;line-height:1;padding:0;flex-shrink:0">&times;</button>
+    </span>`
+  ).join('');
 }
 
 function openCheckoutConfirm() {
@@ -513,6 +618,9 @@ async function checkout() {
     notes:               document.getElementById('orderNotes').value,
     reference_number:    posRefNumber,
     payment_photo_path:  paymentPhotoPath,
+    brand_name:          (document.getElementById('labelBrandName')?.value || '').trim() || null,
+    etiketa:             labelSelections.etiketa.join(',') || null,
+    tags:                labelSelections.tags.join(',') || null,
   };
 
   try {
@@ -529,6 +637,15 @@ async function checkout() {
       document.getElementById('additionalFee').value = '0';
       document.getElementById('orderNotes').value = '';
       document.getElementById('cashReceived').value = '';
+      document.getElementById('labelBrandName').value = '';
+      labelSelections.etiketa = [];
+      labelSelections.tags = [];
+      renderLabelChips('etiketa');
+      renderLabelChips('tags');
+      document.getElementById('labelEtiketaDropdown').value = '';
+      document.getElementById('labelTagsDropdown').value = '';
+      updateAdjBtn();
+      updateLabelBtn();
       const changeEl = document.getElementById('changeDisplay');
       if (changeEl) { changeEl.textContent = '₱0.00'; changeEl.style.color = 'var(--color-gray-400)'; }
       recalculate();
