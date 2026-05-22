@@ -75,6 +75,11 @@ $currentPath = strtok($currentPath, '?');
         <span class="nav-icon"><?= icon('transactions') ?></span><span class="nav-label">Transactions</span>
       </a>
       <?php endif; ?>
+      <?php if (can('project_lineup', 'view')): ?>
+      <a href="<?= htmlspecialchars(app_url('/project-lineup')) ?>" class="nav-link <?= str_starts_with($currentPath,'/project-lineup') ? 'active':'' ?>">
+        <span class="nav-icon"><?= icon('lineup') ?></span><span class="nav-label">Project Lineup</span>
+      </a>
+      <?php endif; ?>
       <?php if (can('clients', 'view')): ?>
       <a href="<?= htmlspecialchars(app_url('/clients')) ?>" class="nav-link <?= str_starts_with($currentPath,'/clients') ? 'active':'' ?>">
         <span class="nav-icon"><?= icon('clients') ?></span><span class="nav-label">Clients</span>
