@@ -304,21 +304,35 @@ class ReportService
              ORDER BY balance_due DESC"
         );
 
+        $unconfirmedPayments = $this->db->select(
+            "SELECT pay.id, pay.payment_date, pay.payment_amount, pay.payment_mode,
+                    pay.reference_number, pay.payment_photo_path, pay.payment_number,
+                    i.invoice_number, COALESCE(c.full_name,'Walk-in') as client_name,
+                    CONCAT(u.first_name,' ',u.last_name) as recorded_by_name
+             FROM payments pay
+             INNER JOIN invoices i ON i.id = pay.invoice_id AND i.deleted_at IS NULL
+             LEFT JOIN clients c ON c.id = i.client_id
+             INNER JOIN users u ON u.id = pay.recorded_by
+             WHERE pay.is_confirmed = 0
+             ORDER BY pay.payment_date DESC"
+        );
+
         $totalRevenue   = (float)($revenue['total']     ?? 0);
         $totalCollected = (float)($revenue['collected'] ?? 0);
         $collectionRate = $totalRevenue > 0 ? round($totalCollected / $totalRevenue * 100, 1) : 0;
 
         return [
-            'total_revenue'      => $totalRevenue,
-            'collected'          => $totalCollected,
-            'outstanding_total'  => (float)($outstanding['balance'] ?? 0),
-            'invoice_count'      => (int)($revenue['invoice_count'] ?? 0),
-            'collection_rate'    => $collectionRate,
-            'status_map'         => $statusMap,
-            'trend'              => $trend,
-            'aging'              => $aging,
-            'top_clients'        => $topClients,
-            'receivables'        => $receivables,
+            'total_revenue'        => $totalRevenue,
+            'collected'            => $totalCollected,
+            'outstanding_total'    => (float)($outstanding['balance'] ?? 0),
+            'invoice_count'        => (int)($revenue['invoice_count'] ?? 0),
+            'collection_rate'      => $collectionRate,
+            'status_map'           => $statusMap,
+            'trend'                => $trend,
+            'aging'                => $aging,
+            'top_clients'          => $topClients,
+            'receivables'          => $receivables,
+            'unconfirmed_payments' => $unconfirmedPayments,
             'status_chart'       => [
                 'labels' => ['Fully Paid', 'Partially Paid', 'Unpaid'],
                 'data'   => [$statusMap['fully_paid']['cnt'], $statusMap['partially_paid']['cnt'], $statusMap['unpaid']['cnt']],
