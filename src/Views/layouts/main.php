@@ -209,7 +209,7 @@ $currentPath = strtok($currentPath, '?');
       <h3 style="margin-bottom:8px;font-size:1.15rem">Still there?</h3>
       <p style="color:var(--color-gray-500);font-size:.875rem;margin-bottom:28px;line-height:1.6">
         You've been inactive for a while. Your session will automatically end in
-        <strong id="inactivityCountdown" style="color:var(--color-danger)">10</strong> second(s).
+        <strong id="inactivityCountdown" style="color:var(--color-danger)">5:00</strong>.
       </p>
       <div style="display:flex;gap:12px;justify-content:center">
         <a href="<?= htmlspecialchars(app_url('/logout')) ?>" class="btn btn-secondary">Logout Now</a>
@@ -222,14 +222,20 @@ $currentPath = strtok($currentPath, '?');
 <script src="<?= htmlspecialchars(asset_url('/assets/js/app.js')) ?>"></script>
 <script>
 (function () {
-  const INACTIVE_MS = 5 * 60 * 1000;  // 5 minutes
-  const COUNTDOWN_S = 10;
+  const INACTIVE_MS = 55 * 60 * 1000; // show warning after 55 minutes idle
+  const COUNTDOWN_S = 5 * 60;         // 5-minute countdown = 1 hour total
   const LOGOUT_URL  = <?= json_encode(app_url('/logout')) ?>;
 
   let idleTimer     = null;
   let countdownInt  = null;
   let remaining     = COUNTDOWN_S;
   let warningActive = false;
+
+  function fmtTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
 
   function resetIdle() {
     if (warningActive) return;
@@ -243,11 +249,11 @@ $currentPath = strtok($currentPath, '?');
     const modal = document.getElementById('inactivityModal');
     modal.style.display = '';
     modal.classList.add('show');
-    document.getElementById('inactivityCountdown').textContent = remaining;
+    document.getElementById('inactivityCountdown').textContent = fmtTime(remaining);
     countdownInt = setInterval(function () {
       remaining--;
       const el = document.getElementById('inactivityCountdown');
-      if (el) el.textContent = remaining;
+      if (el) el.textContent = fmtTime(remaining);
       if (remaining <= 0) {
         clearInterval(countdownInt);
         window.location.href = LOGOUT_URL;
