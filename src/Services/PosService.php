@@ -90,6 +90,9 @@ class PosService
                 'payment_status'       => PAYMENT_STATUS_UNPAID,
                 'primary_payment_mode' => $data['payment_mode'] ?? null,
                 'notes'                => $data['notes'] ?? null,
+                'brand_name'           => $data['brand_name'] ?? null,
+                'etiketa'              => $data['etiketa'] ?? null,
+                'tags'                 => $data['tags'] ?? null,
                 'created_by'           => $createdBy,
             ]);
 
