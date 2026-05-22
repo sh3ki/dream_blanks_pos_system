@@ -73,9 +73,11 @@ class Invoice extends Model
     public static function getPayments(int $invoiceId): array
     {
         return static::db()->select(
-            "SELECT pay.*, CONCAT(u.first_name,' ',u.last_name) as recorded_by_name
+            "SELECT pay.*, CONCAT(u.first_name,' ',u.last_name) as recorded_by_name,
+                    CONCAT(cu.first_name,' ',cu.last_name) as confirmed_by_name
              FROM payments pay
              INNER JOIN users u ON u.id = pay.recorded_by
+             LEFT JOIN users cu ON cu.id = pay.confirmed_by
              WHERE pay.invoice_id = ?
              ORDER BY pay.payment_date ASC",
             [$invoiceId]
@@ -181,6 +183,21 @@ class Invoice extends Model
             $params  = array_merge($params, [$term, $term, $term, $term]);
         }
 
+        if (!empty($filters['status'])) {
+            $where   .= " AND i.payment_status = ?";
+            $params[] = $filters['status'];
+        }
+
+        if (!empty($filters['method'])) {
+            $where   .= " AND i.primary_payment_mode = ?";
+            $params[] = $filters['method'];
+        }
+
+        if (!empty($filters['processed_by'])) {
+            $where   .= " AND i.created_by = ?";
+            $params[] = (int)$filters['processed_by'];
+        }
+
         if (!empty($filters['date_from'])) {
             $where   .= " AND DATE(i.invoice_date) >= ?";
             $params[] = $filters['date_from'];
@@ -210,6 +227,7 @@ class Invoice extends Model
         $sql = "SELECT i.id, i.invoice_number, i.invoice_date, i.payment_status,
                        i.primary_payment_mode as payment_mode, i.total_amount,
                        c.full_name as client_name, c.email as client_email,
+                       CONCAT(u.first_name,' ',u.last_name) as processed_by_name,
                        (SELECT GROUP_CONCAT(CONCAT(p2.name, ' ×', ii2.quantity)
                                 ORDER BY p2.name SEPARATOR ', ')
                         FROM invoice_items ii2
@@ -219,6 +237,7 @@ class Invoice extends Model
                        (SELECT COALESCE(SUM(quantity),0) FROM invoice_items WHERE invoice_id = i.id) as total_qty
                 FROM invoices i
                 LEFT JOIN clients c ON c.id = i.client_id
+                LEFT JOIN users u ON u.id = i.created_by
                 LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
                 LEFT JOIN products p ON p.id = ii.product_id
                 WHERE {$where}
