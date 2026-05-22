@@ -14,7 +14,7 @@ class ProjectLineup extends Model
 
         if (!empty($filters['search'])) {
             $term    = "%{$filters['search']}%";
-            $where  .= " AND (i.invoice_number LIKE ? OR c.full_name LIKE ? OR pl.brand_name LIKE ?)";
+            $where  .= " AND (i.invoice_number LIKE ? OR COALESCE(pl.client_name, c.full_name) LIKE ? OR pl.brand_name LIKE ?)";
             $params  = array_merge($params, [$term, $term, $term]);
         }
 
@@ -50,6 +50,13 @@ class ProjectLineup extends Model
             $params[] = $filters['project_status'];
         }
 
+        $allowedSorts = [
+            'pl.date', 'i.invoice_number', 'c.full_name', 'pl.brand_name',
+            'pl.qty',  'pl.deadline',      'pl.project_status',
+        ];
+        $sort  = in_array($filters['sort'] ?? '', $allowedSorts) ? $filters['sort'] : 'pl.id';
+        $order = strtoupper($filters['order'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+
         $db    = static::db();
         $total = (int)($db->selectOne(
             "SELECT COUNT(*) as cnt
@@ -63,12 +70,14 @@ class ProjectLineup extends Model
         $offset = ($page - 1) * $perPage;
         $sql    = "SELECT pl.*,
                           i.invoice_number,
-                          c.full_name as client_name
+                          COALESCE(pl.client_name, c.full_name, 'Walk-in') as client_name,
+                          (SELECT COUNT(*) FROM project_lineups pl2
+                           WHERE pl2.deleted_at IS NULL AND pl2.id <= pl.id) as queue_number
                    FROM project_lineups pl
                    LEFT JOIN invoices i ON i.id = pl.invoice_id
                    LEFT JOIN clients c ON c.id = i.client_id
                    WHERE {$where}
-                   ORDER BY pl.created_at DESC
+                   ORDER BY {$sort} {$order}
                    LIMIT {$perPage} OFFSET {$offset}";
         $items  = $db->select($sql, $params);
 
@@ -92,38 +101,39 @@ class ProjectLineup extends Model
 
         $invoice = $db->selectOne(
             "SELECT i.id, i.invoice_number, DATE(i.invoice_date) as date,
-                    c.full_name as client_name,
+                    COALESCE(c.full_name, 'Walk-in') as client_name,
+                    i.brand_name,
                     SUM(ii.quantity) as total_qty
              FROM invoices i
              LEFT JOIN clients c ON c.id = i.client_id
              LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
              WHERE i.id = ? AND i.deleted_at IS NULL
-             GROUP BY i.id, i.invoice_number, i.invoice_date, c.full_name",
+             GROUP BY i.id",
             [$invoiceId]
         );
 
         if (!$invoice) return null;
 
         $categories = $db->select(
-            "SELECT DISTINCT cat.name
+            "SELECT DISTINCT cat.code
              FROM invoice_items ii
              INNER JOIN products p ON p.id = ii.product_id
              LEFT JOIN categories cat ON cat.id = p.category_id
-             WHERE ii.invoice_id = ? AND cat.name IS NOT NULL",
+             WHERE ii.invoice_id = ? AND cat.code IS NOT NULL",
             [$invoiceId]
         );
 
         $types = $db->select(
-            "SELECT DISTINCT t.name
+            "SELECT DISTINCT t.code
              FROM invoice_items ii
              INNER JOIN products p ON p.id = ii.product_id
              LEFT JOIN types t ON t.id = p.type_id
-             WHERE ii.invoice_id = ? AND t.name IS NOT NULL",
+             WHERE ii.invoice_id = ? AND t.code IS NOT NULL",
             [$invoiceId]
         );
 
-        $invoice['categories'] = array_column($categories, 'name');
-        $invoice['types']      = array_column($types, 'name');
+        $invoice['categories'] = array_column($categories, 'code');
+        $invoice['types']      = array_column($types, 'code');
 
         return $invoice;
     }
