@@ -192,8 +192,10 @@ class ReportService
         $restockStats = $this->db->selectOne(
             "SELECT
                COUNT(*) as total_orders,
-               SUM(CASE WHEN delivery_status='ordered'  THEN 1 ELSE 0 END) as pending,
-               SUM(CASE WHEN delivery_status='received' THEN 1 ELSE 0 END) as received
+               SUM(CASE WHEN delivery_status='ordered'     THEN 1 ELSE 0 END) as ordered_count,
+               SUM(CASE WHEN delivery_status='delivered'   THEN 1 ELSE 0 END) as delivered_count,
+               SUM(CASE WHEN delivery_status='incomplete'  THEN 1 ELSE 0 END) as incomplete_count,
+               SUM(CASE WHEN delivery_status='problematic' THEN 1 ELSE 0 END) as problematic_count
              FROM restock_orders"
         );
 
@@ -206,7 +208,7 @@ class ReportService
             'highest_stock'    => $highestStock,
             'lowest_stock'     => $lowestStock,
             'stock_status'     => $stockStatus,
-            'restock_stats'    => $restockStats ?? ['total_orders' => 0, 'pending' => 0, 'received' => 0],
+            'restock_stats'    => $restockStats ?? ['total_orders'=>0,'ordered_count'=>0,'delivered_count'=>0,'incomplete_count'=>0,'problematic_count'=>0],
         ];
     }
 
