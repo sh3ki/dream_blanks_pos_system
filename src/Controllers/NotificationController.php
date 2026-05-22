@@ -5,11 +5,15 @@ namespace App\Controllers;
 use App\Core\Request;
 use App\Core\Response;
 use App\Models\Notification;
+use App\Services\NotificationService;
 
 class NotificationController extends Controller
 {
     public function index(Request $request): Response
     {
+        // Check and queue deadline reminders before returning the list
+        NotificationService::lineupDeadlineReminders();
+
         [$page, $perPage] = $this->paginate($request);
         $unreadOnly = filter_var($request->query('unread_only', false), FILTER_VALIDATE_BOOLEAN);
         $result = Notification::forUser($this->currentUserId(), $unreadOnly, $page, $perPage);
