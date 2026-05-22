@@ -152,7 +152,7 @@ $rptCanPayConfirm = can('payments', 'confirm');
 <div class="rpt-card" style="margin-bottom:16px">
   <div style="overflow-x:auto">
     <table class="rpt-tbl">
-      <thead><tr><th>#</th><th>Date</th><th>Invoice #</th><th>Client</th><th>Mode</th><th>Reference</th><th style="text-align:right">Amount</th><th>Recorded By</th><?php if ($rptCanPayConfirm): ?><th>Action</th><?php endif; ?></tr></thead>
+      <thead><tr><th>#</th><th>Date</th><th>Invoice #</th><th>Client</th><th>Mode</th><th>Reference</th><th style="text-align:center">Photo</th><th style="text-align:right">Amount</th><th>Recorded By</th><?php if ($rptCanPayConfirm): ?><th>Action</th><?php endif; ?></tr></thead>
       <tbody>
         <?php foreach(($r['unconfirmed_payments']??[]) as $i=>$up): ?>
         <tr>
@@ -172,6 +172,16 @@ $rptCanPayConfirm = can('payments', 'confirm');
             <?php endif; ?>
           </td>
           <td style="font-size:.82rem"><?= htmlspecialchars($up['reference_number'] ?? '—') ?></td>
+          <td style="text-align:center">
+            <?php if (!empty($up['payment_photo_path'])): ?>
+            <img src="<?= htmlspecialchars(app_url($up['payment_photo_path'])) ?>"
+                 alt="Receipt"
+                 style="width:40px;height:54px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb"
+                 onclick="rptViewFullPhoto('<?= htmlspecialchars(app_url($up['payment_photo_path']), ENT_QUOTES) ?>')">
+            <?php else: ?>
+            <span style="color:var(--color-gray-400)">—</span>
+            <?php endif; ?>
+          </td>
           <td style="text-align:right;font-weight:600">₱<?= number_format((float)$up['payment_amount'], 2) ?></td>
           <td style="font-size:.82rem"><?= htmlspecialchars($up['recorded_by_name'] ?? '—') ?></td>
           <?php if ($rptCanPayConfirm): ?>
@@ -179,7 +189,7 @@ $rptCanPayConfirm = can('payments', 'confirm');
           <?php endif; ?>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($r['unconfirmed_payments'])): ?><tr><td colspan="<?= $rptCanPayConfirm ? 9 : 8 ?>" style="text-align:center;color:var(--color-gray-500);padding:24px">No unconfirmed payments</td></tr><?php endif; ?>
+        <?php if(empty($r['unconfirmed_payments'])): ?><tr><td colspan="<?= $rptCanPayConfirm ? 10 : 9 ?>" style="text-align:center;color:var(--color-gray-500);padding:24px">No unconfirmed payments</td></tr><?php endif; ?>
       </tbody>
     </table>
   </div>
@@ -352,7 +362,22 @@ async function rptConfirmPayment(paymentId) {
   } catch(e) { showToast('Network error', 'error'); }
 }
 <?php endif; ?>
+function rptViewFullPhoto(src) {
+  document.getElementById('rptFullPhotoImg').src = src;
+  openModal('rptFullPhotoModal');
+}
 </script>
+
+<!-- Full-size Photo Lightbox -->
+<div class="modal-overlay" id="rptFullPhotoModal" style="z-index:9999" onclick="if(event.target===this)closeModal('rptFullPhotoModal')">
+  <div style="position:relative;display:inline-block;max-width:90vw;max-height:90vh">
+    <button onclick="closeModal('rptFullPhotoModal')" title="Close" style="position:absolute;top:-38px;right:0;background:rgba(255,255,255,.95);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:10;line-height:1">&times;</button>
+    <img id="rptFullPhotoImg" src="" alt="Payment Receipt" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;display:block">
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="closeModal('rptFullPhotoModal')" style="background:rgba(255,255,255,.95);border:none;border-radius:6px;padding:6px 22px;font-size:.85rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">Close</button>
+    </div>
+  </div>
+</div>
 <?php
 $content = ob_get_clean();
 $title   = 'Financial Report | Dream Blanks POS';
