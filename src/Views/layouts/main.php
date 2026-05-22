@@ -209,7 +209,7 @@ $currentPath = strtok($currentPath, '?');
       <h3 style="margin-bottom:8px;font-size:1.15rem">Still there?</h3>
       <p style="color:var(--color-gray-500);font-size:.875rem;margin-bottom:28px;line-height:1.6">
         You've been inactive for a while. Your session will automatically end in
-        <strong id="inactivityCountdown" style="color:var(--color-danger)">5:00</strong>.
+        <strong id="inactivityCountdown" style="color:var(--color-danger)">0:15</strong>.
       </p>
       <div style="display:flex;gap:12px;justify-content:center">
         <a href="<?= htmlspecialchars(app_url('/logout')) ?>" class="btn btn-secondary">Logout Now</a>
@@ -222,8 +222,8 @@ $currentPath = strtok($currentPath, '?');
 <script src="<?= htmlspecialchars(asset_url('/assets/js/app.js')) ?>"></script>
 <script>
 (function () {
-  const INACTIVE_MS = 55 * 60 * 1000; // show warning after 55 minutes idle
-  const COUNTDOWN_S = 5 * 60;         // 5-minute countdown = 1 hour total
+  const INACTIVE_MS = 60 * 60 * 1000; // show warning after 60 minutes idle
+  const COUNTDOWN_S = 15;             // 15-second countdown before auto-logout
   const LOGOUT_URL  = <?= json_encode(app_url('/logout')) ?>;
 
   let idleTimer     = null;
