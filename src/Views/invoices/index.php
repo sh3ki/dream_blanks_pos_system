@@ -202,6 +202,21 @@ function invSortLink(string $col, string $label, string $currentSort, string $cu
         <label class="form-label">Reference Number</label>
         <input type="text" id="editPayRef" class="form-input">
       </div>
+      <div class="form-group">
+        <label class="form-label">Payment Photo / Receipt <span style="color:var(--color-gray-400);font-size:.8em">(optional)</span></label>
+        <div id="editPayExistingPhotoWrap" style="display:none;margin-bottom:8px">
+          <div style="font-size:.75rem;color:var(--color-gray-500);margin-bottom:4px">Current photo:</div>
+          <img id="editPayExistingPhoto" src="" alt="Current receipt"
+            style="width:72px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--color-gray-100);display:block;cursor:pointer"
+            onclick="viewFullPhoto(this.src)">
+        </div>
+        <input type="file" id="editPayPhoto" class="form-input" accept="image/jpeg,image/png,image/gif,image/webp" style="padding:6px" onchange="previewEditPayPhoto(event)">
+        <div id="editPayPhotoPreviewWrap" style="display:none;margin-top:8px">
+          <div style="font-size:.75rem;color:var(--color-gray-500);margin-bottom:4px">New photo:</div>
+          <img id="editPayPhotoPreview" src="" alt="Preview"
+            style="width:72px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--color-gray-100);display:block">
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('editPayModal')">Cancel</button>
@@ -404,7 +419,7 @@ function renderPayHistRows(payments) {
       : `<td style="color:var(--color-gray-400);font-size:.8rem">&mdash;</td>`;
     const actionsCol = (PAY_CAN_CONFIRM || PAY_CAN_EDIT || PAY_CAN_DELETE) ? `<td style="white-space:nowrap">
       ${PAY_CAN_CONFIRM ? `<button class="icon-btn" style="color:${p.is_confirmed ? '#16a34a' : '#dc2626'}" onclick="toggleConfirmPayment(${p.id}, ${p.is_confirmed})" title="${p.is_confirmed ? 'Confirmed' : 'Unconfirmed'}">${p.is_confirmed ? <?= json_encode(icon('check', 14)) ?> : <?= json_encode(icon('close', 14)) ?>}</button>` : ''}
-      ${PAY_CAN_EDIT   ? `<button class="icon-btn" onclick="openEditPayment(${p.id},'${p.payment_date.slice(0,10)}',${p.payment_amount},'${p.payment_mode}','${p.reference_number??''}')" title="Edit">${<?= json_encode(icon('edit', 14)) ?>}</button>` : ''}
+      ${PAY_CAN_EDIT   ? `<button class="icon-btn" onclick="openEditPayment(${p.id},'${p.payment_date.slice(0,10)}',${p.payment_amount},'${p.payment_mode}','${p.reference_number??''}','${p.payment_photo_path??''}')" title="Edit">${<?= json_encode(icon('edit', 14)) ?>}</button>` : ''}
       ${PAY_CAN_DELETE ? `<button class="icon-btn danger" onclick="openDeletePayment(${p.id},${i+1})" title="Delete">${<?= json_encode(icon('delete', 14)) ?>}</button>` : ''}
     </td>` : '';
     return `<tr>
@@ -437,28 +452,53 @@ async function toggleConfirmPayment(paymentId, currentConfirmed) {
   } catch (e) { showToast('Network error', 'error'); }
 }
 
-function openEditPayment(id, date, amount, mode, ref) {
+function openEditPayment(id, date, amount, mode, ref, photoPath) {
   document.getElementById('editPayId').value     = id;
   document.getElementById('editPayDate').value   = date;
   document.getElementById('editPayAmount').value = amount;
   document.getElementById('editPayMode').value   = mode;
   document.getElementById('editPayRef').value    = ref;
+  // Reset new photo preview
+  document.getElementById('editPayPhoto').value = '';
+  document.getElementById('editPayPhotoPreview').src = '';
+  document.getElementById('editPayPhotoPreviewWrap').style.display = 'none';
+  // Show existing photo if present
+  const existingWrap = document.getElementById('editPayExistingPhotoWrap');
+  const existingImg  = document.getElementById('editPayExistingPhoto');
+  if (photoPath) {
+    existingImg.src = appPath(photoPath);
+    existingWrap.style.display = '';
+  } else {
+    existingImg.src = '';
+    existingWrap.style.display = 'none';
+  }
   openModal('editPayModal');
+}
+
+function previewEditPayPhoto(event) {
+  const file = event.target.files?.[0];
+  const wrap = document.getElementById('editPayPhotoPreviewWrap');
+  const img  = document.getElementById('editPayPhotoPreview');
+  if (file) { img.src = URL.createObjectURL(file); wrap.style.display = ''; }
+  else      { img.src = ''; wrap.style.display = 'none'; }
 }
 
 async function saveEditPayment() {
   const btn = document.getElementById('saveEditPayBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   const id = document.getElementById('editPayId').value;
+  const fd = new FormData();
+  fd.append('_method',          'PUT');
+  fd.append('payment_date',     document.getElementById('editPayDate').value);
+  fd.append('payment_amount',   parseFloat(document.getElementById('editPayAmount').value));
+  fd.append('payment_mode',     document.getElementById('editPayMode').value);
+  fd.append('reference_number', document.getElementById('editPayRef').value);
+  const photoFile = document.getElementById('editPayPhoto').files[0];
+  if (photoFile) fd.append('payment_photo', photoFile);
   try {
     const res  = await fetch('/api/v1/payments/' + id, {
-      method: 'PUT', headers: {'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-      body: JSON.stringify({
-        payment_date:     document.getElementById('editPayDate').value,
-        payment_amount:   parseFloat(document.getElementById('editPayAmount').value),
-        payment_mode:     document.getElementById('editPayMode').value,
-        reference_number: document.getElementById('editPayRef').value,
-      }),
+      method: 'POST', headers: { 'X-CSRF-Token': csrfToken },
+      body: fd,
     });
     const data = await res.json();
     if (data.success) { showToast('Payment updated', 'success'); closeModal('editPayModal'); setTimeout(() => location.reload(), 600); }
