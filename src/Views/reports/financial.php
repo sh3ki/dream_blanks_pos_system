@@ -11,6 +11,7 @@ $jsTrend    = json_encode($r['trend']        ?? ['labels'=>[],'revenue'=>[],'col
 $jsAging    = json_encode($r['aging']        ?? ['labels'=>[],'data'=>[]]);
 $jsStatus   = json_encode($r['status_chart'] ?? ['labels'=>[],'data'=>[]]);
 $jsClients  = json_encode($r['top_clients']  ?? []);
+$rptCanPayConfirm = can('payments', 'confirm');
 ?>
 <style>
 .rpt-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -144,6 +145,43 @@ $jsClients  = json_encode($r['top_clients']  ?? []);
       <span style="font-size:.72rem;color:var(--color-gray-500)">Billed vs Paid</span>
     </div>
     <div class="rpt-card-body"><canvas id="clientChart" height="140"></canvas></div>
+  </div>
+</div>
+
+<div class="rpt-sl">Unconfirmed Payments</div>
+<div class="rpt-card" style="margin-bottom:16px">
+  <div style="overflow-x:auto">
+    <table class="rpt-tbl">
+      <thead><tr><th>#</th><th>Date</th><th>Invoice #</th><th>Client</th><th>Mode</th><th>Reference</th><th style="text-align:right">Amount</th><th>Recorded By</th><?php if ($rptCanPayConfirm): ?><th>Action</th><?php endif; ?></tr></thead>
+      <tbody>
+        <?php foreach(($r['unconfirmed_payments']??[]) as $i=>$up): ?>
+        <tr>
+          <td><?= $i + 1 ?></td>
+          <td style="white-space:nowrap;font-size:.82rem"><?= htmlspecialchars(date('M d, Y', strtotime($up['payment_date']))) ?></td>
+          <td><strong><?= htmlspecialchars($up['invoice_number']) ?></strong></td>
+          <td><?= htmlspecialchars($up['client_name']) ?></td>
+          <td>
+            <?php if ($up['payment_mode'] === 'cash'): ?>
+              <span class="badge" style="background:#dcfce7;color:#166534">Cash</span>
+            <?php elseif ($up['payment_mode'] === 'bdo'): ?>
+              <span class="badge" style="background:#fef9c3;color:#854d0e">BDO</span>
+            <?php elseif ($up['payment_mode'] === 'gcash'): ?>
+              <span class="badge" style="background:#dbeafe;color:#1e40af">GCash</span>
+            <?php else: ?>
+              <span class="badge badge-secondary"><?= htmlspecialchars($up['payment_mode'] ?? '—') ?></span>
+            <?php endif; ?>
+          </td>
+          <td style="font-size:.82rem"><?= htmlspecialchars($up['reference_number'] ?? '—') ?></td>
+          <td style="text-align:right;font-weight:600">₱<?= number_format((float)$up['payment_amount'], 2) ?></td>
+          <td style="font-size:.82rem"><?= htmlspecialchars($up['recorded_by_name'] ?? '—') ?></td>
+          <?php if ($rptCanPayConfirm): ?>
+          <td><button class="icon-btn" style="color:#16a34a" onclick="rptConfirmPayment(<?= (int)$up['id'] ?>)" title="Confirm received"><?= icon('check', 14) ?></button></td>
+          <?php endif; ?>
+        </tr>
+        <?php endforeach; ?>
+        <?php if(empty($r['unconfirmed_payments'])): ?><tr><td colspan="<?= $rptCanPayConfirm ? 9 : 8 ?>" style="text-align:center;color:var(--color-gray-500);padding:24px">No unconfirmed payments</td></tr><?php endif; ?>
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -301,6 +339,19 @@ function setPreset(days){
   document.getElementById('dateTo').value=to.toISOString().slice(0,10);
   document.getElementById('filterForm').submit();
 }
+<?php if ($rptCanPayConfirm): ?>
+const rptCsrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+async function rptConfirmPayment(paymentId) {
+  try {
+    const res  = await fetch(appPath('/api/v1/payments/' + paymentId + '/confirm'), {
+      method: 'PUT', headers: {'Content-Type':'application/json','X-CSRF-Token':rptCsrf}, body: '{}'
+    });
+    const data = await res.json();
+    if (data.success) { showToast(data.message || 'Confirmed', 'success'); setTimeout(() => location.reload(), 700); }
+    else showToast(data.message || 'Error', 'error');
+  } catch(e) { showToast('Network error', 'error'); }
+}
+<?php endif; ?>
 </script>
 <?php
 $content = ob_get_clean();
