@@ -47,6 +47,9 @@ $router->get('/inventory',        [\App\Controllers\InventoryController::class, 
 // Invoices
 $router->get('/invoices',     [\App\Controllers\InvoiceController::class, 'index'], $auth);
 
+// Project Lineup
+$router->get('/project-lineup', [\App\Controllers\ProjectLineupController::class, 'index'], $auth);
+
 // Transactions
 $router->get('/transactions', [\App\Controllers\TransactionController::class, 'index'], $auth);
 
@@ -152,6 +155,13 @@ $router->delete('/api/v1/invoices/{invoice_id}',              [\App\Controllers\
 $router->put('/api/v1/invoices/{invoice_id}/toggle-sent',      [\App\Controllers\InvoiceController::class, 'toggleSent'], $auth);
 $router->get('/api/v1/invoices/{invoice_id}/print',           [\App\Controllers\InvoiceController::class, 'print'],     $auth);
 $router->post('/api/v1/invoices/{invoice_id}/send-email',     [\App\Controllers\InvoiceController::class, 'sendEmail'], $auth);
+
+// Project Lineup API
+$router->post('/api/v1/project-lineup',                      [\App\Controllers\ProjectLineupController::class, 'store'],        $auth);
+$router->put('/api/v1/project-lineup/{lineup_id}',           [\App\Controllers\ProjectLineupController::class, 'update'],       $auth);
+$router->put('/api/v1/project-lineup/{lineup_id}/status',    [\App\Controllers\ProjectLineupController::class, 'updateStatus'], $auth);
+$router->delete('/api/v1/project-lineup/{lineup_id}',        [\App\Controllers\ProjectLineupController::class, 'destroy'],      $auth);
+$router->get('/api/v1/invoices/{invoice_id}/lineup-prefill', [\App\Controllers\ProjectLineupController::class, 'getInvoicePrefill'], $auth);
 
 // Reports API
 $router->get('/api/v1/reports/sales',     [\App\Controllers\ReportController::class, 'sales'],     $auth);
