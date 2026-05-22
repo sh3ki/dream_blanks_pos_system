@@ -172,8 +172,28 @@
     $totalAmt   = (float)($invoice['total_amount']    ?? 0);
     $balance    = $totalAmt - $totalPaid;
     $subtotal   = $totalAmt + $discount - $tax - $fee;
+    $brandName  = trim($invoice['brand_name'] ?? '');
+    $etiketa    = $invoice['etiketa'] ?? '';
+    $tags       = $invoice['tags'] ?? '';
+    $hasLabels  = $brandName !== '' || $etiketa !== '' || $tags !== '';
   ?>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:24px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+    <!-- Label fields (left side, only when data exists) -->
+    <?php if ($hasLabels): ?>
+    <div style="font-size:.85rem;color:#374151;line-height:2">
+      <?php if ($brandName !== ''): ?>
+        <div><span style="font-size:.7rem;font-weight:800;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">Brand Name: </span><strong><?= htmlspecialchars($brandName) ?></strong></div>
+      <?php endif; ?>
+      <?php if ($etiketa !== ''): ?>
+        <div><span style="font-size:.7rem;font-weight:800;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">Etiketa: </span><strong><?= implode(', ', array_map('ucfirst', explode(',', htmlspecialchars($etiketa)))) ?></strong></div>
+      <?php endif; ?>
+      <?php if ($tags !== ''): ?>
+        <div><span style="font-size:.7rem;font-weight:800;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">Tags: </span><strong><?= implode(', ', array_map('ucfirst', explode(',', htmlspecialchars($tags)))) ?></strong></div>
+      <?php endif; ?>
+    </div>
+    <?php else: ?>
+    <div></div>
+    <?php endif; ?>
     <table style="width:260px;border-collapse:collapse">
       <tr>
         <td style="padding:5px 12px;color:#374151;border:none">Subtotal</td>
