@@ -6,10 +6,15 @@ $summary       = $r['summary']        ?? [];
 $jsStockStatus = json_encode($r['stock_status']  ?? ['labels'=>[],'data'=>[]]);
 $jsHighest     = json_encode($r['highest_stock'] ?? []);
 $jsLowest      = json_encode($r['lowest_stock']  ?? []);
-$rs            = $r['restock_stats'] ?? ['total_orders'=>0,'pending'=>0,'received'=>0];
+$rs            = $r['restock_stats'] ?? [];
 $jsRestock     = json_encode([
-    'labels' => ['Pending Delivery', 'Received'],
-    'data'   => [(int)($rs['pending']??0), (int)($rs['received']??0)],
+    'labels' => ['Ordered', 'Delivered', 'Incomplete', 'Problematic'],
+    'data'   => [
+        (int)($rs['ordered_count']     ?? 0),
+        (int)($rs['delivered_count']   ?? 0),
+        (int)($rs['incomplete_count']  ?? 0),
+        (int)($rs['problematic_count'] ?? 0),
+    ],
 ]);
 ?>
 <style>
@@ -203,7 +208,7 @@ const restockData=<?php echo $jsRestock; ?>;
   const total=restockData.data.reduce((a,b)=>a+b,0);
   new Chart(document.getElementById('restockChart'),{
     type:'doughnut',
-    data:{labels:restockData.labels,datasets:[{data:restockData.data,backgroundColor:[P.yellow,P.green],borderWidth:2,hoverOffset:10}]},
+    data:{labels:restockData.labels,datasets:[{data:restockData.data,backgroundColor:[P.yellow,P.green,P.red,P.purple],borderWidth:2,hoverOffset:10}]},
     options:{responsive:true,cutout:'60%',plugins:{
       legend:{position:'bottom',labels:{padding:14,boxWidth:13}},
       tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed}},
