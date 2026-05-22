@@ -180,14 +180,16 @@ class PosService
                 }
 
                 $db->insert('payments', [
-                    'invoice_id'     => $invoiceId,
-                    'payment_number' => 1,
-                    'payment_date'   => date('Y-m-d'),
-                    'payment_amount' => $payAmount,
-                    'payment_mode'   => $data['payment_mode'],
-                    'recorded_by'    => $createdBy,
-                    'created_at'     => date('Y-m-d H:i:s'),
-                    'updated_at'     => date('Y-m-d H:i:s'),
+                    'invoice_id'         => $invoiceId,
+                    'payment_number'     => 1,
+                    'payment_date'       => date('Y-m-d'),
+                    'payment_amount'     => $payAmount,
+                    'payment_mode'       => $data['payment_mode'],
+                    'reference_number'   => $data['reference_number'] ?? null,
+                    'payment_photo_path' => $data['payment_photo_path'] ?? null,
+                    'recorded_by'        => $createdBy,
+                    'created_at'         => date('Y-m-d H:i:s'),
+                    'updated_at'         => date('Y-m-d H:i:s'),
                 ]);
 
                 // Update payment_status on invoice based on actual amount paid
