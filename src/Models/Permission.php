@@ -16,7 +16,7 @@ class Permission extends Model
         }
 
         // Return in a logical page order
-        $order  = ['dashboard','users','roles','clients','products','stock_products','inventory','variations','pos','invoices','payments','transactions','reports_sales','reports_inventory','reports_financial','settings','audit_logs','notifications'];
+        $order  = ['dashboard','users','roles','clients','products','stock_products','inventory','variations','pos','invoices','payments','project_lineup','transactions','reports_sales','reports_inventory','reports_financial','settings','audit_logs','notifications'];
         $sorted = [];
         foreach ($order as $mod) {
             if (isset($grouped[$mod])) {
