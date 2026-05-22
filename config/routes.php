@@ -139,13 +139,16 @@ $router->put('/api/v1/inventory/restock/{restock_id}',           [\App\Controlle
 // POS API
 $router->get('/api/v1/pos/products', [\App\Controllers\PosController::class, 'products'], $auth);
 $router->post('/api/v1/pos/checkout',[\App\Controllers\PosController::class, 'checkout'], $auth);
+$router->post('/api/v1/upload/payment-photo', [\App\Controllers\UploadController::class, 'paymentPhoto'], $auth);
 
 // Invoices API
 $router->get('/api/v1/invoices',                              [\App\Controllers\InvoiceController::class, 'index'],     $auth);
 $router->get('/api/v1/invoices/{invoice_id}',                 [\App\Controllers\InvoiceController::class, 'show'],      $auth);
 $router->post('/api/v1/invoices/{invoice_id}/payments',       [\App\Controllers\InvoiceController::class, 'addPayment'],    $auth);
 $router->put('/api/v1/payments/{payment_id}',                 [\App\Controllers\InvoiceController::class, 'updatePayment'], $auth);
+$router->put('/api/v1/payments/{payment_id}/confirm',         [\App\Controllers\InvoiceController::class, 'confirmPayment'], $auth);
 $router->delete('/api/v1/payments/{payment_id}',              [\App\Controllers\InvoiceController::class, 'deletePayment'], $auth);
+$router->delete('/api/v1/invoices/{invoice_id}',              [\App\Controllers\InvoiceController::class, 'deleteInvoice'], $auth);
 $router->put('/api/v1/invoices/{invoice_id}/toggle-sent',      [\App\Controllers\InvoiceController::class, 'toggleSent'], $auth);
 $router->get('/api/v1/invoices/{invoice_id}/print',           [\App\Controllers\InvoiceController::class, 'print'],     $auth);
 $router->post('/api/v1/invoices/{invoice_id}/send-email',     [\App\Controllers\InvoiceController::class, 'sendEmail'], $auth);
