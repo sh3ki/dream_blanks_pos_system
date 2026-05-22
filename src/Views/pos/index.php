@@ -491,19 +491,37 @@ function openLabelModal() { openModal('labelModal'); }
 function applyLabel() { updateLabelBtn(); closeModal('labelModal'); }
 
 const labelSelections = { etiketa: [], tags: [] };
+const LABEL_OPTIONS = {
+  etiketa: [{value:'neck',label:'Neck'},{value:'sleeve',label:'Sleeve'},{value:'hem',label:'Hem'}],
+  tags:    [{value:'sticker',label:'Sticker'},{value:'hangtag',label:'Hangtag'}],
+};
+
+function refreshDropdownOptions(field) {
+  const dropId = field === 'etiketa' ? 'labelEtiketaDropdown' : 'labelTagsDropdown';
+  const sel = document.getElementById(dropId);
+  if (!sel) return;
+  const selected = labelSelections[field];
+  sel.innerHTML = '<option value="">— Select —</option>';
+  LABEL_OPTIONS[field].forEach(opt => {
+    if (!selected.includes(opt.value)) {
+      sel.insertAdjacentHTML('beforeend', `<option value="${opt.value}">${opt.label}</option>`);
+    }
+  });
+}
 
 function addLabelChip(field, select) {
   const val = select.value;
   if (!val || labelSelections[field].includes(val)) { select.value = ''; return; }
   labelSelections[field].push(val);
   renderLabelChips(field);
+  refreshDropdownOptions(field);
   updateLabelBtn();
-  select.value = '';
 }
 
 function removeLabelChip(field, val) {
   labelSelections[field] = labelSelections[field].filter(v => v !== val);
   renderLabelChips(field);
+  refreshDropdownOptions(field);
   updateLabelBtn();
 }
 
@@ -529,6 +547,8 @@ function openCheckoutConfirm() {
   const notes    = document.getElementById('orderNotes').value;
   const payModeVal = document.getElementById('paymentMode').value;
   const payMode    = {cash:'Cash', bdo:'BDO', gcash:'GCash'}[payModeVal] || payModeVal;
+  const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+  const change       = cashReceived > total ? cashReceived - total : 0;
   const payStatus = calcPaymentStatus();
   const payStatusLabel = payStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
   const clientText = document.getElementById('clientSelect').options[document.getElementById('clientSelect').selectedIndex].text;
@@ -546,6 +566,9 @@ function openCheckoutConfirm() {
       ${tax > 0      ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Tax</span><span>+₱${tax.toFixed(2)}</span></div>` : ''}
       ${fee > 0      ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Extra Fee</span><span>+₱${fee.toFixed(2)}</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1rem;margin-top:8px;padding-top:8px;border-top:2px solid var(--color-gray-100)"><span>TOTAL</span><span>₱${total.toFixed(2)}</span></div>
+      ${cashReceived > 0 ? `
+      <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px dashed var(--color-gray-100)"><span>Cash Received</span><span>₱${cashReceived.toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;color:${change > 0 ? 'var(--color-success)' : 'var(--color-gray-500)'}"><span>Change</span><span>₱${change.toFixed(2)}</span></div>` : ''}
     </div>
     <div style="font-size:.82rem;color:var(--color-gray-500);margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
       <div><strong>Customer:</strong> ${clientText}</div>
@@ -642,8 +665,8 @@ async function checkout() {
       labelSelections.tags = [];
       renderLabelChips('etiketa');
       renderLabelChips('tags');
-      document.getElementById('labelEtiketaDropdown').value = '';
-      document.getElementById('labelTagsDropdown').value = '';
+      refreshDropdownOptions('etiketa');
+      refreshDropdownOptions('tags');
       updateAdjBtn();
       updateLabelBtn();
       const changeEl = document.getElementById('changeDisplay');
