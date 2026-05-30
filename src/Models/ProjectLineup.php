@@ -9,7 +9,10 @@ class ProjectLineup extends Model
 
     public static function search(array $filters, int $page, int $perPage): array
     {
-        $where  = "pl.deleted_at IS NULL";
+        $archived = ($filters['tab'] ?? 'active') === 'archived';
+        $archWhere = $archived ? "pl.archived_at IS NOT NULL" : "pl.archived_at IS NULL";
+
+        $where  = "pl.deleted_at IS NULL AND {$archWhere}";
         $params = [];
 
         if (!empty($filters['search'])) {
@@ -67,12 +70,16 @@ class ProjectLineup extends Model
             $params
         )['cnt'] ?? 0);
 
+        $queueCond = $archived
+            ? "pl2.deleted_at IS NULL AND pl2.archived_at IS NOT NULL"
+            : "pl2.deleted_at IS NULL AND pl2.archived_at IS NULL";
+
         $offset = ($page - 1) * $perPage;
         $sql    = "SELECT pl.*,
                           i.invoice_number,
                           COALESCE(pl.client_name, c.full_name, 'Walk-in') as client_name,
                           (SELECT COUNT(*) FROM project_lineups pl2
-                           WHERE pl2.deleted_at IS NULL AND pl2.id <= pl.id) as queue_number
+                           WHERE {$queueCond} AND pl2.id <= pl.id) as queue_number
                    FROM project_lineups pl
                    LEFT JOIN invoices i ON i.id = pl.invoice_id
                    LEFT JOIN clients c ON c.id = i.client_id
