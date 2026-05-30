@@ -315,6 +315,29 @@ $order = strtoupper($filters['order'] ?? 'ASC');
           <input type="date" id="lineupDeadline" class="form-input">
         </div>
       </div>
+      <!-- Optional: Link, Notes, Photo -->
+      <input type="hidden" id="lineupExistingPhoto">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">
+        <div>
+          <div class="form-group">
+            <label class="form-label">Link <span style="color:var(--color-gray-400);font-size:.8rem">(optional)</span></label>
+            <input type="url" id="lineupLink" class="form-input" placeholder="https://...">
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">Notes <span style="color:var(--color-gray-400);font-size:.8rem">(optional)</span></label>
+            <textarea id="lineupNotes" class="form-input" rows="3" placeholder="Add notes..." style="resize:vertical"></textarea>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Photo <span style="color:var(--color-gray-400);font-size:.8rem">(optional)</span></label>
+          <input type="file" id="lineupPhoto" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewLineupPhoto(this)" style="display:block;width:100%;padding:6px;border:1px solid var(--color-border);border-radius:6px;font-size:.85rem">
+          <div id="lineupPhotoPreview" style="display:none;margin-top:8px;text-align:center">
+            <img id="lineupPhotoImg" src="" alt="Photo preview" style="max-width:100%;max-height:160px;border-radius:6px;object-fit:contain;border:1px solid var(--color-border)">
+            <button type="button" onclick="clearLineupPhoto()" style="display:block;margin:4px auto 0;font-size:.78rem;color:var(--color-danger,#dc3545);background:none;border:none;cursor:pointer;padding:0">Remove photo</button>
+          </div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:4px">
         <div class="form-group">
           <label class="form-label">Project Status</label>
@@ -452,6 +475,12 @@ function openAddLineup(prefill) {
   document.getElementById('lineupTypes').value = prefill ? (prefill.types || []).join(', ') : '';
   document.getElementById('lineupQty').value = prefill ? (prefill.total_qty || 0) : 0;
   document.getElementById('lineupDeadline').value = '';
+  document.getElementById('lineupLink').value = '';
+  document.getElementById('lineupNotes').value = '';
+  document.getElementById('lineupPhoto').value = '';
+  document.getElementById('lineupExistingPhoto').value = '';
+  document.getElementById('lineupPhotoPreview').style.display = 'none';
+  document.getElementById('lineupPhotoImg').src = '';
   document.getElementById('lineupProjectStatus').value = 'pending';
   document.getElementById('lineupTshirtStatus').value = 'pending';
   document.getElementById('lineupTagsStatus').value = 'pending';
@@ -480,6 +509,17 @@ function editLineup(data) {
   document.getElementById('lineupTypes').value = data.types || '';
   document.getElementById('lineupQty').value = data.qty || 0;
   document.getElementById('lineupDeadline').value = data.deadline || '';
+  document.getElementById('lineupLink').value = data.link || '';
+  document.getElementById('lineupNotes').value = data.notes || '';
+  document.getElementById('lineupPhoto').value = '';
+  document.getElementById('lineupExistingPhoto').value = data.photo || '';
+  if (data.photo) {
+    document.getElementById('lineupPhotoImg').src = appPath(data.photo);
+    document.getElementById('lineupPhotoPreview').style.display = 'block';
+  } else {
+    document.getElementById('lineupPhotoImg').src = '';
+    document.getElementById('lineupPhotoPreview').style.display = 'none';
+  }
   document.getElementById('lineupProjectStatus').value = data.project_status || 'pending';
   document.getElementById('lineupTshirtStatus').value = data.tshirt_status || 'pending';
   document.getElementById('lineupTagsStatus').value = data.tags_status || 'pending';
@@ -501,32 +541,36 @@ async function saveLineup() {
   if (!date) { showToast('Date is required', 'error'); return; }
   if (!id && !invoiceId) { showToast('Invoice reference is missing', 'error'); return; }
 
-  const payload = {
-    invoice_id:            invoiceId,
-    client_name:           document.getElementById('lineupClientName').value || 'Walk-in',
-    date,
-    brand_name:            document.getElementById('lineupBrandName').value,
-    categories:            document.getElementById('lineupCategories').value,
-    types:                 document.getElementById('lineupTypes').value,
-    qty:                   document.getElementById('lineupQty').value,
-    deadline:              document.getElementById('lineupDeadline').value,
-    project_status:        document.getElementById('lineupProjectStatus').value,
-    tshirt_status:         document.getElementById('lineupTshirtStatus').value,
-    tags_status:           document.getElementById('lineupTagsStatus').value,
-    print_status:          document.getElementById('lineupPrintStatus').value,
-    label_attached_status: document.getElementById('lineupLabelStatus').value,
-    qc_packing_status:     document.getElementById('lineupQcStatus').value,
-    authorized_approval:   document.getElementById('lineupApproval').value,
-  };
+  const fd = new FormData();
+  if (id) fd.append('_method', 'PUT');
+  fd.append('invoice_id',            invoiceId);
+  fd.append('client_name',           document.getElementById('lineupClientName').value || 'Walk-in');
+  fd.append('date',                  date);
+  fd.append('brand_name',            document.getElementById('lineupBrandName').value);
+  fd.append('categories',            document.getElementById('lineupCategories').value);
+  fd.append('types',                 document.getElementById('lineupTypes').value);
+  fd.append('qty',                   document.getElementById('lineupQty').value);
+  fd.append('deadline',              document.getElementById('lineupDeadline').value);
+  fd.append('project_status',        document.getElementById('lineupProjectStatus').value);
+  fd.append('tshirt_status',         document.getElementById('lineupTshirtStatus').value);
+  fd.append('tags_status',           document.getElementById('lineupTagsStatus').value);
+  fd.append('print_status',          document.getElementById('lineupPrintStatus').value);
+  fd.append('label_attached_status', document.getElementById('lineupLabelStatus').value);
+  fd.append('qc_packing_status',     document.getElementById('lineupQcStatus').value);
+  fd.append('authorized_approval',   document.getElementById('lineupApproval').value);
+  fd.append('link',                  document.getElementById('lineupLink').value);
+  fd.append('notes',                 document.getElementById('lineupNotes').value);
+  fd.append('existing_photo',        document.getElementById('lineupExistingPhoto').value);
+  const photoFile = document.getElementById('lineupPhoto').files[0];
+  if (photoFile) fd.append('photo', photoFile);
 
-  const method = id ? 'PUT' : 'POST';
-  const url    = id ? '/api/v1/project-lineup/' + id : '/api/v1/project-lineup';
+  const url = id ? '/api/v1/project-lineup/' + id : '/api/v1/project-lineup';
 
   try {
     const res  = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-      body: JSON.stringify(payload),
+      method: 'POST',
+      headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+      body: fd,
     });
     const json = await res.json();
     if (json.success) {
@@ -539,6 +583,25 @@ async function saveLineup() {
   } catch (e) {
     showToast('Network error', 'error');
   }
+}
+
+function previewLineupPhoto(input) {
+  const file = input.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('lineupPhotoImg').src = e.target.result;
+      document.getElementById('lineupPhotoPreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function clearLineupPhoto() {
+  document.getElementById('lineupPhoto').value = '';
+  document.getElementById('lineupPhotoImg').src = '';
+  document.getElementById('lineupPhotoPreview').style.display = 'none';
+  document.getElementById('lineupExistingPhoto').value = '';
 }
 
 async function updateLineupStatus(id, field, value) {
