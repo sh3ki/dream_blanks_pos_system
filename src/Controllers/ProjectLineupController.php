@@ -19,7 +19,7 @@ class ProjectLineupController extends Controller
     {
         $this->requirePermission('project_lineup', ACTION_VIEW);
         [$page, $perPage] = $this->paginate($request);
-        $filters = $request->only(['search', 'date_from', 'date_to', 'client_id', 'category', 'type', 'project_status', 'sort', 'order']);
+        $filters = $request->only(['search', 'date_from', 'date_to', 'client_id', 'category', 'type', 'project_status', 'sort', 'order', 'tab']);
         $result  = ProjectLineup::search($filters, $page, $perPage);
 
         // Prefill data: when forwarding from invoice page
@@ -46,6 +46,7 @@ class ProjectLineupController extends Controller
             'categories'   => $categories,
             'types'        => $types,
             'prefill_data' => $prefillData,
+            'canArchive'   => can('project_lineup', 'archive'),
         ]);
     }
 
@@ -162,6 +163,21 @@ class ProjectLineupController extends Controller
         ProjectLineup::update($id, [$field => $value]);
         AuditService::log(AUDIT_UPDATE, 'project_lineup', $id, $old, ProjectLineup::find($id), "Updated {$field} for lineup #{$id}");
         return $this->success(null, 'Status updated');
+    }
+
+    public function archive(Request $request): Response
+    {
+        $this->requirePermission('project_lineup', 'archive');
+        $id  = (int)$request->param('lineup_id');
+        $old = ProjectLineup::findOrFail($id);
+
+        $isArchived = $old['archived_at'] !== null;
+        $data = ['archived_at' => $isArchived ? null : date('Y-m-d H:i:s')];
+
+        ProjectLineup::update($id, $data);
+        $action = $isArchived ? 'Unarchived' : 'Archived';
+        AuditService::log(AUDIT_UPDATE, 'project_lineup', $id, $old, ProjectLineup::find($id), "{$action} project lineup #{$id}");
+        return $this->success(null, $isArchived ? 'Entry unarchived' : 'Entry archived');
     }
 
     public function destroy(Request $request): Response
