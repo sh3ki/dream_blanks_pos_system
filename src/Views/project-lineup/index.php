@@ -122,6 +122,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
           <th>Category</th>
           <th>Type</th>
           <th style="padding:0;width:60px"><?= plSortLink('pl.qty', 'Qty', $sort, $order, $filters) ?></th>
+          <th style="padding:0"><?= plSortLink('pl.link', 'Link', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= plSortLink('pl.deadline', 'Deadline', $sort, $order, $filters) ?></th>
           <th style="padding:0;min-width:140px"><?= plSortLink('pl.project_status', 'Project Status', $sort, $order, $filters) ?></th>
           <th style="min-width:130px">T-Shirt</th>
@@ -146,6 +147,10 @@ $order = strtoupper($filters['order'] ?? 'ASC');
           <td style="font-size:.8rem"><?= htmlspecialchars($ln['categories'] ?? '') ?></td>
           <td style="font-size:.8rem"><?= htmlspecialchars($ln['types'] ?? '') ?></td>
           <td><?= (int)$ln['qty'] ?></td>
+          <td><?php if (!empty($ln['link'])): ?>
+            <?php $linkHref = preg_match('#^https?://#i', $ln['link']) ? $ln['link'] : 'https://' . $ln['link']; ?>
+            <a href="<?= htmlspecialchars($linkHref) ?>" target="_blank" rel="noopener noreferrer" style="font-size:.8rem" title="<?= htmlspecialchars($ln['link']) ?>"><?= htmlspecialchars($ln['link']) ?></a>
+          <?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
           <td style="white-space:nowrap"><?= $ln['deadline'] ? date('M d, Y', strtotime($ln['deadline'])) : '<span class="text-muted">—</span>' ?></td>
           <td onclick="event.stopPropagation()">
             <?php if ($canStatus): ?>
@@ -258,7 +263,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
         </tr>
         <?php endforeach; ?>
         <?php if (empty($lineups)): ?>
-          <tr><td colspan="17" class="text-center text-muted" style="padding:48px">No project lineup entries found</td></tr>
+          <tr><td colspan="18" class="text-center text-muted" style="padding:48px">No project lineup entries found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
