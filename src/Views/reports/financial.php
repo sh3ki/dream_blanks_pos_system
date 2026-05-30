@@ -185,7 +185,7 @@ $rptCanPayConfirm = can('payments', 'confirm');
           <td style="text-align:right;font-weight:600">₱<?= number_format((float)$up['payment_amount'], 2) ?></td>
           <td style="font-size:.82rem"><?= htmlspecialchars($up['recorded_by_name'] ?? '—') ?></td>
           <?php if ($rptCanPayConfirm): ?>
-          <td><button class="icon-btn" style="color:#16a34a" onclick="rptConfirmPayment(<?= (int)$up['id'] ?>)" title="Confirm received"><?= icon('check', 14) ?></button></td>
+          <td><button class="icon-btn" style="color:#dc2626" onclick="rptAskConfirmPayment(<?= (int)$up['id'] ?>, '<?= htmlspecialchars($up['invoice_number'], ENT_QUOTES) ?>', '<?= htmlspecialchars($up['client_name'] ?? 'Walk-in', ENT_QUOTES) ?>', '<?= number_format((float)$up['payment_amount'], 2) ?>', '<?= htmlspecialchars($up['reference_number'] ?? '', ENT_QUOTES) ?>', '<?= !empty($up['payment_photo_path']) ? htmlspecialchars(app_url($up['payment_photo_path']), ENT_QUOTES) : '' ?>')" title="Confirm payment received"><?= icon('check', 14) ?></button></td>
           <?php endif; ?>
         </tr>
         <?php endforeach; ?>
@@ -351,15 +351,40 @@ function setPreset(days){
 }
 <?php if ($rptCanPayConfirm): ?>
 const rptCsrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-async function rptConfirmPayment(paymentId) {
+let _rptConfirmPayId = null;
+function rptAskConfirmPayment(paymentId, invoiceNum, clientName, amount, reference, photoUrl) {
+  _rptConfirmPayId = paymentId;
+  document.getElementById('rptConfirmPayInvoice').textContent   = invoiceNum;
+  document.getElementById('rptConfirmPayClient').textContent    = clientName;
+  document.getElementById('rptConfirmPayAmount').textContent    = '\u20B1' + amount;
+  document.getElementById('rptConfirmPayRef').textContent       = reference || '\u2014';
+  const photoWrap = document.getElementById('rptConfirmPayPhotoWrap');
+  const photoImg  = document.getElementById('rptConfirmPayPhoto');
+  if (photoUrl) {
+    photoImg.src = photoUrl;
+    photoImg.onclick = () => rptViewFullPhoto(photoUrl);
+    photoWrap.style.display = '';
+  } else {
+    photoImg.src = '';
+    photoWrap.style.display = 'none';
+  }
+  openModal('rptConfirmPayModal');
+}
+async function rptConfirmPayment() {
+  if (!_rptConfirmPayId) return;
+  const btn = document.getElementById('rptConfirmPayBtn');
+  btn.disabled = true;
   try {
-    const res  = await fetch(appPath('/api/v1/payments/' + paymentId + '/confirm'), {
+    const res  = await fetch('/api/v1/payments/' + _rptConfirmPayId + '/confirm', {
       method: 'PUT', headers: {'Content-Type':'application/json','X-CSRF-Token':rptCsrf}, body: '{}'
     });
     const data = await res.json();
-    if (data.success) { showToast(data.message || 'Confirmed', 'success'); setTimeout(() => location.reload(), 700); }
+    closeModal('rptConfirmPayModal');
+    if (data.success) { showToast(data.message || 'Payment confirmed', 'success'); setTimeout(() => location.reload(), 700); }
     else showToast(data.message || 'Error', 'error');
   } catch(e) { showToast('Network error', 'error'); }
+  btn.disabled = false;
+  _rptConfirmPayId = null;
 }
 <?php endif; ?>
 function rptViewFullPhoto(src) {
@@ -367,6 +392,35 @@ function rptViewFullPhoto(src) {
   openModal('rptFullPhotoModal');
 }
 </script>
+
+<!-- Confirm Payment Modal -->
+<?php if ($rptCanPayConfirm): ?>
+<div class="modal-overlay" id="rptConfirmPayModal">
+  <div class="modal-content" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title" style="display:flex;align-items:center;gap:8px"><?= icon('check', 18) ?> Confirm Payment</h2>
+      <button class="modal-close" onclick="closeModal('rptConfirmPayModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p style="margin:0 0 14px;color:var(--color-dark-gray)">Mark this payment as <strong>confirmed / received</strong>?</p>
+      <table style="width:100%;font-size:.84rem;border-collapse:collapse">
+        <tr><td style="padding:4px 0;color:var(--color-gray-500);width:110px">Invoice</td><td style="font-weight:600" id="rptConfirmPayInvoice"></td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-gray-500)">Client</td><td id="rptConfirmPayClient"></td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-gray-500)">Amount</td><td style="font-weight:700;color:var(--color-success)" id="rptConfirmPayAmount"></td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-gray-500)">Reference</td><td style="font-size:.82rem" id="rptConfirmPayRef"></td></tr>
+      </table>
+      <div id="rptConfirmPayPhotoWrap" style="margin-top:14px;display:none">
+        <div style="font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-gray-500);margin-bottom:6px">Receipt Photo</div>
+        <img id="rptConfirmPayPhoto" src="" alt="Receipt" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:6px;border:1px solid var(--color-gray-200);cursor:pointer;display:block" title="Click to enlarge">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('rptConfirmPayModal')">Cancel</button>
+      <button class="btn btn-success" id="rptConfirmPayBtn" onclick="rptConfirmPayment()" style="display:flex;align-items:center;gap:6px"><?= icon('check', 14) ?> Confirm</button>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <!-- Full-size Photo Lightbox -->
 <div class="modal-overlay" id="rptFullPhotoModal" style="z-index:9999" onclick="if(event.target===this)closeModal('rptFullPhotoModal')">
