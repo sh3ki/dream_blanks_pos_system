@@ -52,7 +52,7 @@ class ProjectLineup extends Model
 
         $allowedSorts = [
             'pl.date', 'i.invoice_number', 'c.full_name', 'pl.brand_name',
-            'pl.qty',  'pl.deadline',      'pl.project_status',
+            'pl.qty',  'pl.link',          'pl.deadline', 'pl.project_status',
         ];
         $sort  = in_array($filters['sort'] ?? '', $allowedSorts) ? $filters['sort'] : 'pl.id';
         $order = strtoupper($filters['order'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
