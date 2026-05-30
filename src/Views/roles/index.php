@@ -145,6 +145,7 @@ function selectRole(id, name, desc, status) {
     reports_sales: 'Reports — Sales', reports_inventory: 'Reports — Inventory', reports_financial: 'Reports — Financial',
     settings: 'Settings', audit_logs: 'Audit Logs',
     notifications: 'Notifications', variations: 'Variations',
+    project_lineup: 'Project Lineup',
   };
   let html = '<div class="perm-matrix">';
   for (const [module, perms] of Object.entries(allPermissions)) {
