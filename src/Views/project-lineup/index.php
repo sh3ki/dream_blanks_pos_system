@@ -10,6 +10,8 @@ $canPrint         = can('project_lineup', 'print');
 $canLabelAttached = can('project_lineup', 'label_attached');
 $canQcPacking     = can('project_lineup', 'qc_packing');
 $canAuthApproval  = can('project_lineup', 'auth_approval');
+$canArchive       = $canArchive ?? can('project_lineup', 'archive');
+$activeTab        = $filters['tab'] ?? 'active';
 
 $projectStatusOptions = [
     'pending'       => 'Pending',
@@ -51,11 +53,22 @@ $order = strtoupper($filters['order'] ?? 'ASC');
 ?>
 <div class="page-header">
   <h1>Project Lineup</h1>
-  <?php if ($canAdd): ?>
+  <?php if ($canAdd && $activeTab === 'active'): ?>
   <button class="btn btn-primary" onclick="openAddLineup()" style="display:flex;align-items:center;gap:6px">
     <?= icon('plus', 15) ?> Add Entry
   </button>
   <?php endif; ?>
+</div>
+
+<!-- Tabs -->
+<?php
+$tabBaseParams = array_filter(array_diff_key($filters, array_flip(['tab','page'])), fn($v) => $v !== '');
+$activeTabUrl   = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => 'active']));
+$archivedTabUrl = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => 'archived']));
+?>
+<div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--color-border)">
+  <a href="<?= $activeTabUrl ?>" style="padding:10px 24px;font-weight:600;font-size:.92rem;text-decoration:none;border-bottom:3px solid <?= $activeTab==='active' ? 'var(--color-primary)' : 'transparent' ?>;color:<?= $activeTab==='active' ? 'var(--color-primary)' : 'var(--color-gray-500)' ?>;margin-bottom:-2px">Active</a>
+  <a href="<?= $archivedTabUrl ?>" style="padding:10px 24px;font-weight:600;font-size:.92rem;text-decoration:none;border-bottom:3px solid <?= $activeTab==='archived' ? 'var(--color-primary)' : 'transparent' ?>;color:<?= $activeTab==='archived' ? 'var(--color-primary)' : 'var(--color-gray-500)' ?>;margin-bottom:-2px">Archived</a>
 </div>
 
 <div class="card">
@@ -104,6 +117,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
           </option>
           <?php endforeach; ?>
         </select>
+        <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
         <?php if (!empty($filters['sort'])): ?><input type="hidden" name="sort" value="<?= htmlspecialchars($filters['sort']) ?>"><?php endif; ?>
         <?php if (!empty($filters['order'])): ?><input type="hidden" name="order" value="<?= htmlspecialchars($filters['order']) ?>"><?php endif; ?>
       </form>
@@ -131,7 +145,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
           <th style="min-width:130px">Label Attached</th>
           <th style="min-width:130px">QC/Packing</th>
           <th style="min-width:130px">Auth. Approval</th>
-          <?php if ($canEdit || $canDelete): ?><th>Actions</th><?php endif; ?>
+          <?php if ($canEdit || $canDelete || $canArchive): ?><th>Actions</th><?php endif; ?>
         </tr>
       </thead>
       <tbody>
@@ -250,10 +264,16 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             </span>
             <?php endif; ?>
           </td>
-          <?php if ($canEdit || $canDelete): ?>
+          <?php if ($canEdit || $canDelete || $canArchive): ?>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($activeTab === 'active' && $canEdit): ?>
             <button class="icon-btn" onclick="editLineup(<?= htmlspecialchars(json_encode($ln), ENT_QUOTES) ?>)" title="Edit"><?= icon('edit', 15) ?></button>
+            <?php endif; ?>
+            <?php if ($canArchive && $activeTab === 'active'): ?>
+            <button class="icon-btn" onclick="archiveLineup(<?= $ln['id'] ?>, '<?= htmlspecialchars($ln['invoice_number'] ?? 'entry', ENT_QUOTES) ?>', false)" title="Archive" style="color:var(--color-warning,#f59e0b)"><?= icon('archive', 15) ?></button>
+            <?php endif; ?>
+            <?php if ($canArchive && $activeTab === 'archived'): ?>
+            <button class="icon-btn" onclick="archiveLineup(<?= $ln['id'] ?>, '<?= htmlspecialchars($ln['invoice_number'] ?? 'entry', ENT_QUOTES) ?>', true)" title="Unarchive" style="color:var(--color-success,#22c55e)"><?= icon('restore', 15) ?></button>
             <?php endif; ?>
             <?php if ($canDelete): ?>
             <button class="icon-btn danger" onclick="deleteLineup(<?= $ln['id'] ?>, '<?= htmlspecialchars($ln['invoice_number'] ?? 'entry', ENT_QUOTES) ?>')" title="Delete"><?= icon('delete', 15) ?></button>
@@ -410,6 +430,23 @@ $order = strtoupper($filters['order'] ?? 'ASC');
   </div>
 </div>
 
+<!-- Archive Confirm Modal -->
+<div class="modal-overlay" id="lineupArchiveModal">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="lineupArchiveModalTitle">Archive Entry</h2>
+      <button class="modal-close" onclick="closeModal('lineupArchiveModal')"><?= icon('close', 16) ?></button>
+    </div>
+    <div class="modal-body">
+      <p id="lineupArchiveModalMsg">Are you sure you want to archive lineup entry for invoice <strong id="lineupArchiveInvoiceNum"></strong>?</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('lineupArchiveModal')">Cancel</button>
+      <button type="button" class="btn btn-primary" id="lineupArchiveConfirmBtn" onclick="confirmArchiveLineup()">Archive</button>
+    </div>
+  </div>
+</div>
+
 <!-- Delete Confirm Modal -->
 <div class="modal-overlay" id="lineupDeleteModal">
   <div class="modal-content" style="max-width:400px">
@@ -429,6 +466,8 @@ $order = strtoupper($filters['order'] ?? 'ASC');
 
 <script>
 var _lineupDeleteId = null;
+var _lineupArchiveId = null;
+var _lineupArchiveIsArchived = false;
 
 // Color map for status dropdowns
 function applyStatusColor(el) {
@@ -621,6 +660,39 @@ async function updateLineupStatus(id, field, value) {
       showToast('Status updated', 'success');
     } else {
       showToast(json.message || 'Failed to update status', 'error');
+    }
+  } catch (e) {
+    showToast('Network error', 'error');
+  }
+}
+
+async function archiveLineup(id, invoiceNum, isArchived) {
+  _lineupArchiveId       = id;
+  _lineupArchiveIsArchived = isArchived;
+  document.getElementById('lineupArchiveModalTitle').textContent  = isArchived ? 'Unarchive Entry' : 'Archive Entry';
+  document.getElementById('lineupArchiveModalMsg').innerHTML      = (isArchived
+    ? 'Are you sure you want to unarchive lineup entry for invoice '
+    : 'Are you sure you want to archive lineup entry for invoice ')
+    + '<strong>' + invoiceNum + '</strong>?';
+  document.getElementById('lineupArchiveConfirmBtn').textContent  = isArchived ? 'Unarchive' : 'Archive';
+  document.getElementById('lineupArchiveConfirmBtn').className    = isArchived ? 'btn btn-primary' : 'btn btn-warning';
+  document.getElementById('lineupArchiveModal').classList.add('show');
+}
+
+async function confirmArchiveLineup() {
+  if (!_lineupArchiveId) return;
+  try {
+    const res  = await fetch('/api/v1/project-lineup/' + _lineupArchiveId + '/archive', {
+      method: 'PUT',
+      headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast(json.message || (_lineupArchiveIsArchived ? 'Entry unarchived' : 'Entry archived'), 'success');
+      closeModal('lineupArchiveModal');
+      setTimeout(() => location.reload(), 600);
+    } else {
+      showToast(json.message || 'Error', 'error');
     }
   } catch (e) {
     showToast('Network error', 'error');
