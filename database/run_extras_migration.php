@@ -2,16 +2,17 @@
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../src/Core/Database.php';
 
-$db = App\Core\Database::getInstance();
-
-$db->query('ALTER TABLE project_lineups
-  ADD COLUMN `link`  VARCHAR(500) NULL DEFAULT NULL AFTER `deadline`,
-  ADD COLUMN `notes` TEXT         NULL DEFAULT NULL AFTER `link`,
-  ADD COLUMN `photo` VARCHAR(255) NULL DEFAULT NULL AFTER `notes`');
-
-echo 'Migration applied.' . PHP_EOL;
-
-$cols = $db->select('SHOW COLUMNS FROM project_lineups WHERE Field IN ("link","notes","photo")');
-foreach ($cols as $c) {
-    echo $c['Field'] . ' - ' . $c['Type'] . PHP_EOL;
+$file = $argv[1] ?? null;
+if (!$file || !file_exists(__DIR__ . '/../' . $file)) {
+    die('Usage: php run_extras_migration.php <relative-sql-file>' . PHP_EOL);
 }
+
+$pdo = App\Core\Database::getInstance()->getPdo();
+$sql = file_get_contents(__DIR__ . '/../' . $file);
+
+// Split and run each statement
+foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
+    $pdo->exec($stmt);
+}
+
+echo 'Migration applied: ' . $file . PHP_EOL;
