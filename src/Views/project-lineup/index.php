@@ -1,8 +1,15 @@
 <?php ob_start(); ?>
 <?php
-$canEdit   = can('project_lineup', 'edit');
-$canDelete = can('project_lineup', 'delete');
-$canAdd    = can('project_lineup', 'add');
+$canEdit          = can('project_lineup', 'edit');
+$canDelete        = can('project_lineup', 'delete');
+$canAdd           = can('project_lineup', 'add');
+$canStatus        = can('project_lineup', 'status');
+$canTshirt        = can('project_lineup', 'tshirt');
+$canTags          = can('project_lineup', 'tags');
+$canPrint         = can('project_lineup', 'print');
+$canLabelAttached = can('project_lineup', 'label_attached');
+$canQcPacking     = can('project_lineup', 'qc_packing');
+$canAuthApproval  = can('project_lineup', 'auth_approval');
 
 $projectStatusOptions = [
     'pending'       => 'Pending',
@@ -141,7 +148,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
           <td><?= (int)$ln['qty'] ?></td>
           <td style="white-space:nowrap"><?= $ln['deadline'] ? date('M d, Y', strtotime($ln['deadline'])) : '<span class="text-muted">—</span>' ?></td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canStatus): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'project_status', this.value)">
               <?php foreach ($projectStatusOptions as $v => $l): ?>
@@ -155,7 +162,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             <?php endif; ?>
           </td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canTshirt): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'tshirt_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
@@ -169,7 +176,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             <?php endif; ?>
           </td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canTags): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'tags_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
@@ -183,7 +190,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             <?php endif; ?>
           </td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canPrint): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'print_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
@@ -197,7 +204,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             <?php endif; ?>
           </td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canLabelAttached): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'label_attached_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
@@ -211,7 +218,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             <?php endif; ?>
           </td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canQcPacking): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'qc_packing_status', this.value)">
               <?php foreach ($triStatusOptions as $v => $l): ?>
@@ -225,7 +232,7 @@ $order = strtoupper($filters['order'] ?? 'ASC');
             <?php endif; ?>
           </td>
           <td onclick="event.stopPropagation()">
-            <?php if ($canEdit): ?>
+            <?php if ($canAuthApproval): ?>
             <select class="form-select pl-status-select" style="padding:4px 6px;font-size:.78rem;height:30px"
               onchange="applyStatusColor(this); updateLineupStatus(<?= $ln['id'] ?>, 'authorized_approval', this.value)">
               <?php foreach ($approvalOptions as $v => $l): ?>
