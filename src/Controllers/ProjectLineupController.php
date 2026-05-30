@@ -62,6 +62,12 @@ class ProjectLineupController extends Controller
         $categories = $request->input('categories', '');
         $types      = $request->input('types', '');
 
+        $photoPath = null;
+        $photoFile = $request->file('photo');
+        if ($photoFile && $photoFile['error'] === UPLOAD_ERR_OK) {
+            $photoPath = \App\Helpers\FileHelper::upload($photoFile, 'project-lineup');
+        }
+
         $id = ProjectLineup::create([
             'invoice_id'            => $invoiceId,
             'client_name'           => $request->input('client_name', 'Walk-in') ?: 'Walk-in',
@@ -71,6 +77,9 @@ class ProjectLineupController extends Controller
             'types'                 => $types,
             'qty'                   => (int)$request->input('qty', 0),
             'deadline'              => $request->input('deadline') ?: null,
+            'link'                  => $request->input('link') ?: null,
+            'notes'                 => $request->input('notes') ?: null,
+            'photo'                 => $photoPath,
             'project_status'        => $request->input('project_status', 'pending'),
             'tshirt_status'         => $request->input('tshirt_status', 'pending'),
             'tags_status'           => $request->input('tags_status', 'pending'),
@@ -102,14 +111,30 @@ class ProjectLineupController extends Controller
 
         $allowed = [
             'date', 'brand_name', 'categories', 'types', 'qty', 'deadline',
+            'link', 'notes',
             'project_status', 'tshirt_status', 'tags_status', 'print_status',
             'label_attached_status', 'qc_packing_status', 'authorized_approval',
         ];
         $data = array_intersect_key($request->all(), array_flip($allowed));
 
-        // Convert empty deadline to null
-        if (array_key_exists('deadline', $data) && $data['deadline'] === '') {
-            $data['deadline'] = null;
+        // Convert empty deadline/link/notes to null
+        foreach (['deadline', 'link', 'notes'] as $nullable) {
+            if (array_key_exists($nullable, $data) && $data[$nullable] === '') {
+                $data[$nullable] = null;
+            }
+        }
+
+        // Handle photo upload
+        $photoFile = $request->file('photo');
+        if ($photoFile && $photoFile['error'] === UPLOAD_ERR_OK) {
+            // Delete old photo if it exists
+            $existing = $old['photo'] ?? null;
+            if ($existing) \App\Helpers\FileHelper::delete($existing);
+            $data['photo'] = \App\Helpers\FileHelper::upload($photoFile, 'project-lineup');
+        } elseif ($request->input('existing_photo') === '' && isset($old['photo']) && $old['photo']) {
+            // User explicitly cleared the photo
+            \App\Helpers\FileHelper::delete($old['photo']);
+            $data['photo'] = null;
         }
 
         ProjectLineup::update($id, $data);
