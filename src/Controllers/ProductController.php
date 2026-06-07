@@ -74,14 +74,18 @@ class ProductController extends Controller
             $data['image_path'] = FileHelper::upload($file, 'products');
         }
 
-        // Remove legacy stock fields — stock is managed through stock products
-        unset($data['initial_stock'], $data['current_stock']);
+        // Remove legacy stock fields and stock_requirements — stock is managed through stock products
+        unset($data['initial_stock'], $data['current_stock'], $data['stock_requirements']);
 
         $productId = Product::create($data);
 
         // Save stock requirements if provided
         $requirements = $request->input('stock_requirements', []);
         if (!empty($requirements)) {
+            // Handle JSON string conversion
+            if (is_string($requirements)) {
+                $requirements = json_decode($requirements, true) ?? [];
+            }
             ProductStockRequirement::saveForProduct($productId, $requirements);
         }
 
@@ -106,7 +110,11 @@ class ProductController extends Controller
         // Update stock requirements if provided
         $requirements = $request->input('stock_requirements');
         if ($requirements !== null) {
-            ProductStockRequirement::saveForProduct($id, $requirements);
+            // Handle JSON string conversion
+            if (is_string($requirements)) {
+                $requirements = json_decode($requirements, true) ?? [];
+            }
+            ProductStockRequirement::saveForProduct($id, (array)$requirements);
         }
 
         AuditService::log(AUDIT_UPDATE, MODULE_PRODUCTS, $id, $old, Product::find($id), "Updated product #{$id}");
