@@ -151,9 +151,11 @@ class ReportService
         );
 
         $valuation = $this->db->selectOne(
-            "SELECT COALESCE(SUM(p.cost_price * p.current_stock),0)    as cost_value,
-                    COALESCE(SUM(p.selling_price * p.current_stock),0) as selling_value
-             FROM products p WHERE p.deleted_at IS NULL AND p.status='active'"
+            "SELECT COALESCE(SUM(p.cost_price * sp.current_qty),0)    as cost_value,
+                    COALESCE(SUM(p.selling_price * sp.current_qty),0) as selling_value
+             FROM stock_products sp
+             INNER JOIN products p ON p.id = sp.id
+             WHERE sp.deleted_at IS NULL AND p.deleted_at IS NULL AND p.status='active'"
         );
 
         $highestStock = $this->db->select(
@@ -163,7 +165,7 @@ class ReportService
 
         $lowestStock = $this->db->select(
             "SELECT name, code, current_qty, low_stock_alert, stock_status
-             FROM stock_products WHERE deleted_at IS NULL ORDER BY current_qty ASC LIMIT 10"
+             FROM stock_products WHERE deleted_at IS NULL AND stock_status = 'low_stock' ORDER BY current_qty ASC LIMIT 10"
         );
 
         $lowStockItems = $this->db->select(
