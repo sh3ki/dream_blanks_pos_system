@@ -137,6 +137,7 @@ $archivedTabUrl = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => '
           <th>Type</th>
           <th style="padding:0;width:60px"><?= plSortLink('pl.qty', 'Qty', $sort, $order, $filters) ?></th>
           <th style="padding:0"><?= plSortLink('pl.link', 'Link', $sort, $order, $filters) ?></th>
+          <th>Photo</th>
           <th style="padding:0"><?= plSortLink('pl.deadline', 'Deadline', $sort, $order, $filters) ?></th>
           <th style="padding:0;min-width:140px"><?= plSortLink('pl.project_status', 'Project Status', $sort, $order, $filters) ?></th>
           <th style="min-width:130px">T-Shirt</th>
@@ -164,6 +165,9 @@ $archivedTabUrl = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => '
           <td><?php if (!empty($ln['link'])): ?>
             <?php $linkHref = preg_match('#^https?://#i', $ln['link']) ? $ln['link'] : 'https://' . $ln['link']; ?>
             <a href="<?= htmlspecialchars($linkHref) ?>" target="_blank" rel="noopener noreferrer" style="font-size:.8rem" title="<?= htmlspecialchars($ln['link']) ?>"><?= htmlspecialchars($ln['link']) ?></a>
+          <?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
+          <td><?php if (!empty($ln['photo'])): ?>
+            <img src="/<?= htmlspecialchars($ln['photo']) ?>" alt="Photo" style="width:48px;height:64px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="viewFullPhoto(appPath('<?= htmlspecialchars($ln['photo'], ENT_QUOTES) ?>'))">
           <?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
           <td style="white-space:nowrap"><?= $ln['deadline'] ? date('M d, Y', strtotime($ln['deadline'])) : '<span class="text-muted">—</span>' ?></td>
           <td onclick="event.stopPropagation()">
@@ -283,7 +287,7 @@ $archivedTabUrl = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => '
         </tr>
         <?php endforeach; ?>
         <?php if (empty($lineups)): ?>
-          <tr><td colspan="18" class="text-center text-muted" style="padding:48px">No project lineup entries found</td></tr>
+          <tr><td colspan="19" class="text-center text-muted" style="padding:48px">No project lineup entries found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
@@ -740,7 +744,23 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.pl-status-select').forEach(applyStatusColor);
 });
 <?php endif; ?>
+
+function viewFullPhoto(src) {
+  document.getElementById('fullPhotoImg').src = src;
+  openModal('fullPhotoModal');
+}
 </script>
+
+<!-- Full-size Photo Lightbox Modal -->
+<div class="modal-overlay" id="fullPhotoModal" style="z-index:9999" onclick="if(event.target===this)closeModal('fullPhotoModal')">
+  <div style="position:relative;display:inline-block;max-width:90vw;max-height:90vh">
+    <button onclick="closeModal('fullPhotoModal')" title="Close" style="position:absolute;top:-38px;right:0;background:rgba(255,255,255,.95);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:10;line-height:1">&times;</button>
+    <img id="fullPhotoImg" src="" alt="Project Photo" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;display:block">
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="closeModal('fullPhotoModal')" style="background:rgba(255,255,255,.95);border:none;border-radius:6px;padding:6px 22px;font-size:.85rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">Close</button>
+    </div>
+  </div>
+</div>
 
 <?php
 $content = ob_get_clean();
