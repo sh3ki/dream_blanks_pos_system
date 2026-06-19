@@ -99,7 +99,7 @@ class ProductController extends Controller
         $id  = (int)$request->param('product_id');
         $old = Product::findOrFail($id);
 
-        $data = $request->only(['sku', 'name', 'description', 'category_id', 'color_id', 'size_id', 'cost_price', 'selling_price', 'unit_type', 'barcode', 'status']);
+        $data = $request->only(['sku', 'name', 'description', 'category_id', 'type_id', 'color_id', 'size_id', 'cost_price', 'selling_price', 'unit_type', 'barcode', 'status']);
 
         if (($file = $request->file('image')) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
             $data['image_path'] = FileHelper::upload($file, 'products');
