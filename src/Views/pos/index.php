@@ -47,7 +47,7 @@
         <div class="pos-tab-scroll">
           <button class="pos-tab active" data-filter="category" data-value="" onclick="setFilter('category','')">All</button>
           <?php foreach ($categories as $cat): ?>
-            <button class="pos-tab" data-filter="category" data-value="<?= $cat['id'] ?>" onclick="setFilter('category','<?= $cat['id'] ?>')"><?= htmlspecialchars($cat['name']) ?></button>
+            <button class="pos-tab" data-filter="category" data-value="<?= $cat['id'] ?>" onclick="setFilter('category','<?= $cat['id'] ?>')"><?= htmlspecialchars($cat['code']) ?></button>
           <?php endforeach; ?>
         </div>
       </div>
@@ -56,7 +56,7 @@
         <div class="pos-tab-scroll">
           <button class="pos-tab active" data-filter="type" data-value="" onclick="setFilter('type','')">All</button>
           <?php foreach ($types as $t): ?>
-            <button class="pos-tab" data-filter="type" data-value="<?= $t['id'] ?>" onclick="setFilter('type','<?= $t['id'] ?>')"><?= htmlspecialchars($t['name']) ?></button>
+            <button class="pos-tab" data-filter="type" data-value="<?= $t['id'] ?>" onclick="setFilter('type','<?= $t['id'] ?>')"><?= htmlspecialchars($t['code']) ?></button>
           <?php endforeach; ?>
         </div>
       </div>
@@ -74,7 +74,7 @@
         <div class="pos-tab-scroll">
           <button class="pos-tab active" data-filter="size" data-value="" onclick="setFilter('size','')">All</button>
           <?php foreach ($sizes as $s): ?>
-            <button class="pos-tab" data-filter="size" data-value="<?= $s['id'] ?>" onclick="setFilter('size','<?= $s['id'] ?>')"><?= htmlspecialchars($s['name']) ?></button>
+            <button class="pos-tab" data-filter="size" data-value="<?= $s['id'] ?>" onclick="setFilter('size','<?= $s['id'] ?>')"><?= htmlspecialchars($s['code']) ?></button>
           <?php endforeach; ?>
         </div>
       </div>
