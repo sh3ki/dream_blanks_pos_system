@@ -1,5 +1,58 @@
 <?php ob_start(); ?>
 
+<style>
+  .variation-item {
+    cursor: grab;
+    transition: opacity 0.2s ease, border 0.2s ease, background-color 0.2s ease;
+    position: relative;
+    user-select: none;
+  }
+
+  .variation-item.dragging {
+    opacity: 0.4;
+    background-color: var(--color-gray-50);
+    border: 2px dashed var(--color-primary);
+  }
+
+  .variation-item.drag-over {
+    border-top: 3px solid var(--color-primary);
+    background-color: rgba(var(--color-primary-rgb), 0.08);
+    padding-top: calc(12px - 3px) !important;
+  }
+
+  .variation-list.drag-over {
+    background-color: rgba(var(--color-primary-rgb), 0.04);
+    border-radius: 6px;
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    cursor: grab;
+    color: var(--color-gray-400);
+    margin-right: 8px;
+    flex-shrink: 0;
+    transition: color 0.2s ease, cursor 0.2s ease;
+  }
+
+  .drag-handle:hover {
+    color: var(--color-primary);
+    cursor: grab;
+  }
+
+  .variation-item.dragging .drag-handle {
+    cursor: grabbing;
+    color: var(--color-primary);
+  }
+
+  .variation-item[style*="display: none"] {
+    pointer-events: none;
+  }
+</style>
+
 <div class="page-header">
   <h1>Product Variations</h1>
   <p class="text-muted" style="font-size:.875rem;margin-top:4px">Manage categories, colors, sizes, and types used in products.</p>
@@ -25,9 +78,10 @@
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
         <?= icon('search', 14) ?> <input type="text" placeholder="Search categories..." oninput="filterList('catList',this.value)" style="width:calc(100% - 26px)">
       </div>
-      <ul class="variation-list" id="catList">
+      <ul class="variation-list" id="catList" data-type="cat">
         <?php foreach ($categories as $cat): ?>
-        <li class="variation-item" data-name="<?= htmlspecialchars(strtolower($cat['name'])) ?>">
+        <li class="variation-item" draggable="true" data-id="<?= $cat['id'] ?>" data-name="<?= htmlspecialchars(strtolower($cat['name'])) ?>">
+          <div class="drag-handle" title="Drag to reorder"><?= icon('drag-handle', 16) ?></div>
           <div class="variation-info">
             <span class="variation-name"><?= htmlspecialchars($cat['name']) ?></span>
             <?php if (!empty($cat['code'])): ?>
@@ -72,9 +126,10 @@
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
         <?= icon('search', 14) ?> <input type="text" placeholder="Search types..." oninput="filterList('typeList',this.value)" style="width:calc(100% - 26px)">
       </div>
-      <ul class="variation-list" id="typeList">
+      <ul class="variation-list" id="typeList" data-type="type">
         <?php foreach ($types ?? [] as $type): ?>
-        <li class="variation-item" data-name="<?= htmlspecialchars(strtolower($type['name'])) ?>">
+        <li class="variation-item" draggable="true" data-id="<?= $type['id'] ?>" data-name="<?= htmlspecialchars(strtolower($type['name'])) ?>">
+          <div class="drag-handle" title="Drag to reorder"><?= icon('drag-handle', 16) ?></div>
           <div class="variation-info">
             <span class="variation-name"><?= htmlspecialchars($type['name']) ?></span>
             <?php if (!empty($type['code'])): ?>
@@ -116,9 +171,10 @@
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
         <?= icon('search', 14) ?> <input type="text" placeholder="Search colors..." oninput="filterList('colorList',this.value)" style="width:calc(100% - 26px)">
       </div>
-      <ul class="variation-list" id="colorList">
+      <ul class="variation-list" id="colorList" data-type="color">
         <?php foreach ($colors as $color): ?>
-        <li class="variation-item" data-name="<?= htmlspecialchars(strtolower($color['name'])) ?>">
+        <li class="variation-item" draggable="true" data-id="<?= $color['id'] ?>" data-name="<?= htmlspecialchars(strtolower($color['name'])) ?>">
+          <div class="drag-handle" title="Drag to reorder"><?= icon('drag-handle', 16) ?></div>
           <div class="variation-info" style="display:flex;flex-direction:row;align-items:center;gap:10px">
             <?php if (!empty($color['hex_code'])): ?>
               <span class="color-dot" style="background:<?= htmlspecialchars($color['hex_code']) ?>" title="<?= htmlspecialchars($color['hex_code']) ?>"></span>
@@ -165,9 +221,10 @@
       <div class="search-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-gray-100)">
         <?= icon('search', 14) ?> <input type="text" placeholder="Search sizes..." oninput="filterList('sizeList',this.value)" style="width:calc(100% - 26px)">
       </div>
-      <ul class="variation-list" id="sizeList">
+      <ul class="variation-list" id="sizeList" data-type="size">
         <?php foreach ($sizes as $size): ?>
-        <li class="variation-item" data-name="<?= htmlspecialchars(strtolower($size['name'])) ?>">
+        <li class="variation-item" draggable="true" data-id="<?= $size['id'] ?>" data-name="<?= htmlspecialchars(strtolower($size['name'])) ?>">
+          <div class="drag-handle" title="Drag to reorder"><?= icon('drag-handle', 16) ?></div>
           <div class="variation-info">
             <span class="variation-name"><?= htmlspecialchars($size['name']) ?></span>
             <?php if (!empty($size['code'])): ?>
@@ -446,6 +503,267 @@ function deleteVariation(type, id, name) {
   };
   openModal('deleteModal');
 }
+
+// ── DRAG & DROP FUNCTIONALITY ───────────────────────────────────────
+
+let draggedItem = null;
+let dragSource = null;
+
+
+function buildReorderUrl(type) {
+  const paths = {
+    cat:   '/api/v1/variations/categories/reorder',
+    type:  '/api/v1/variations/types/reorder',
+    color: '/api/v1/variations/colors/reorder',
+    size:  '/api/v1/variations/sizes/reorder',
+  };
+  
+  if (!paths[type]) {
+    console.error(`Unknown variation type: ${type}`);
+    return null;
+  }
+  
+  return paths[type];
+}
+
+function initDragAndDrop() {
+  const lists = document.querySelectorAll('.variation-list');
+  console.log(`Initializing drag-drop for ${lists.length} lists`);
+  
+  lists.forEach(list => {
+    const items = list.querySelectorAll('.variation-item:not(.empty-list-msg)');
+    console.log(`  List "${list.getAttribute('data-type')}" has ${items.length} items`);
+    
+    // Add listeners to each item for drag start/end
+    items.forEach(item => {
+      item.addEventListener('dragstart', handleDragStart, false);
+      item.addEventListener('dragend', handleDragEnd, false);
+    });
+    
+    // Add listeners to the list itself for drop zone
+    list.addEventListener('dragover', handleListDragOver, false);
+    list.addEventListener('drop', handleListDrop, false);
+    list.addEventListener('dragenter', handleListDragEnter, false);
+    list.addEventListener('dragleave', handleListDragLeave, false);
+  });
+}
+
+function handleDragStart(e) {
+  draggedItem = this;
+  dragSource = this.parentNode;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML);
+  console.log('Drag started on item:', this.getAttribute('data-id'));
+}
+
+function handleDragEnd(e) {
+  if (this === draggedItem) {
+    this.classList.remove('dragging');
+  }
+  // Clear all drop indicators
+  document.querySelectorAll('.variation-item.drag-over').forEach(item => {
+    item.classList.remove('drag-over');
+  });
+  document.querySelectorAll('.variation-list.drag-over').forEach(list => {
+    list.classList.remove('drag-over');
+  });
+  console.log('Drag ended');
+}
+
+function handleListDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  
+  if (draggedItem && draggedItem.parentNode === this) {
+    // Find the item under the cursor
+    const items = Array.from(this.querySelectorAll('.variation-item:not(.empty-list-msg)'))
+      .filter(item => item.style.display !== 'none');
+    
+    for (let item of items) {
+      const rect = item.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        if (item !== draggedItem) {
+          item.classList.add('drag-over');
+        }
+      } else {
+        item.classList.remove('drag-over');
+      }
+    }
+  }
+  
+  return false;
+}
+
+function handleListDragEnter(e) {
+  if (draggedItem && draggedItem.parentNode === this) {
+    this.classList.add('drag-over');
+  }
+}
+
+function handleListDragLeave(e) {
+  // Only remove class if leaving the list entirely
+  if (e.target === this) {
+    this.classList.remove('drag-over');
+    document.querySelectorAll('.variation-item.drag-over').forEach(item => {
+      item.classList.remove('drag-over');
+    });
+  }
+}
+
+function handleListDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+  
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  
+  console.log('Drop detected on list');
+  
+  if (!draggedItem || draggedItem.parentNode !== this) {
+    console.log('Drop rejected: item not from this list');
+    return false;
+  }
+  
+  // Skip if hidden
+  if (draggedItem.style.display === 'none') {
+    console.warn('Cannot reorder hidden items');
+    return false;
+  }
+  
+  // Find visible items only
+  const items = Array.from(this.querySelectorAll('.variation-item:not(.empty-list-msg)'))
+    .filter(item => item.style.display !== 'none');
+  
+  // Find which item is under the cursor
+  const targetItem = Array.from(items).find(item => {
+    if (item === draggedItem) return false;
+    const rect = item.getBoundingClientRect();
+    return e.clientY >= rect.top && e.clientY <= rect.bottom;
+  });
+  
+  if (targetItem) {
+    const rect = targetItem.getBoundingClientRect();
+    const isBottom = e.clientY > rect.top + rect.height / 2;
+    
+    if (isBottom) {
+      targetItem.parentNode.insertBefore(draggedItem, targetItem.nextSibling);
+    } else {
+      targetItem.parentNode.insertBefore(draggedItem, targetItem);
+    }
+    
+    console.log('Item reordered');
+  } else {
+    console.log('No target item found under cursor');
+  }
+  
+  // Clear visual indicators
+  this.classList.remove('drag-over');
+  document.querySelectorAll('.variation-item.drag-over').forEach(item => {
+    item.classList.remove('drag-over');
+  });
+  
+  // Save the new order
+  const listType = this.getAttribute('data-type');
+  if (listType) {
+    console.log(`Saving reorder for type: ${listType}`);
+    saveReorder(listType);
+  } else {
+    console.error('Could not determine list type from data-type attribute');
+  }
+  
+  return false;
+}
+
+async function saveReorder(type) {
+  const list = document.querySelector(`[data-type="${type}"]`);
+  if (!list) {
+    console.error('List not found for type:', type);
+    return;
+  }
+  
+  // Get only visible items (not filtered out)
+  const items = list.querySelectorAll('.variation-item:not(.empty-list-msg)');
+  const orderedIds = Array.from(items)
+    .filter(item => {
+      // Skip hidden items from search filter
+      return item.style.display !== 'none';
+    })
+    .map(item => {
+      const id = item.getAttribute('data-id');
+      return parseInt(id, 10);
+    });
+  
+  if (orderedIds.length === 0) {
+    console.warn('No visible items found to reorder');
+    return;
+  }
+  
+  console.log(`Reordering ${type}:`, orderedIds);
+  
+  const url = buildReorderUrl(type);
+  if (!url) {
+    console.error('Could not build reorder URL for type:', type);
+    showToast('Configuration error', 'error');
+    return;
+  }
+  
+  console.log(`Sending to URL: ${url}`);
+  console.log(`CSRF Token: ${csrf ? csrf.substring(0, 20) + '...' : 'MISSING'}`);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf
+      },
+      body: JSON.stringify({ order: orderedIds })
+    });
+    
+    console.log(`Response status: ${res.status}`);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`HTTP Error: ${res.status} ${res.statusText}`, errorText);
+      throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
+    }
+    
+    const data = await res.json();
+    console.log('Reorder response:', data);
+    
+    if (data.success) {
+      showToast(data.message || 'Order updated', 'success');
+    } else {
+      console.error('Reorder failed:', data);
+      showToast(data.message || 'Error reordering', 'error');
+      setTimeout(() => location.reload(), 1500);
+    }
+  } catch (e) {
+    console.error('Network error during reorder:', e);
+    showToast('Network error while reordering: ' + e.message, 'error');
+    // Don't reload - let user retry
+  }
+}
+
+// Initialize drag and drop on page load
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Page loaded - initializing drag and drop');
+  initDragAndDrop();
+});
+
+// Re-init drag and drop after modal close to catch any updates
+window.addEventListener('closeModal', function() {
+  console.log('Modal closed - re-initializing drag and drop');
+  setTimeout(initDragAndDrop, 100);
+});
 </script>
 
 <?php
