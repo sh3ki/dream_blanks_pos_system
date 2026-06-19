@@ -763,10 +763,12 @@ function loadProducts() {
   if (color)    params.set('color_id', color);
   if (size)     params.set('size_id', size);
   if (status)   params.set('status', status);
-  // Preserve current sort/order from URL
+  // Preserve current sort/order and page from URL
   const cur = new URLSearchParams(window.location.search);
   if (cur.get('sort'))  params.set('sort',  cur.get('sort'));
   if (cur.get('order')) params.set('order', cur.get('order'));
+  if (cur.get('page'))  params.set('page',  cur.get('page'));
+  if (cur.get('per_page')) params.set('per_page', cur.get('per_page'));
   const qs = params.toString();
   const pageUrl = window.location.origin + productsBaseUrl + (qs ? '?' + qs : '');
   history.pushState({}, '', pageUrl);
