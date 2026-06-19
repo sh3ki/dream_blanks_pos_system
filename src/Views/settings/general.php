@@ -163,6 +163,6 @@ async function saveSettings() {
 
 <?php
 $content = ob_get_clean();
-$title   = 'Settings | Dream Blanks POS';
+$title   = 'Settings';
 require VIEW_PATH . '/layouts/main.php';
 ?>
