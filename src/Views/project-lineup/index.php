@@ -97,7 +97,7 @@ $archivedTabUrl = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => '
           <option value="">All Categories</option>
           <?php foreach ($categories as $cat): ?>
           <option value="<?= htmlspecialchars($cat['name']) ?>" <?= ($filters['category'] ?? '') === $cat['name'] ? 'selected' : '' ?>>
-            <?= htmlspecialchars($cat['name']) ?>
+            <?= htmlspecialchars($cat['code']) ?>
           </option>
           <?php endforeach; ?>
         </select>
@@ -105,7 +105,7 @@ $archivedTabUrl = '?' . http_build_query(array_merge($tabBaseParams, ['tab' => '
           <option value="">All Types</option>
           <?php foreach ($types as $tp): ?>
           <option value="<?= htmlspecialchars($tp['name']) ?>" <?= ($filters['type'] ?? '') === $tp['name'] ? 'selected' : '' ?>>
-            <?= htmlspecialchars($tp['name']) ?>
+            <?= htmlspecialchars($tp['code']) ?>
           </option>
           <?php endforeach; ?>
         </select>
