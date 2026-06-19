@@ -45,6 +45,9 @@ $currentPath = strtok($currentPath, '?');
 ?>
 <div class="app-wrapper">
 
+  <!-- Mobile Sidebar Overlay Backdrop -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -158,7 +161,7 @@ $currentPath = strtok($currentPath, '?');
   <!-- Topbar -->
   <header class="topbar" id="topbar">
     <div class="topbar-left">
-      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><?= icon('menu', 20) ?></button>
+      <button class="sidebar-toggle" id="sidebarToggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar"><?= icon('menu', 20) ?></button>
       <span class="page-title"><?= htmlspecialchars($pageTitle ?? ($title ?? '')) ?></span>
     </div>
     <div class="topbar-right">
