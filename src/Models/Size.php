@@ -10,7 +10,7 @@ class Size extends Model
     public static function allActive(): array
     {
         return static::db()->select(
-            "SELECT * FROM sizes WHERE status = 'active' AND deleted_at IS NULL ORDER BY name"
+            "SELECT * FROM sizes WHERE status = 'active' AND deleted_at IS NULL ORDER BY `order` ASC, name ASC"
         );
     }
 }
