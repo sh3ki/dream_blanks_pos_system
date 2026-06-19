@@ -191,21 +191,25 @@ $router->put('/api/v1/settings', [\App\Controllers\SettingsController::class, 'u
 // Variations API
 $router->get('/api/v1/variations/categories',          [\App\Controllers\VariationController::class, 'listCategories'],   $auth);
 $router->post('/api/v1/variations/categories',         [\App\Controllers\VariationController::class, 'storeCategory'],    $auth);
+$router->post('/api/v1/variations/categories/reorder', [\App\Controllers\VariationController::class, 'reorderCategories'], $auth);
 $router->put('/api/v1/variations/categories/{id}',     [\App\Controllers\VariationController::class, 'updateCategory'],   $auth);
 $router->delete('/api/v1/variations/categories/{id}',  [\App\Controllers\VariationController::class, 'destroyCategory'],  $auth);
 
 $router->get('/api/v1/variations/colors',              [\App\Controllers\VariationController::class, 'listColors'],       $auth);
 $router->post('/api/v1/variations/colors',             [\App\Controllers\VariationController::class, 'storeColor'],       $auth);
+$router->post('/api/v1/variations/colors/reorder',     [\App\Controllers\VariationController::class, 'reorderColors'],     $auth);
 $router->put('/api/v1/variations/colors/{id}',         [\App\Controllers\VariationController::class, 'updateColor'],      $auth);
 $router->delete('/api/v1/variations/colors/{id}',      [\App\Controllers\VariationController::class, 'destroyColor'],     $auth);
 
 $router->get('/api/v1/variations/sizes',               [\App\Controllers\VariationController::class, 'listSizes'],        $auth);
 $router->post('/api/v1/variations/sizes',              [\App\Controllers\VariationController::class, 'storeSize'],        $auth);
+$router->post('/api/v1/variations/sizes/reorder',      [\App\Controllers\VariationController::class, 'reorderSizes'],      $auth);
 $router->put('/api/v1/variations/sizes/{id}',          [\App\Controllers\VariationController::class, 'updateSize'],       $auth);
 $router->delete('/api/v1/variations/sizes/{id}',       [\App\Controllers\VariationController::class, 'destroySize'],      $auth);
 
 $router->get('/api/v1/variations/types',               [\App\Controllers\VariationController::class, 'listTypes'],        $auth);
 $router->post('/api/v1/variations/types',              [\App\Controllers\VariationController::class, 'storeType'],        $auth);
+$router->post('/api/v1/variations/types/reorder',      [\App\Controllers\VariationController::class, 'reorderTypes'],      $auth);
 $router->put('/api/v1/variations/types/{id}',          [\App\Controllers\VariationController::class, 'updateType'],       $auth);
 $router->delete('/api/v1/variations/types/{id}',       [\App\Controllers\VariationController::class, 'destroyType'],      $auth);
 
