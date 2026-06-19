@@ -20,13 +20,13 @@
       <select id="categoryFilter" class="form-select" style="width:140px;height:38px" onchange="loadProducts()">
         <option value="">All Categories</option>
         <?php foreach ($categories as $cat): ?>
-          <option value="<?= $cat['id'] ?>" <?= ($filters['category_id'] ?? '') == $cat['id'] ? 'selected' : '' ?>><?= htmlspecialchars($cat['name']) ?></option>
+          <option value="<?= $cat['id'] ?>" <?= ($filters['category_id'] ?? '') == $cat['id'] ? 'selected' : '' ?>><?= htmlspecialchars($cat['code']) ?></option>
         <?php endforeach; ?>
       </select>
       <select id="typeFilter" class="form-select" style="width:130px;height:38px" onchange="loadProducts()">
         <option value="">All Types</option>
         <?php foreach ($types ?? [] as $t): ?>
-          <option value="<?= $t['id'] ?>" <?= ($filters['type_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= htmlspecialchars($t['name']) ?></option>
+          <option value="<?= $t['id'] ?>" <?= ($filters['type_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= htmlspecialchars($t['code']) ?></option>
         <?php endforeach; ?>
       </select>
       <select id="colorFilter" class="form-select" style="width:120px;height:38px" onchange="loadProducts()">
@@ -38,7 +38,7 @@
       <select id="sizeFilter" class="form-select" style="width:110px;height:38px" onchange="loadProducts()">
         <option value="">All Sizes</option>
         <?php foreach ($sizes as $s): ?>
-          <option value="<?= $s['id'] ?>" <?= ($filters['size_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?></option>
+          <option value="<?= $s['id'] ?>" <?= ($filters['size_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['code']) ?></option>
         <?php endforeach; ?>
       </select>
       <select id="statusFilter" class="form-select" style="width:120px;height:38px" onchange="loadProducts()">
@@ -169,7 +169,7 @@
             <select id="pCategory" name="category_id" class="form-select">
               <option value="">None</option>
               <?php foreach ($categories as $c): ?>
-                <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+                <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['code']) ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -178,7 +178,7 @@
             <select id="pType" name="type_id" class="form-select">
               <option value="">None</option>
               <?php foreach ($types ?? [] as $t): ?>
-                <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['name']) ?></option>
+                <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['code']) ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -198,7 +198,7 @@
             <select id="pSize" name="size_id" class="form-select">
               <option value="">None</option>
               <?php foreach ($sizes as $s): ?>
-                <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
+                <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['code']) ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -226,7 +226,7 @@
             <select id="sreqTypeFilter" class="form-select" style="width:120px;height:34px" onchange="filterSreqPicker()">
               <option value="">All Types</option>
               <?php foreach ($types ?? [] as $t): ?>
-              <option value="<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['name']) ?></option>
+              <option value="<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['code']) ?></option>
               <?php endforeach; ?>
             </select>
             <select id="sreqColorFilter" class="form-select" style="width:110px;height:34px" onchange="filterSreqPicker()">
@@ -238,7 +238,7 @@
             <select id="sreqSizeFilter" class="form-select" style="width:100px;height:34px" onchange="filterSreqPicker()">
               <option value="">All Sizes</option>
               <?php foreach ($sizes as $s): ?>
-              <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
+              <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['code']) ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -506,7 +506,16 @@ function toggleSreqSelectAll(cb) {
 
 function updateSreqSelectedCount() {
   const el = document.getElementById('sreqSelectedCount');
-  if (el) el.textContent = `${_sreqSelections.size} item(s) selected`;
+  if (el) {
+    const count = _sreqSelections.size;
+    const codes = [];
+    _sreqSelections.forEach((entry, id) => {
+      const sp = _allSPsReq.find(s => s.id === id);
+      if (sp) codes.push(sp.code);
+    });
+    const codeStr = codes.length > 0 ? codes.join(', ') : '';
+    el.innerHTML = `${count} item(s) selected${codeStr ? `<br><code style="font-size:.75rem;color:var(--color-gray-400)">${codeStr}</code>` : ''}`;
+  }
 }
 
 function collectStockReqs() {
