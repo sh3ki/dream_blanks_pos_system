@@ -1099,6 +1099,8 @@ function loadSp() {
   const cur = new URLSearchParams(window.location.search);
   if (cur.get('sort'))  params.set('sort',  cur.get('sort'));
   if (cur.get('order')) params.set('order', cur.get('order'));
+  if (cur.get('page'))  params.set('page',  cur.get('page'));
+  if (cur.get('per_page')) params.set('per_page', cur.get('per_page'));
   const qs      = params.toString();
   const pageUrl = window.location.origin + spBaseUrl + (qs ? '?' + qs : '');
   history.pushState({}, '', pageUrl);
