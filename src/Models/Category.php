@@ -10,7 +10,7 @@ class Category extends Model
     public static function allActive(): array
     {
         return static::db()->select(
-            "SELECT * FROM categories WHERE status = 'active' AND deleted_at IS NULL ORDER BY name"
+            "SELECT * FROM categories WHERE status = 'active' AND deleted_at IS NULL ORDER BY `order` ASC, name ASC"
         );
     }
 }
