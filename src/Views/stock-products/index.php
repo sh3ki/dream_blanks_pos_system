@@ -93,7 +93,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
       <select id="typeFilter" class="form-select" style="width:130px;height:38px" onchange="loadSp()">
         <option value="">All Types</option>
         <?php foreach ($types ?? [] as $t): ?>
-          <option value="<?= $t['id'] ?>" <?= ($filters['type_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= htmlspecialchars($t['name']) ?></option>
+          <option value="<?= $t['id'] ?>" <?= ($filters['type_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= htmlspecialchars($t['code']) ?></option>
         <?php endforeach; ?>
       </select>
       <select id="colorFilter" class="form-select" style="width:120px;height:38px" onchange="loadSp()">
@@ -105,7 +105,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
       <select id="sizeFilter" class="form-select" style="width:110px;height:38px" onchange="loadSp()">
         <option value="">All Sizes</option>
         <?php foreach ($sizes ?? [] as $s): ?>
-          <option value="<?= $s['id'] ?>" <?= ($filters['size_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?></option>
+          <option value="<?= $s['id'] ?>" <?= ($filters['size_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['code']) ?></option>
         <?php endforeach; ?>
       </select>
       <select id="statusFilter" class="form-select" style="width:120px;height:38px" onchange="loadSp()">
@@ -220,7 +220,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
         <select id="histTypeIdFilter" class="form-select" style="width:130px;height:38px" onchange="applyHistFilters()">
           <option value="">All Types</option>
           <?php foreach ($types ?? [] as $t): ?>
-            <option value="<?= $t['id'] ?>" <?= ($hist_filters['type_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= htmlspecialchars($t['name']) ?></option>
+            <option value="<?= $t['id'] ?>" <?= ($hist_filters['type_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= htmlspecialchars($t['code']) ?></option>
           <?php endforeach; ?>
         </select>
         <select id="histColorIdFilter" class="form-select" style="width:120px;height:38px" onchange="applyHistFilters()">
@@ -232,7 +232,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
         <select id="histSizeIdFilter" class="form-select" style="width:110px;height:38px" onchange="applyHistFilters()">
           <option value="">All Sizes</option>
           <?php foreach ($sizes ?? [] as $s): ?>
-            <option value="<?= $s['id'] ?>" <?= ($hist_filters['size_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?></option>
+            <option value="<?= $s['id'] ?>" <?= ($hist_filters['size_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['code']) ?></option>
           <?php endforeach; ?>
         </select>
         <select id="histByFilter" class="form-select" style="width:150px;height:38px" onchange="applyHistFilters()">
@@ -406,7 +406,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
           <select id="spType" class="form-select">
             <option value="">None</option>
             <?php foreach ($types ?? [] as $t): ?>
-              <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['name']) ?></option>
+              <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['code']) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -426,7 +426,7 @@ function roSortLinkSp(string $col, string $label, string $cs, string $co, array 
           <select id="spSize" class="form-select">
             <option value="">None</option>
             <?php foreach ($sizes ?? [] as $s): ?>
-              <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
+              <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['code']) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -1308,7 +1308,19 @@ function toggleRestockSelectAll(cb) {
 function updateRoSummary() {
   const count = Object.keys(_spSels).length;
   const el = document.getElementById('roSelectedSummary');
-  if (el) el.textContent = count ? `${count} item(s) selected` : 'No items selected';
+  if (el) {
+    if (count === 0) {
+      el.innerHTML = 'No items selected';
+    } else {
+      const codes = [];
+      Object.keys(_spSels).forEach(id => {
+        const sp = _allSPs.find(s => s.id == id);
+        if (sp) codes.push(sp.code);
+      });
+      const codeStr = codes.length > 0 ? codes.join(', ') : '';
+      el.innerHTML = `${count} item(s) selected${codeStr ? `<br><code style="font-size:.75rem;color:var(--color-gray-400)">${codeStr}</code>` : ''}`;
+    }
+  }
 }
 
 async function openRestock() {
