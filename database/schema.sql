@@ -143,13 +143,15 @@ CREATE TABLE IF NOT EXISTS `categories` (
     `name` VARCHAR(100) UNIQUE NOT NULL,
     `code` VARCHAR(20) UNIQUE NOT NULL,
     `description` TEXT NULL,
+    `order` INT NOT NULL DEFAULT 0,
     `status` ENUM('active','inactive') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` TIMESTAMP NULL,
     INDEX `idx_name` (`name`),
     INDEX `idx_code` (`code`),
-    INDEX `idx_status` (`status`)
+    INDEX `idx_status` (`status`),
+    INDEX `idx_order` (`order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Colors Table
@@ -157,11 +159,13 @@ CREATE TABLE IF NOT EXISTS `colors` (
     `id` INT PRIMARY KEY AUTO_INCREMENT,
     `name` VARCHAR(50) UNIQUE NOT NULL,
     `hex_code` VARCHAR(7) NULL,
+    `order` INT NOT NULL DEFAULT 0,
     `status` ENUM('active','inactive') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` TIMESTAMP NULL,
-    INDEX `idx_name` (`name`)
+    INDEX `idx_name` (`name`),
+    INDEX `idx_order` (`order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Sizes Table
@@ -169,12 +173,14 @@ CREATE TABLE IF NOT EXISTS `sizes` (
     `id` INT PRIMARY KEY AUTO_INCREMENT,
     `name` VARCHAR(50) UNIQUE NOT NULL,
     `code` VARCHAR(10) UNIQUE NOT NULL,
+    `order` INT NOT NULL DEFAULT 0,
     `status` ENUM('active','inactive') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` TIMESTAMP NULL,
     INDEX `idx_name` (`name`),
-    INDEX `idx_code` (`code`)
+    INDEX `idx_code` (`code`),
+    INDEX `idx_order` (`order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Types Table
@@ -182,12 +188,14 @@ CREATE TABLE IF NOT EXISTS `types` (
     `id` INT PRIMARY KEY AUTO_INCREMENT,
     `name` VARCHAR(50) UNIQUE NOT NULL,
     `code` VARCHAR(20) UNIQUE NOT NULL,
+    `order` INT NOT NULL DEFAULT 0,
     `status` ENUM('active','inactive') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` TIMESTAMP NULL,
     INDEX `idx_name` (`name`),
-    INDEX `idx_code` (`code`)
+    INDEX `idx_code` (`code`),
+    INDEX `idx_order` (`order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Products Table
