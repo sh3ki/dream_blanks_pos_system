@@ -94,7 +94,56 @@
     <div class="cart-header" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--color-gray-100);flex-wrap:wrap">
       <span style="display:flex;align-items:center;gap:5px;font-weight:600;font-size:.9rem;flex:0 0 auto"><?= icon('pos', 16) ?> Cart (<span id="cartCount">0</span>)</span>
       <button class="btn btn-secondary btn-sm" onclick="clearCart()" style="flex:0 0 auto"><?= icon('delete', 13) ?> Clear</button>
-      <select id="clientSelect" class="form-select" style="flex:1;min-width:120px;height:32px;font-size:.8rem">
+      
+      <!-- Dropdown with internal search -->
+      <div class="client-dropdown-wrapper" style="flex:1;min-width:120px;position:relative">
+        <div id="clientSelectDisplay" style="
+          height:40px;
+          padding:8px 12px;
+          border:1px solid var(--color-gray-300);
+          border-radius:var(--border-radius-sm);
+          background:#fff;
+          font-size:.9rem;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          cursor:pointer;
+          user-select:none;
+          color:var(--color-dark-gray);
+          transition:var(--transition);"
+          onclick="toggleClientDropdown()">
+          <span id="clientSelectText">Walk-in Customer</span>
+          <span style="color:var(--color-gray-500);font-size:.75rem">▼</span>
+        </div>
+        
+        <div id="clientDropdownList" style="
+          position:absolute;
+          top:calc(100% + 4px);
+          left:0;
+          right:0;
+          background:#fff;
+          border:1px solid var(--color-gray-300);
+          border-radius:var(--border-radius-sm);
+          max-height:240px;
+          overflow:hidden;
+          display:none;
+          z-index:1000;
+          box-shadow:0 4px 8px rgba(0,0,0,0.1)">
+          <input 
+            type="text" 
+            id="clientSearchInput" 
+            class="form-input"
+            placeholder="Search client..."
+            style="width:100%;padding:8px 12px;border:none;border-bottom:1px solid var(--color-gray-100);font-size:.9rem;box-sizing:border-box;height:auto;margin:0;border-radius:0"
+            oninput="filterClients(this.value)">
+          <div id="clientDropdownOptions" style="max-height:190px;overflow-y:auto">
+            <div style="padding:12px;color:var(--color-gray-400);font-size:.875rem;text-align:center">Loading clients...</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Hidden select for form submission -->
+      <select id="clientSelect" style="display:none">
         <option value="">Walk-in Customer</option>
       </select>
     </div>
@@ -685,20 +734,134 @@ async function checkout() {
 function closeReceipt() { closeModal('receiptModal'); loadProducts(); }
 
 
+// Store all clients for filtering
+let allClients = [];
+let clientDropdownOpen = false;
 
 function loadClients() {
   fetch('/api/v1/clients?per_page=200').then(r => r.json()).then(res => {
     if (res.success) {
+      allClients = res.data.clients || [];
+      
+      // Populate hidden select for form submission
       const sel = document.getElementById('clientSelect');
-      res.data.clients.forEach(c => {
+      allClients.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
         opt.textContent = c.full_name;
         sel.appendChild(opt);
       });
+      
+      // Display initial clients in dropdown
+      renderClientDropdown(allClients);
     }
   });
 }
+
+function renderClientDropdown(clients) {
+  const optionsContainer = document.getElementById('clientDropdownOptions');
+  if (!optionsContainer) return;
+  
+  // Start with Walk-in Customer option
+  let html = `
+    <div class="client-dropdown-option" style="
+      padding:10px 12px;
+      border-bottom:1px solid var(--color-gray-100);
+      cursor:pointer;
+      font-size:.9rem;
+      color:var(--color-dark-gray);
+      transition:background-color 0.15s ease;
+      font-weight:600;"
+      onclick="selectClient('', 'Walk-in Customer');"
+      onmouseover="this.style.backgroundColor='var(--bg-secondary)'"
+      onmouseout="this.style.backgroundColor='transparent'">
+      Walk-in Customer
+    </div>
+  `;
+  
+  if (clients.length === 0) {
+    optionsContainer.innerHTML = html;
+    return;
+  }
+  
+  html += clients.map(client => `
+    <div class="client-dropdown-option" style="
+      padding:10px 12px;
+      border-bottom:1px solid var(--color-gray-100);
+      cursor:pointer;
+      font-size:.9rem;
+      color:var(--color-dark-gray);
+      transition:background-color 0.15s ease;"
+      onclick="selectClient(${client.id}, '${client.full_name.replace(/'/g, "\\'")}');"
+      onmouseover="this.style.backgroundColor='var(--bg-secondary)'"
+      onmouseout="this.style.backgroundColor='transparent'">
+      ${escapeHtml(client.full_name)}
+    </div>
+  `).join('');
+  
+  optionsContainer.innerHTML = html;
+}
+
+function filterClients(searchTerm) {
+  const term = searchTerm.toLowerCase().trim();
+  
+  if (!term) {
+    renderClientDropdown(allClients);
+  } else {
+    const filtered = allClients.filter(client => 
+      client.full_name.toLowerCase().includes(term)
+    );
+    renderClientDropdown(filtered);
+  }
+}
+
+function toggleClientDropdown() {
+  const dropdown = document.getElementById('clientDropdownList');
+  const display = document.getElementById('clientSelectDisplay');
+  const searchInput = document.getElementById('clientSearchInput');
+  
+  if (!clientDropdownOpen) {
+    dropdown.style.display = 'block';
+    display.style.borderColor = 'var(--color-primary)';
+    display.style.boxShadow = '0 0 0 3px rgba(0,86,179,0.12)';
+    clientDropdownOpen = true;
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+      renderClientDropdown(allClients);
+    }
+  } else {
+    closeClientDropdown();
+  }
+}
+
+function closeClientDropdown() {
+  const dropdown = document.getElementById('clientDropdownList');
+  const display = document.getElementById('clientSelectDisplay');
+  dropdown.style.display = 'none';
+  display.style.borderColor = 'var(--color-gray-300)';
+  display.style.boxShadow = 'none';
+  clientDropdownOpen = false;
+}
+
+function selectClient(clientId, clientName) {
+  const display = document.getElementById('clientSelectDisplay');
+  const text = document.getElementById('clientSelectText');
+  const hiddenSelect = document.getElementById('clientSelect');
+  
+  if (text) text.textContent = clientName;
+  if (hiddenSelect) hiddenSelect.value = clientId;
+  
+  closeClientDropdown();
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrapper = document.querySelector('.client-dropdown-wrapper');
+  if (wrapper && !wrapper.contains(e.target) && clientDropdownOpen) {
+    closeClientDropdown();
+  }
+});
 </script>
 <?php
 $content = ob_get_clean();
