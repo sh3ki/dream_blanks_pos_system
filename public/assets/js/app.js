@@ -40,6 +40,11 @@ function closeModal(id) { document.getElementById(id)?.classList.remove('show');
 // Modal overlays do NOT close on backdrop click — only the X button closes them.
 
 // Sidebar toggle
+function isMobileView() {
+  // Check if we're in the mobile media query breakpoint
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
 function applySidebarState(collapsed) {
   const sidebar = document.getElementById('sidebar');
   const topbar = document.getElementById('topbar');
@@ -51,19 +56,106 @@ function applySidebarState(collapsed) {
   mainContent.classList.toggle('sidebar-collapsed', collapsed);
 }
 
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const appWrapper = document.querySelector('.app-wrapper');
+  const body = document.body;
+  if (sidebar) {
+    sidebar.classList.remove('mobile-open');
+    sidebar.classList.remove('collapsed');
+  }
+  if (appWrapper) appWrapper.classList.remove('sidebar-mobile-open');
+  if (body) body.classList.remove('sidebar-mobile-open');
+}
+
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
+  const appWrapper = document.querySelector('.app-wrapper');
+  const body = document.body;
   if (!sidebar) return;
-  const collapsed = !sidebar.classList.contains('collapsed');
-  applySidebarState(collapsed);
-  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  console.log('[DEBUG] toggleSidebar called. isMobile:', isMobile, 'viewport:', window.innerWidth);
+
+  if (isMobile) {
+    const isCurrentlyOpen = sidebar.classList.contains('mobile-open');
+    const shouldOpen = !isCurrentlyOpen;
+    
+    console.log('[DEBUG] Mobile mode. isCurrentlyOpen:', isCurrentlyOpen, 'shouldOpen:', shouldOpen);
+    
+    sidebar.classList.toggle('mobile-open', shouldOpen);
+    sidebar.classList.remove('collapsed');
+    if (appWrapper) {
+      appWrapper.classList.toggle('sidebar-mobile-open', shouldOpen);
+    }
+    if (body) {
+      body.classList.toggle('sidebar-mobile-open', shouldOpen);
+    }
+    
+    console.log('[DEBUG] Sidebar classes:', sidebar.className);
+  } else {
+    console.log('[DEBUG] Desktop mode. Applying collapse behavior.');
+    sidebar.classList.remove('mobile-open');
+    const collapsed = !sidebar.classList.contains('collapsed');
+    applySidebarState(collapsed);
+    try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+  }
+}
+
+function setMobileSidebarOpen(isOpen) {
+  const sidebar = document.getElementById('sidebar');
+  const appWrapper = document.querySelector('.app-wrapper');
+  const body = document.body;
+  const overlay = document.getElementById('sidebarOverlay');
+
+  if (!sidebar || !appWrapper || !body) return;
+
+  sidebar.classList.toggle('mobile-open', isOpen);
+  sidebar.style.transform = isOpen ? 'translateX(0)' : 'translateX(-100%)';
+  appWrapper.classList.toggle('sidebar-mobile-open', isOpen);
+  body.classList.toggle('sidebar-mobile-open', isOpen);
+  if (overlay) overlay.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  try {
-    const saved = localStorage.getItem('sidebarCollapsed') === '1';
-    applySidebarState(saved);
-  } catch (e) { /* ignore */ }
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeMobileSidebar);
+  }
+
+  // On desktop, restore saved collapsed state
+  if (!isMobileView()) {
+    try {
+      const saved = localStorage.getItem('sidebarCollapsed') === '1';
+      applySidebarState(saved);
+    } catch (e) { /* ignore */ }
+  }
+
+  // Close mobile sidebar when clicking on a nav link
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function() {
+      if (isMobileView()) {
+        closeMobileSidebar();
+      }
+    });
+  });
+
+  // Handle window resize to reset sidebar state
+  window.addEventListener('resize', function() {
+    if (isMobileView()) {
+      // On mobile: reset to default state
+      closeMobileSidebar();
+    } else {
+      // On desktop: restore collapsed state
+      closeMobileSidebar();
+      try {
+        const saved = localStorage.getItem('sidebarCollapsed') === '1';
+        applySidebarState(saved);
+      } catch (e) { /* ignore */ }
+    }
+  });
 });
 
 // Flash messages auto-dismiss
