@@ -20,16 +20,16 @@ class VariationController extends Controller
     public function index(Request $request): Response
     {
         $categories = $this->db->select(
-            "SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name ASC"
+            "SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC"
         );
         $colors = $this->db->select(
-            "SELECT * FROM colors WHERE deleted_at IS NULL ORDER BY name ASC"
+            "SELECT * FROM colors WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC"
         );
         $sizes = $this->db->select(
-            "SELECT * FROM sizes WHERE deleted_at IS NULL ORDER BY name ASC"
+            "SELECT * FROM sizes WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC"
         );
         $types = $this->db->select(
-            "SELECT * FROM types WHERE deleted_at IS NULL ORDER BY name ASC"
+            "SELECT * FROM types WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC"
         );
 
         return $this->view('variations/index', [
@@ -58,10 +58,14 @@ class VariationController extends Controller
         $existingCode = $this->db->selectOne("SELECT id FROM categories WHERE code = ? AND deleted_at IS NULL", [$code]);
         if ($existingCode) return $this->error('Category code already in use', 409);
 
+        $maxOrder = $this->db->selectOne("SELECT COALESCE(MAX(`order`), 0) as max_order FROM categories WHERE deleted_at IS NULL");
+        $nextOrder = ($maxOrder['max_order'] ?? 0) + 1;
+
         $id = $this->db->insert('categories', [
             'name'        => $name,
             'code'        => $code,
             'description' => trim($request->input('description', '')),
+            'order'       => $nextOrder,
             'status'      => $request->input('status', 'active'),
         ]);
 
@@ -123,9 +127,13 @@ class VariationController extends Controller
         $existing = $this->db->selectOne("SELECT id FROM colors WHERE name = ? AND deleted_at IS NULL", [$name]);
         if ($existing) return $this->error('Color already exists', 409);
 
+        $maxOrder = $this->db->selectOne("SELECT COALESCE(MAX(`order`), 0) as max_order FROM colors WHERE deleted_at IS NULL");
+        $nextOrder = ($maxOrder['max_order'] ?? 0) + 1;
+
         $id = $this->db->insert('colors', [
             'name'     => $name,
             'hex_code' => $hexCode,
+            'order'    => $nextOrder,
             'status'   => $request->input('status', 'active'),
         ]);
 
@@ -183,9 +191,13 @@ class VariationController extends Controller
         $existingCode = $this->db->selectOne("SELECT id FROM sizes WHERE code = ? AND deleted_at IS NULL", [$code]);
         if ($existingCode) return $this->error('Size code already in use', 409);
 
+        $maxOrder = $this->db->selectOne("SELECT COALESCE(MAX(`order`), 0) as max_order FROM sizes WHERE deleted_at IS NULL");
+        $nextOrder = ($maxOrder['max_order'] ?? 0) + 1;
+
         $id = $this->db->insert('sizes', [
             'name'   => $name,
             'code'   => $code,
+            'order'  => $nextOrder,
             'status' => $request->input('status', 'active'),
         ]);
 
@@ -236,19 +248,19 @@ class VariationController extends Controller
 
     public function listCategories(Request $request): Response
     {
-        $rows = $this->db->select("SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name ASC");
+        $rows = $this->db->select("SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC");
         return $this->success($rows);
     }
 
     public function listColors(Request $request): Response
     {
-        $rows = $this->db->select("SELECT * FROM colors WHERE deleted_at IS NULL ORDER BY name ASC");
+        $rows = $this->db->select("SELECT * FROM colors WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC");
         return $this->success($rows);
     }
 
     public function listSizes(Request $request): Response
     {
-        $rows = $this->db->select("SELECT * FROM sizes WHERE deleted_at IS NULL ORDER BY name ASC");
+        $rows = $this->db->select("SELECT * FROM sizes WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC");
         return $this->success($rows);
     }
 
@@ -268,9 +280,13 @@ class VariationController extends Controller
         $existingCode = $this->db->selectOne("SELECT id FROM types WHERE code = ? AND deleted_at IS NULL", [$code]);
         if ($existingCode) return $this->error('Type code already in use', 409);
 
+        $maxOrder = $this->db->selectOne("SELECT COALESCE(MAX(`order`), 0) as max_order FROM types WHERE deleted_at IS NULL");
+        $nextOrder = ($maxOrder['max_order'] ?? 0) + 1;
+
         $id = $this->db->insert('types', [
             'name'   => $name,
             'code'   => $code,
+            'order'  => $nextOrder,
             'status' => $request->input('status', 'active'),
         ]);
 
@@ -319,7 +335,69 @@ class VariationController extends Controller
 
     public function listTypes(Request $request): Response
     {
-        $rows = $this->db->select("SELECT * FROM types WHERE deleted_at IS NULL ORDER BY name ASC");
+        $rows = $this->db->select("SELECT * FROM types WHERE deleted_at IS NULL ORDER BY `order` ASC, created_at ASC");
         return $this->success($rows);
+    }
+
+    // ── REORDER ENDPOINTS ────────────────────────────────────────────────────
+
+    public function reorderCategories(Request $request): Response
+    {
+        $orderedIds = $request->input('order', []);
+        if (!is_array($orderedIds) || empty($orderedIds)) {
+            return $this->error('Order array is required', 422);
+        }
+
+        foreach ($orderedIds as $index => $id) {
+            $this->db->update('categories', ['order' => $index + 1], 'id = ?', [(int)$id]);
+        }
+
+        AuditService::log('update', 'categories', null, null, ['action' => 'reorder']);
+        return $this->success(null, 'Categories reordered');
+    }
+
+    public function reorderColors(Request $request): Response
+    {
+        $orderedIds = $request->input('order', []);
+        if (!is_array($orderedIds) || empty($orderedIds)) {
+            return $this->error('Order array is required', 422);
+        }
+
+        foreach ($orderedIds as $index => $id) {
+            $this->db->update('colors', ['order' => $index + 1], 'id = ?', [(int)$id]);
+        }
+
+        AuditService::log('update', 'colors', null, null, ['action' => 'reorder']);
+        return $this->success(null, 'Colors reordered');
+    }
+
+    public function reorderSizes(Request $request): Response
+    {
+        $orderedIds = $request->input('order', []);
+        if (!is_array($orderedIds) || empty($orderedIds)) {
+            return $this->error('Order array is required', 422);
+        }
+
+        foreach ($orderedIds as $index => $id) {
+            $this->db->update('sizes', ['order' => $index + 1], 'id = ?', [(int)$id]);
+        }
+
+        AuditService::log('update', 'sizes', null, null, ['action' => 'reorder']);
+        return $this->success(null, 'Sizes reordered');
+    }
+
+    public function reorderTypes(Request $request): Response
+    {
+        $orderedIds = $request->input('order', []);
+        if (!is_array($orderedIds) || empty($orderedIds)) {
+            return $this->error('Order array is required', 422);
+        }
+
+        foreach ($orderedIds as $index => $id) {
+            $this->db->update('types', ['order' => $index + 1], 'id = ?', [(int)$id]);
+        }
+
+        AuditService::log('update', 'types', null, null, ['action' => 'reorder']);
+        return $this->success(null, 'Types reordered');
     }
 }
